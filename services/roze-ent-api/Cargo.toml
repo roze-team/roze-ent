@@ -7,30 +7,30 @@ version = "0.1.0"
 [dependencies]
 anyhow = "1"
 config = { version = "0.15.24", default-features = false, features = ["json", "yaml", "toml"] }
-roze-config = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-error = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-health = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-http = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-log = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-metrics = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-middleware = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-rate-limit = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-jwt = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-cache = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-context = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-db = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-mq = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-nats = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-openapi = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-query = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-report = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-result = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-service = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-storage = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-transaction = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-transaction-sql = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-validation = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-roze-rpc = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
+roze-config = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-error = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-health = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-http = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-log = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-metrics = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-middleware = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-rate-limit = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-jwt = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-cache = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-context = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-db = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-mq = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-nats = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-openapi = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-query = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-report = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-result = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-service = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-storage = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-transaction = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-transaction-sql = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-validation = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
+roze-rpc = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
 
 
 serde = { version = "1", features = ["derive"] }
@@ -40,9 +40,9 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "syn
 tracing = "0.1"
 veil = { version = "0.3.0", default-features = false }
 sea-orm = { version = "1", default-features = false, features = ["macros", "runtime-tokio-rustls", "sqlx-mysql", "sqlx-postgres", "sqlx-sqlite"] }
-roze-orm = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
+roze-orm = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
 async-trait = "0.1"
 
 [dev-dependencies]
-roze-migration = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
+roze-migration = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite", "postgres", "mysql", "tls-rustls-ring"] }

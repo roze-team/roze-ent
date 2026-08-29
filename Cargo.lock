@@ -582,9 +582,9 @@ checksum = "61803da095bee82a81bb1a452ecc25d3b2f1416d1897eb86430c6159ef717c17"
 
 [[package]]
 name = "crypto-common"
-version = "0.1.7"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a"
+checksum = "1bfb12502f3fc46cca1bb51ac28df9d618d813cdc3d2f25b9fe775a34af26bb3"
 dependencies = [
  "generic-array",
  "typenum",
@@ -770,7 +770,7 @@ checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
  "block-buffer 0.10.4",
  "const-oid 0.9.6",
- "crypto-common 0.1.7",
+ "crypto-common 0.1.6",
  "subtle",
 ]
 
@@ -1115,9 +1115,9 @@ dependencies = [
 
 [[package]]
 name = "generic-array"
-version = "0.14.7"
+version = "0.14.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a"
+checksum = "4bb6743198531e02858aeaea5398fcc883e71851fcbcb5a2f773e2fb6cb1edf2"
 dependencies = [
  "typenum",
  "version_check",
@@ -3002,7 +3002,7 @@ dependencies = [
 [[package]]
 name = "roze-auth"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3015,7 +3015,7 @@ dependencies = [
 [[package]]
 name = "roze-cache"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "roze-config",
@@ -3029,7 +3029,7 @@ dependencies = [
 [[package]]
 name = "roze-config"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -3055,7 +3055,7 @@ dependencies = [
 [[package]]
 name = "roze-context"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "roze-trace",
 ]
@@ -3063,7 +3063,7 @@ dependencies = [
 [[package]]
 name = "roze-db"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "roze-config",
@@ -3117,7 +3117,7 @@ dependencies = [
 [[package]]
 name = "roze-error"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "http",
  "roze-grpc",
@@ -3130,7 +3130,7 @@ dependencies = [
 [[package]]
 name = "roze-eventbus"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3144,7 +3144,7 @@ dependencies = [
 [[package]]
 name = "roze-grpc"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "http",
@@ -3158,7 +3158,7 @@ dependencies = [
 [[package]]
 name = "roze-health"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "futures-util",
@@ -3170,7 +3170,7 @@ dependencies = [
 [[package]]
 name = "roze-http"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -3202,7 +3202,7 @@ dependencies = [
 [[package]]
 name = "roze-jwt"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3217,7 +3217,7 @@ dependencies = [
 [[package]]
 name = "roze-log"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3235,7 +3235,7 @@ dependencies = [
 [[package]]
 name = "roze-metrics"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "dashmap",
 ]
@@ -3243,7 +3243,7 @@ dependencies = [
 [[package]]
 name = "roze-middleware"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -3273,7 +3273,7 @@ dependencies = [
 [[package]]
 name = "roze-migration"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "serde",
@@ -3285,7 +3285,7 @@ dependencies = [
 [[package]]
 name = "roze-mq"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3305,7 +3305,7 @@ dependencies = [
 [[package]]
 name = "roze-nats"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "async-nats",
@@ -3325,7 +3325,7 @@ dependencies = [
 [[package]]
 name = "roze-openapi"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "serde",
  "serde_json",
@@ -3334,7 +3334,7 @@ dependencies = [
 [[package]]
 name = "roze-opentelemetry"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "opentelemetry",
@@ -3347,7 +3347,7 @@ dependencies = [
 [[package]]
 name = "roze-orm"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "sea-orm",
  "serde",
@@ -3358,7 +3358,7 @@ dependencies = [
 [[package]]
 name = "roze-query"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "thiserror",
@@ -3369,7 +3369,7 @@ dependencies = [
 [[package]]
 name = "roze-rate-limit"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3384,7 +3384,7 @@ dependencies = [
 [[package]]
 name = "roze-redis"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "redis",
@@ -3396,7 +3396,7 @@ dependencies = [
 [[package]]
 name = "roze-report"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3409,7 +3409,7 @@ dependencies = [
 [[package]]
 name = "roze-resilience"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "dashmap",
  "serde_json",
@@ -3418,7 +3418,7 @@ dependencies = [
 [[package]]
 name = "roze-result"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "serde",
 ]
@@ -3426,7 +3426,7 @@ dependencies = [
 [[package]]
 name = "roze-rpc"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3455,7 +3455,7 @@ dependencies = [
 [[package]]
 name = "roze-service"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "roze-shutdown",
@@ -3466,7 +3466,7 @@ dependencies = [
 [[package]]
 name = "roze-shutdown"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "tokio",
 ]
@@ -3474,7 +3474,7 @@ dependencies = [
 [[package]]
 name = "roze-singleflight"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "dashmap",
  "tokio",
@@ -3483,7 +3483,7 @@ dependencies = [
 [[package]]
 name = "roze-storage"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3500,7 +3500,7 @@ dependencies = [
 [[package]]
 name = "roze-trace"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "tracing",
  "uuid",
@@ -3509,7 +3509,7 @@ dependencies = [
 [[package]]
 name = "roze-transaction"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3523,7 +3523,7 @@ dependencies = [
 [[package]]
 name = "roze-transaction-sql"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3538,7 +3538,7 @@ dependencies = [
 [[package]]
 name = "roze-validation"
 version = "1.0.0"
-source = "git+https://github.com/roze-team/roze.git?rev=39bb1afc8aaf759bf130c5008a61f092e7acbc46#39bb1afc8aaf759bf130c5008a61f092e7acbc46"
+source = "git+https://github.com/roze-team/roze.git?rev=1945a037558717ae9253fa61060fe900567e52de#1945a037558717ae9253fa61060fe900567e52de"
 dependencies = [
  "validator",
 ]

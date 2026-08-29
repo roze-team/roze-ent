@@ -21,7 +21,7 @@
 
 | 门禁 | 通过条件 | 当前状态 |
 | --- | --- | --- |
-| 依赖 | 所有 Roze crate 与 `rozectl` 固定到同一上游 revision | 已通过：`39bb1af`，与当前 Roze `main` 一致 |
+| 依赖 | 所有 Roze crate 与 `rozectl` 固定到同一上游 revision | 已通过：`1945a03`，与当前 Roze `main` 一致 |
 | 生成 | `rozectl api/model/openapi --update` 可重复执行，应用自有文件保留且生成结果无漂移 | 持续门禁 |
 | 编译与质量 | Rust 1.98 下 fmt/check/test/clippy 全部通过 | CI 门禁 |
 | 数据行为 | SQLite/PostgreSQL/MySQL 的查询、变更、事务与迁移语义有真实数据库证据 | 持续扩展；三方言 migration 已覆盖 |
@@ -49,6 +49,8 @@ upsert 运行证据。补丁合入、revision 更新并重新生成前，该返�
 负责框架级生成和运行时，仓库只维护领域 schema、API 与应用逻辑。
 
 ## 能力映射
+
+逐项、可验收的完整清单见 [`ENT_COMPATIBILITY.md`](ENT_COMPATIBILITY.md)。下表仅保留迁移总览。
 
 | ent 概念 | Roze/Rust 落点 | 当前状态 |
 | --- | --- | --- |

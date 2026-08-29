@@ -54,7 +54,34 @@ transactions:
     evidence: db_commit_outbox_publish_recovery_test
   dtm_or_saga:
     required_when_multiple_stateful_services_mutate: true
-    evidence: saga_success_failure_compensation_test
+    ownership: external_coordinator
+    recommended_project: https://github.com/roze-team/roze-dtm
+    protocol: http_or_grpc
+    endpoint_source: deployment_config_or_service_discovery
+    bearer_token_source: secret_reference
+    coordinator_revision_required: true
+    revision_endpoint: /api/dtmsvr/version
+    revision_response_field: release_revision
+    startup_revision_match_required: true
+    transport_security:
+      allowed_branch_origins_required: true
+      private_ca_source: readonly_secret_file
+      https_and_grpcs_use_strict_certificate_and_hostname_validation: true
+      insecure_skip_verify_forbidden: true
+    retention:
+      explicit_active_and_finished_windows_required: true
+      compare_and_delete_required: true
+      persistent_audit_retention_independent: true
+    evidence:
+      - coordinator_revision_and_protocol_contract
+      - saga_success_failure_compensation_test
+      - restart_recovery_and_idempotency_test
+      - trusted_branch_tls_callback_test
+      - cross_language_http_jsonrpc_grpc_acceptance
+      - grpc_callback_recovery_matrix
+      - official_dtm_labs_tcc_rollback_acceptance
+      - retention_compare_and_delete_metrics_test
+      - redis_cluster_failover_and_fault_injection_test
   inbox:
     required_when_consuming_events_mutates_state: true
     evidence: duplicate_event_mutates_once

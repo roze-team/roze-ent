@@ -5,6 +5,23 @@ on:
   pull_request:
 
 jobs:
+  generated-code:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Install pinned rozectl
+        run: cargo install --locked --git https://github.com/roze-team/roze.git --rev 1945a037558717ae9253fa61060fe900567e52de rozectl
+      - name: Regenerate API, model, and OpenAPI
+        run: bash scripts/regenerate.sh
+      - name: Reject generated drift
+        run: git diff --exit-code
+
   rust:
     runs-on: ubuntu-latest
     steps:

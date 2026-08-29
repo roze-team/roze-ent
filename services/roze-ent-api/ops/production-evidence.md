@@ -69,8 +69,9 @@ use them to validate service discovery, load balancing, connection pools,
 deadline propagation, circuit breakers, bulkheads, outlier behavior, and
 fallback evidence for every downstream.
 Data consistency plans are generated at `ops/data-consistency.yaml`; use them to
-validate transactions, migrations, idempotent writes, outbox/DTM/Saga, read-write
-consistency, backup restore, and data rollback evidence.
+validate transactions, migrations, idempotent writes, outbox, and external
+DTM/Saga coordination, plus read-write consistency, backup restore, and data
+rollback evidence.
 Observability contracts are generated at `ops/observability-contract.yaml`; use
 them to validate metrics, logs, traces, profiles, sampling, label cardinality,
 debug queries, and evidence retention.

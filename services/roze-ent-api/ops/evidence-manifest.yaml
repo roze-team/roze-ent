@@ -71,7 +71,7 @@ artifacts:
     blocking: true
   - path: ops/data-consistency.yaml
     kind: data
-    purpose: transaction migration outbox DTM and backup restore evidence
+    purpose: transaction migration outbox and external DTM coordination evidence
     blocking: true
   - path: ops/observability-contract.yaml
     kind: observability

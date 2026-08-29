@@ -33,10 +33,11 @@ as code、静态类型查询、关系遍历和代码生成——映射到 Roze �
 
 ## 快速开始
 
-要求 Docker、Rust 1.98 和与本项目固定 revision 一致的 `rozectl`：
+要求 Docker、Rust 1.98 和与本项目固定 revision 一致的 `rozectl`。完整的 ent 功能同步状态与验收条件见
+[`docs/ENT_COMPATIBILITY.md`](docs/ENT_COMPATIBILITY.md)：
 
 ```powershell
-cargo install --git https://github.com/roze-team/roze.git --rev 39bb1afc8aaf759bf130c5008a61f092e7acbc46 rozectl
+cargo install --git https://github.com/roze-team/roze.git --rev 1945a037558717ae9253fa61060fe900567e52de rozectl
 docker compose up -d postgres
 $env:DATABASE_URL = "postgres://roze:roze@127.0.0.1:5432/roze_ent"
 $env:ROZE_CONFIG_PATH = "services/roze-ent-api/config.yaml"

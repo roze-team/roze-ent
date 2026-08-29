@@ -1,5 +1,20 @@
 # 从 ent 到 Roze/Rust
 
+## 上游集成边界
+
+本项目的最终消费者是 `roze-team/roze`。这里先用独立 workspace 固化 ent 行为、生成
+稳定性和真实数据库证据，成熟后按职责合入 Roze，而不是让 Roze 长期依赖本仓库的示例
+服务：
+
+- `.ent` schema、解析、规范化和代码生成能力归入 `rozectl`；
+- typed query/mutation、edge、Hook、Policy、Mixin 与事务语义归入 Roze 数据层 crate；
+- migration plan、ledger、apply/rollback 与方言证据归入 `roze-migration`；
+- `services/roze-ent-api` 保留为契约和端到端验收样例，不进入框架核心依赖图；
+- 业务 schema、路由和 logic 不向 Roze 核心反向渗透。
+
+孵化阶段固定 Roze Git revision，以便验证真实集成；正式迁入时使用 Roze workspace path
+依赖并通过 `rozectl --update` 再生成，以生成 diff、兼容矩阵和数据库 smoke 作为合并门禁。
+
 ## 基线
 
 迁移分析使用上游 `ent/ent` 提交 `69d5d4deb`。该基线约有 2,318 个 Go 文件，主要

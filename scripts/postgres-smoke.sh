@@ -8,7 +8,11 @@ cleanup() {
     kill "${service_pid}" 2>/dev/null || true
     wait "${service_pid}" 2>/dev/null || true
   fi
-  docker compose down >/dev/null 2>&1 || true
+  if [[ "${ROZE_ENT_REMOVE_VOLUMES:-0}" = "1" ]]; then
+    docker compose down --volumes >/dev/null 2>&1 || true
+  else
+    docker compose down >/dev/null 2>&1 || true
+  fi
 }
 trap cleanup EXIT
 
@@ -22,12 +26,16 @@ for _ in $(seq 1 60); do
 done
 docker compose exec -T postgres pg_isready -U roze -d roze_ent >/dev/null
 
+export ROZE_ENT_TEST_POSTGRES_URL="postgres://roze:roze@127.0.0.1:${ROZE_ENT_POSTGRES_PORT:-5432}/roze_ent"
+cargo test -p roze-ent-api --test migration_evidence \
+  project_postgres_migrations_apply_and_rollback -- --ignored
+
 for migration in migrations/0*.sql; do
   docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U roze -d roze_ent <"${migration}" >/dev/null
 done
 
 mkdir -p target
-export DATABASE_URL="postgres://roze:roze@127.0.0.1:5432/roze_ent"
+export DATABASE_URL="${ROZE_ENT_TEST_POSTGRES_URL}"
 export ROZE_CONFIG_PATH="services/roze-ent-api/config.yaml"
 cargo run -p roze-ent-api >target/postgres-smoke-service.log 2>&1 &
 service_pid=$!

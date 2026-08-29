@@ -29,3 +29,14 @@ jobs:
           toolchain: 1.98.0
       - uses: Swatinem/rust-cache@v2
       - run: bash scripts/postgres-smoke.sh
+
+  mysql-migration-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+      - uses: Swatinem/rust-cache@v2
+      - run: bash scripts/mysql-migration-smoke.sh

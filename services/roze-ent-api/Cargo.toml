@@ -45,4 +45,4 @@ async-trait = "0.1"
 
 [dev-dependencies]
 roze-migration = { git = "https://github.com/roze-team/roze.git", rev = "39bb1afc8aaf759bf130c5008a61f092e7acbc46" }
-sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite"] }
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite", "postgres", "mysql", "tls-rustls-ring"] }

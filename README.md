@@ -1,5 +1,16 @@
 # roze-ent
 
+## 与 Roze 的关系
+
+本仓库是最终合入 `roze-team/roze` 的 ent-style 数据层能力孵化项目，而不是与 Roze
+竞争的独立应用框架。框架级能力必须保持可上游合并：`.ent` 解析与代码生成归入
+`rozectl`，查询/变更/Hook/Policy/Mixin 运行时契约归入 Roze 数据层 crate，迁移执行归入
+`roze-migration`。`services/roze-ent-api` 仅作为生成结果、兼容性和端到端行为的验证样例。
+
+依赖方向以 `roze -> ent capability` 为最终形态。孵化期间样例服务可以依赖固定 revision
+的 Roze crate，但框架核心不得依赖样例服务或业务模型；迁入 Roze 时按生成器、运行时和
+迁移模块分别移植，避免形成 `roze` 与 `roze-ent` 的循环依赖。
+
 `roze-ent` 是基于 [Roze](https://github.com/roze-team/roze) 的 Rust-native
 实体与图数据服务。它把上游 [ent](https://github.com/ent/ent) 的核心理念——schema
 as code、静态类型查询、关系遍历和代码生成——映射到 Roze 的 `.ent`、SeaORM 与
@@ -118,6 +129,15 @@ SQLite 方言迁移保存在 `migrations/sqlite/`，workspace 测试会直接加
 ```bash
 bash scripts/postgres-smoke.sh
 ```
+
+MySQL 的真实 migration ledger 生命周期可单独运行：
+
+```bash
+bash scripts/mysql-migration-smoke.sh
+```
+
+两个脚本分别支持 `ROZE_ENT_POSTGRES_PORT`、`ROZE_ENT_MYSQL_PORT` 覆盖宿主机端口；临时
+环境可设置 `ROZE_ENT_REMOVE_VOLUMES=1`，在退出时同时清理测试 volume。
 
 该流程验证迁移、服务健康、tenant 隔离、乐观版本冲突和 soft-delete。脚本结束时
 停止服务与 Compose 容器，但保留数据库 volume 以便诊断。

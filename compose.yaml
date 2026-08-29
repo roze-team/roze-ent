@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: roze
       POSTGRES_PASSWORD: roze
     ports:
-      - "5432:5432"
+      - "${ROZE_ENT_POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U roze -d roze_ent"]
       interval: 2s
@@ -16,6 +16,23 @@ services:
       - roze-ent-postgres:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d:ro
 
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: roze_ent
+      MYSQL_USER: roze
+      MYSQL_PASSWORD: roze
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "${ROZE_ENT_MYSQL_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - roze-ent-mysql:/var/lib/mysql
+
 volumes:
   roze-ent-postgres:
-
+  roze-ent-mysql:

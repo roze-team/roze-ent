@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS users (
+    id BIGSERIAL PRIMARY KEY,
+    email VARCHAR(320) NOT NULL UNIQUE,
+    name VARCHAR(120) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pets (
+    id BIGSERIAL PRIMARY KEY,
+    owner_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(120) NOT NULL,
+    species VARCHAR(16) NOT NULL CHECK (species IN ('cat', 'dog', 'other'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_pets_owner_id ON pets(owner_id);

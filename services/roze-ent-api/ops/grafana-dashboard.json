@@ -1,0 +1,68 @@
+{
+  "title": "Roze Generated Service - roze-ent",
+  "tags": ["roze", "generated-service", "rest", "production-evidence"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "type": "constant",
+        "query": "roze-ent",
+        "current": {
+          "text": "roze-ent",
+          "value": "roze-ent"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "sum(rate(roze_http_requests_total{service=\"$service\"}[5m]))", "legendFormat": "rps"}
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Error Rate",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "sum(rate(roze_http_requests_total{service=\"$service\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(roze_http_requests_total{service=\"$service\"}[5m])), 1)", "legendFormat": "5xx ratio"}
+      ]
+    },
+    {
+      "id": 3,
+      "title": "P99 Latency",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "histogram_quantile(0.99, sum(rate(roze_http_request_duration_seconds_bucket{service=\"$service\"}[5m])) by (le))", "legendFormat": "p99"}
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Resilience Decisions",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "sum(rate(roze_resilience_decisions_total{service=\"$service\",boundary=\"rest\"}[5m])) by (kind, decision)", "legendFormat": "{{kind}}/{{decision}}"}
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Restarts",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "increase(process_start_time_seconds{service=\"$service\"}[15m])", "legendFormat": "restart"}
+      ]
+    }
+  ]
+}

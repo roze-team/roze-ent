@@ -1,0 +1,61 @@
+entity User {
+  table "users"
+
+  field id: i64 {
+    primary
+    auto_increment
+  }
+
+  field email: string {
+    unique
+    not_empty
+    max_len 320
+  }
+
+  field name: string {
+    not_empty
+    max_len 120
+  }
+
+  field active: bool {
+    default true
+  }
+
+  field created_at: i64 {
+    immutable
+    default now_millis
+  }
+
+  edge pets {
+    to Pet
+  }
+}
+
+entity Pet {
+  table "pets"
+
+  field id: i64 {
+    primary
+    auto_increment
+  }
+
+  field owner_id: i64 {
+  }
+
+  field name: string {
+    not_empty
+    max_len 120
+  }
+
+  field species: string {
+    enum cat, dog, other
+  }
+
+  edge owner {
+    to User
+    field owner_id
+    ref id
+    unique
+    required
+  }
+}

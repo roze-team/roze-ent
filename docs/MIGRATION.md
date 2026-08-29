@@ -34,6 +34,13 @@
 它统一生成 `LOWER(column) LIKE lowercased_pattern`，已通过 Roze 生成器测试、309 项 `rozectl` 测试和生成 SeaORM
 SQLite crate 的真实运行证据。该补丁合入 Roze、更新本项目固定 revision 并重新生成后，才能解除阻断。
 
+mutation 矩阵还发现 SeaORM SQLite 的冲突 upsert 返回值错误：生成代码调用
+`exec_with_returning` 时会按旧的 `last_insert_id` 读取其他记录。可上游应用的修复位于
+[`patches/roze/0002-fix-sea-orm-sqlite-upsert-returning.patch`](../patches/roze/0002-fix-sea-orm-sqlite-upsert-returning.patch)：
+它在消费模型前保存单一或复合主键，执行 upsert 后从主写连接按该主键重新读取目标行。
+该补丁已通过 125 项 Roze model generator 测试和生成 SeaORM SQLite crate 的真实冲突
+upsert 运行证据。补丁合入、revision 更新并重新生成前，该返回值语义仍是兼容阻断项。
+
 ## 基线
 
 迁移分析使用上游 `ent/ent` 提交 `69d5d4deb`。该基线约有 2,318 个 Go 文件，主要
@@ -48,6 +55,7 @@ SQLite crate 的真实运行证据。该补丁合入 Roze、更新本项目固�
 | Go schema as code | `model/schema.ent` | 已落地 |
 | `ent generate` / `entc` | `rozectl model generate --format ent` | 已落地 |
 | typed Client/Query/Create/Update/Delete | 生成的 SeaORM repository 与 builder | 已落地 |
+| create/update/delete one/many 与 batch/upsert | 生成的 mutation builder 与 repository batch API | SQLite 真实语义矩阵已覆盖必填/字段校验、唯一约束、one/many、原子条件更新、批量插入/删除及 upsert 插入路径；SQLite 冲突 upsert 返回值仍需合入 Roze 补丁 0002 |
 | predicates/order/pagination/projection/aggregate | 生成的 ent-style query API | 已落地；SQLite 真实语义矩阵覆盖复合/IN/range/contains predicate、typed order、offset/limit/page、nullable projection、grouped count 与数值聚合；`IContains/EqualFold` 的 SQLite 方言化仍需修复 Roze 生成器 |
 | edge traversal | `.ent` edge 与生成的 relation query | 已落地；SQLite 真实语义矩阵覆盖 User/Group/Membership Through M2M、`HasXWith`、双向 traversal 与 eager loading，User/Pet 保留 ordinary edge 示例 |
 | optimistic update | `update_where().execute()` + `FailedPrecondition` | 已落地：Membership role |

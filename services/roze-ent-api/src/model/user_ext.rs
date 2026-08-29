@@ -228,4 +228,158 @@ mod tests {
         assert!(loaded[2].edge.is_empty());
         Ok(())
     }
+
+    #[tokio::test]
+    async fn ent_style_mutation_surface_has_real_sqlite_evidence() -> anyhow::Result<()> {
+        use crate::model::user;
+
+        let ctx = sqlite_context().await?;
+        let models = ctx.model();
+        let users = models.user();
+
+        let missing_required = users
+            .create()
+            .set_name("Missing email".to_string())
+            .save()
+            .await
+            .unwrap_err();
+        assert!(missing_required
+            .to_string()
+            .contains("missing required field `email`"));
+        let invalid = users
+            .create()
+            .set_email(String::new())
+            .set_name("Invalid".to_string())
+            .save()
+            .await
+            .unwrap_err();
+        assert!(invalid.to_string().contains("email validation failed"));
+        assert_eq!(users.count().await?, 0);
+
+        let alice = users
+            .create()
+            .set_email("alice@example.com".to_string())
+            .set_name("Alice".to_string())
+            .set_active(false)
+            .set_created_at(100)
+            .save()
+            .await?;
+        let bob = users
+            .create()
+            .set_email("bob@example.com".to_string())
+            .set_name("Bob".to_string())
+            .set_created_at(200)
+            .save()
+            .await?;
+
+        let duplicate = users
+            .create()
+            .set_email("alice@example.com".to_string())
+            .set_name("Duplicate".to_string())
+            .save()
+            .await;
+        assert!(duplicate.is_err());
+        assert_eq!(users.count().await?, 2);
+
+        let alice = users
+            .update_one(alice.id)
+            .set_name("Alice Updated".to_string())
+            .save()
+            .await?;
+        assert_eq!(alice.name, "Alice Updated");
+        assert_eq!(alice.email, "alice@example.com");
+
+        let activated = users
+            .update_many()
+            .where_(user::active_eq(false))
+            .set_active(true)
+            .save()
+            .await?;
+        assert_eq!(activated.len(), 1);
+        assert_eq!(activated[0].id, alice.id);
+        assert!(activated[0].active);
+
+        let deactivated = users
+            .update_where()
+            .where_(user::email_eq("bob@example.com".to_string()))
+            .set_active(false)
+            .execute()
+            .await?;
+        assert_eq!(deactivated.rows_affected, 1);
+        assert!(users
+            .update_where()
+            .where_(user::id_eq(alice.id))
+            .execute()
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("requires at least one field assignment"));
+
+        users
+            .insert_many(vec![
+                user::Model {
+                    id: 100,
+                    email: "batch-100@example.com".to_string(),
+                    name: "Batch 100".to_string(),
+                    active: true,
+                    created_at: 300,
+                },
+                user::Model {
+                    id: 101,
+                    email: "batch-101@example.com".to_string(),
+                    name: "Batch 101".to_string(),
+                    active: true,
+                    created_at: 400,
+                },
+            ])
+            .await?;
+        assert_eq!(users.count().await?, 4);
+
+        let upserted = users
+            .upsert(user::Model {
+                id: 102,
+                email: "batch-102@example.com".to_string(),
+                name: "Batch 102 Upserted".to_string(),
+                active: false,
+                created_at: 450,
+            })
+            .await?;
+        assert_eq!(upserted.id, 102);
+        assert_eq!(upserted.name, "Batch 102 Upserted");
+        assert!(!upserted.active);
+
+        let deleted_one = users.delete_one(bob.id).exec().await?;
+        assert_eq!(deleted_one.rows_affected, 1);
+        assert_eq!(
+            users
+                .delete_many()
+                .where_(user::name_contains("Batch"))
+                .exec()
+                .await?,
+            3
+        );
+
+        users
+            .insert_many(vec![
+                user::Model {
+                    id: 200,
+                    email: "bulk-200@example.com".to_string(),
+                    name: "Bulk 200".to_string(),
+                    active: true,
+                    created_at: 500,
+                },
+                user::Model {
+                    id: 201,
+                    email: "bulk-201@example.com".to_string(),
+                    name: "Bulk 201".to_string(),
+                    active: true,
+                    created_at: 600,
+                },
+            ])
+            .await?;
+        let deleted_many = users.delete_many_by_ids(vec![200, 201]).await?;
+        assert_eq!(deleted_many.rows_affected, 2);
+        assert_eq!(users.query().only_id().await?, alice.id);
+        Ok(())
+    }
 }

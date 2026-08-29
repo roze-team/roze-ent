@@ -1,0 +1,83 @@
+diff --git a/apps/rozectl/src/generator/model.rs b/apps/rozectl/src/generator/model.rs
+index 74d4212..05eb6f9 100644
+--- a/apps/rozectl/src/generator/model.rs
++++ b/apps/rozectl/src/generator/model.rs
+@@ -3593,18 +3593,46 @@ fn render_model_module_with_models(model: &ModelSpec, models: &[ModelSpec]) -> S
+             .collect();
+     }
+     let update_columns = update_columns.join(", ");
++    let upsert_key = if model.primary_fields.len() == 1 {
++        sea_orm_reusable_value_expr(
++            &primary_ty,
++            &format!("model.{}", model_field_ident_by_name(primary)),
++        )
++    } else {
++        format!(
++            "({})",
++            model
++                .primary_fields
++                .iter()
++                .map(|name| {
++                    let field = model
++                        .fields
++                        .iter()
++                        .find(|field| field.name == *name)
++                        .expect("primary field");
++                    sea_orm_reusable_value_expr(
++                        &field.ty,
++                        &format!("model.{}", model_field_ident(field)),
++                    )
++                })
++                .collect::<Vec<_>>()
++                .join(", ")
++        )
++    };
+     writeln!(
+         &mut out,
+         "    pub async fn upsert(&self, model: Model) -> anyhow::Result<Model> {{"
+     )
+     .unwrap();
+     writeln!(&mut out, "        let db = self.write_db()?;").unwrap();
++    writeln!(&mut out, "        let upsert_key = {upsert_key};").unwrap();
+     writeln!(
+         &mut out,
+         "        let active: ActiveModel = model.into_active_model();"
+     )
+     .unwrap();
+-    writeln!(&mut out, "        let saved = Entity::insert(active).on_conflict(OnConflict::columns([{conflict_columns}]).update_columns([{update_columns}]).to_owned()).exec_with_returning(&db).await?;").unwrap();
++    writeln!(&mut out, "        Entity::insert(active).on_conflict(OnConflict::columns([{conflict_columns}]).update_columns([{update_columns}]).to_owned()).exec(&db).await?;").unwrap();
++    writeln!(&mut out, "        let saved = Entity::find_by_id(upsert_key).one(&db).await?.ok_or_else(|| anyhow::anyhow!(\"upserted {pascal} could not be reloaded\"))?;").unwrap();
+     if model.cache {
+         writeln!(
+             &mut out,
+@@ -22760,6 +22788,8 @@ mod tests {
+         assert!(sea_orm.contains("pub async fn upsert(&self, model: Model)"));
+         assert!(sea_orm.contains("OnConflict::columns([Column::UserId, Column::TweetId])"));
+         assert!(sea_orm.contains("update_columns([Column::LikedAt])"));
++        assert!(sea_orm.contains("let upsert_key = (model.user_id, model.tweet_id);"));
++        assert!(sea_orm.contains("Entity::find_by_id(upsert_key).one(&db)"));
+         assert!(sea_orm
+             .contains("pub async fn add_liked_at(mut self, delta: i64) -> anyhow::Result<Model>"));
+         assert!(sea_orm.contains("query = query.where_(user_id_eq(key.user_id.clone()))"));
+@@ -28772,7 +28802,7 @@ impl ServiceContext {
+             r#"mod model;
+ mod svc;
+ 
+-use model::{AccountRepository, GroupModel, GroupQuery, GroupRepository, MembershipRepository, OrderRepository, SessionRepository, UserMutationHooks, UserQuery, UserRepository, UserUpdateMany};
++use model::{AccountRepository, GroupModel, GroupQuery, GroupRepository, MembershipRepository, OrderRepository, SessionRepository, UserModel, UserMutationHooks, UserQuery, UserRepository, UserUpdateMany};
+ use sea_orm::{ConnectionTrait, Database, DbBackend, Statement};
+ use std::sync::{
+     atomic::{AtomicUsize, Ordering},
+@@ -28894,6 +28924,12 @@ async fn main() -> anyhow::Result<()> {
+     let users_nested = &users;
+     let orders_nested = &orders;
+ 
++    let upserted = users
++        .upsert(UserModel { id: 1, name: "alice".to_string(), score: Some(10) })
++        .await?;
++    assert_eq!(upserted.id, 1);
++    assert_eq!(upserted.name, "alice");
++
+     let loaded = users
+         .query()
+         .where_(model::user::id_eq(1))

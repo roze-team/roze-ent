@@ -2,12 +2,15 @@
 set -euo pipefail
 
 service_pid=""
+migration_db="roze_ent_migration_test"
 
 cleanup() {
   if [[ -n "${service_pid}" ]]; then
     kill "${service_pid}" 2>/dev/null || true
     wait "${service_pid}" 2>/dev/null || true
   fi
+  docker compose exec -T postgres psql -U roze -d postgres \
+    -c "DROP DATABASE IF EXISTS ${migration_db} WITH (FORCE)" >/dev/null 2>&1 || true
   if [[ "${ROZE_ENT_REMOVE_VOLUMES:-0}" = "1" ]]; then
     docker compose down --volumes >/dev/null 2>&1 || true
   else
@@ -33,16 +36,23 @@ done
 test "${ready_checks}" -ge 2
 docker compose exec -T postgres pg_isready -U roze -d roze_ent >/dev/null
 
-export ROZE_ENT_TEST_POSTGRES_URL="postgres://roze:roze@127.0.0.1:${ROZE_ENT_POSTGRES_PORT:-5432}/roze_ent"
+docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U roze -d postgres \
+  -c "DROP DATABASE IF EXISTS ${migration_db} WITH (FORCE)" >/dev/null
+docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U roze -d postgres \
+  -c "CREATE DATABASE ${migration_db}" >/dev/null
+
+export ROZE_ENT_TEST_POSTGRES_URL="postgres://roze:roze@127.0.0.1:${ROZE_ENT_POSTGRES_PORT:-5432}/${migration_db}"
 cargo test -p roze-ent-api --test migration_evidence \
   project_postgres_migrations_apply_and_rollback -- --ignored
+docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U roze -d postgres \
+  -c "DROP DATABASE IF EXISTS ${migration_db} WITH (FORCE)" >/dev/null
 
 for migration in migrations/0*.sql; do
   docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U roze -d roze_ent <"${migration}" >/dev/null
 done
 
 mkdir -p target
-export DATABASE_URL="${ROZE_ENT_TEST_POSTGRES_URL}"
+export DATABASE_URL="postgres://roze:roze@127.0.0.1:${ROZE_ENT_POSTGRES_PORT:-5432}/roze_ent"
 export ROZE_CONFIG_PATH="services/roze-ent-api/config.yaml"
 cargo run -p roze-ent-api >target/postgres-smoke-service.log 2>&1 &
 service_pid=$!

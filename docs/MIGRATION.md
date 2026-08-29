@@ -122,5 +122,6 @@ SQLite 方言迁移位于 `migrations/sqlite/`，版本和名称与 PostgreSQL �
 集成测试直接通过固定 revision 的 `roze-migration` 加载这些项目文件，验证确定性 dry-run、
 apply、回滚到版本边界、全量回滚、名称漂移拒绝和失败批次原子回滚。PostgreSQL 与 MySQL
 分别由独立 CI smoke 在真实容器中执行 apply、账本幂等检查和全量 rollback；MySQL 迁移对
-保留关键字标识符使用方言引用。多语句项目迁移会先确定性拆分为单语句 ledger step，以
-满足 SQLx prepared-statement 边界。
+保留关键字标识符使用方言引用。多语句项目迁移会先确定性拆分为单语句 ledger step，以满足
+SQLx prepared-statement 边界。PostgreSQL ledger lifecycle 使用同一容器内的专用临时数据库，
+避免 Compose 初始化的业务 schema 与测试账本互相污染；业务服务 smoke 仍连接 `roze_ent`。

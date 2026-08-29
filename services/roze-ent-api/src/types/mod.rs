@@ -121,4 +121,57 @@ pub struct MembershipResp {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
+pub struct CreateProjectReq {
+    #[validate(length(min = 1, max = 64))]
+    pub tenant_id: String,
+    #[validate(length(min = 1, max = 120))]
+    pub name: String,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
+pub struct ProjectPathReq {
+    #[validate(range(min = 1))]
+    pub id: i64,
+    #[validate(length(min = 1, max = 64))]
+    pub tenant_id: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
+pub struct ListProjectsReq {
+    #[validate(length(min = 1, max = 64))]
+    pub tenant_id: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
+pub struct UpdateProjectReq {
+    #[validate(range(min = 1))]
+    pub id: i64,
+    #[validate(length(min = 1, max = 64))]
+    pub tenant_id: String,
+    #[validate(range(min = 1))]
+    pub expected_version: i64,
+    #[validate(length(min = 1, max = 120))]
+    pub name: String,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
+pub struct ProjectResp {
+    pub id: i64,
+    pub tenant_id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub version: i64,
+    pub deleted_at: Option<i64>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
+pub struct ListProjectsResp {
+    pub projects: Vec<ProjectResp>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
 pub struct EmptyReq {}

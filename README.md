@@ -11,6 +11,7 @@ as code、静态类型查询、关系遍历和代码生成——映射到 Roze �
 - Rust 1.98 Cargo workspace；
 - Roze 1.0 生成的 REST、DTO、校验、OpenAPI 与运行时边界；
 - `.ent` 驱动的 User/Pet 与 User/Group/Membership 图模型；
+- tenant-scoped、soft-delete、optimistic-lock Project 模型；
 - 生成的 typed predicate/query/create/update/delete、边遍历、事务与缓存接线；
 - User/Pet CRUD API 与 PostgreSQL 初始化；
 - 可重复的 API/model 再生成脚本与 CI 门禁。
@@ -47,12 +48,20 @@ cargo run -p roze-ent-api
 - `DELETE /api/v1/groups/:group_id/members/:user_id`
 - `GET /api/v1/groups/:id/users`
 - `GET /api/v1/users/:id/groups`
+- `POST /api/v1/projects`
+- `GET /api/v1/projects`
+- `GET /api/v1/projects/:id`
+- `PATCH /api/v1/projects/:id`
+- `DELETE /api/v1/projects/:id`
 
 Roze 自带的 `/healthz`、`/readyz`、`/startupz`、`/metrics` 和
 `/openapi.json` 也由服务暴露。
 
 Membership 使用显式 Through edge。角色更新要求同时提交 `expected_role` 和新
 `role`；并发修改时返回 `412 Failed Precondition`，避免静默覆盖。
+
+Project 接口要求 `x-tenant-id` 请求头。查询默认排除已软删除记录，更新要求提交
+`expected_version`，删除只写入 `deleted_at` 而不物理删除数据。
 
 示例请求：
 
@@ -94,5 +103,14 @@ cargo check --workspace
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 ```
+
+具备 Docker 的 Linux/CI 环境还可以运行真实 PostgreSQL smoke：
+
+```bash
+bash scripts/postgres-smoke.sh
+```
+
+该流程验证迁移、服务健康、tenant 隔离、乐观版本冲突和 soft-delete。脚本结束时
+停止服务与 Compose 容器，但保留数据库 volume 以便诊断。
 
 许可证：Apache-2.0。上游 Go 项目保留为 Git remote `upstream`，便于持续做行为对照。

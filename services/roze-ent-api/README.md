@@ -31,6 +31,11 @@ cargo run
 - `DELETE` `/groups/:group_id/members/:user_id`
 - `GET` `/groups/:id/users`
 - `GET` `/users/:id/groups`
+- `POST` `/projects`
+- `GET` `/projects/:id`
+- `GET` `/projects`
+- `PATCH` `/projects/:id`
+- `DELETE` `/projects/:id`
 
 ## Config
 

@@ -43,6 +43,16 @@ service roze-ent {
     get /groups/:id/users (GetGroupReq) returns (ListUsersResp)
     @handler listUserGroups
     get /users/:id/groups (GetUserReq) returns (ListGroupsResp)
+    @handler createProject
+    post /projects (CreateProjectReq) returns (ProjectResp)
+    @handler getProject
+    get /projects/:id (ProjectPathReq) returns (ProjectResp)
+    @handler listProjects
+    get /projects (ListProjectsReq) returns (ListProjectsResp)
+    @handler updateProject
+    patch /projects/:id (UpdateProjectReq) returns (ProjectResp)
+    @handler deleteProject
+    delete /projects/:id (ProjectPathReq) returns (DeleteResp)
 }
 
 type (
@@ -115,6 +125,38 @@ type (
         groupId i64 `json:"group_id"`
         role string `json:"role"`
         joinedAt i64 `json:"joined_at"`
+    }
+    CreateProjectReq {
+        tenantId String `header:"x-tenant-id" validate:"required,max=64"`
+        name string `json:"name" validate:"required,min=1,max=120"`
+        description Option<String> `json:"description" validate:"optional,max=500"`
+    }
+    ProjectPathReq {
+        id i64 `path:"id" validate:"min=1"`
+        tenantId String `header:"x-tenant-id" validate:"required,max=64"`
+    }
+    ListProjectsReq {
+        tenantId String `header:"x-tenant-id" validate:"required,max=64"`
+    }
+    UpdateProjectReq {
+        id i64 `path:"id" validate:"min=1"`
+        tenantId String `header:"x-tenant-id" validate:"required,max=64"`
+        expectedVersion i64 `json:"expected_version" validate:"min=1"`
+        name string `json:"name" validate:"required,min=1,max=120"`
+        description Option<String> `json:"description" validate:"optional,max=500"`
+    }
+    ProjectResp {
+        id i64 `json:"id"`
+        tenantId String `json:"tenant_id"`
+        name string `json:"name"`
+        description Option<String> `json:"description"`
+        version i64 `json:"version"`
+        deletedAt Option<i64> `json:"deleted_at"`
+        createdAt i64 `json:"created_at"`
+        updatedAt i64 `json:"updated_at"`
+    }
+    ListProjectsResp {
+        projects []ProjectResp `json:"projects"`
     }
     EmptyReq {
     }

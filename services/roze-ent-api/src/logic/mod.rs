@@ -41,5 +41,7 @@ pub mod groups;
 pub use groups::*;
 pub mod pets;
 pub use pets::*;
+pub mod projects;
+pub use projects::*;
 pub mod users;
 pub use users::*;

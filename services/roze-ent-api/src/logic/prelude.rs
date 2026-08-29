@@ -42,6 +42,19 @@ pub(crate) fn membership_response(model: crate::model::MembershipModel) -> Membe
     }
 }
 
+pub(crate) fn project_response(model: crate::model::ProjectModel) -> ProjectResp {
+    ProjectResp {
+        id: model.id,
+        tenant_id: model.tenant_id,
+        name: model.name,
+        description: model.description,
+        version: model.version,
+        deleted_at: model.deleted_at,
+        created_at: model.created_at,
+        updated_at: model.updated_at,
+    }
+}
+
 pub(crate) fn model_error(error: anyhow::Error) -> RozeError {
     tracing::error!(error = %error, "entity model operation failed");
     RozeError::Internal("entity model operation failed".to_string())
@@ -113,5 +126,27 @@ mod tests {
         assert_eq!(response.group_id, 11);
         assert_eq!(response.role, "admin");
         assert_eq!(response.joined_at, 99);
+    }
+
+    #[test]
+    fn maps_project_model_to_wire_response() {
+        let response = project_response(crate::model::ProjectModel {
+            id: 17,
+            tenant_id: "tenant-a".to_string(),
+            name: "compiler".to_string(),
+            description: None,
+            version: 3,
+            deleted_at: None,
+            created_at: 101,
+            updated_at: 202,
+        });
+
+        assert_eq!(response.id, 17);
+        assert_eq!(response.tenant_id, "tenant-a");
+        assert_eq!(response.name, "compiler");
+        assert_eq!(response.version, 3);
+        assert_eq!(response.deleted_at, None);
+        assert_eq!(response.created_at, 101);
+        assert_eq!(response.updated_at, 202);
     }
 }

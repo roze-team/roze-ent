@@ -205,6 +205,26 @@ smoke_surface:
       path: "/users/:id/groups"
       request: "GetUserReq"
       response: "ListGroupsResp"
+    - method: POST
+      path: "/projects"
+      request: "CreateProjectReq"
+      response: "ProjectResp"
+    - method: GET
+      path: "/projects/:id"
+      request: "ProjectPathReq"
+      response: "ProjectResp"
+    - method: GET
+      path: "/projects"
+      request: "ListProjectsReq"
+      response: "ListProjectsResp"
+    - method: PATCH
+      path: "/projects/:id"
+      request: "UpdateProjectReq"
+      response: "ProjectResp"
+    - method: DELETE
+      path: "/projects/:id"
+      request: "ProjectPathReq"
+      response: "DeleteResp"
 promotion_evidence:
   - ci_evidence_bundle
   - 24h_or_72h_soak_report

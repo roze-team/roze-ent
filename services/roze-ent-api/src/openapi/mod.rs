@@ -224,6 +224,106 @@ pub fn document() -> serde_json::Value {
         );
     }
     {
+        let mut properties = BTreeMap::new();
+        properties.insert("x-tenant-id".to_string(), Schema::string());
+        properties.insert("name".to_string(), Schema::string());
+        properties.insert(
+            "description".to_string(),
+            Schema::reference("Option<String>"),
+        );
+        builder = builder.component_schema(
+            "CreateProjectReq",
+            Schema::object(
+                properties,
+                vec!["x-tenant-id".to_string(), "name".to_string()],
+            ),
+        );
+    }
+    {
+        let mut properties = BTreeMap::new();
+        properties.insert("id".to_string(), Schema::integer("int64"));
+        properties.insert("x-tenant-id".to_string(), Schema::string());
+        builder = builder.component_schema(
+            "ProjectPathReq",
+            Schema::object(
+                properties,
+                vec!["id".to_string(), "x-tenant-id".to_string()],
+            ),
+        );
+    }
+    {
+        let mut properties = BTreeMap::new();
+        properties.insert("x-tenant-id".to_string(), Schema::string());
+        builder = builder.component_schema(
+            "ListProjectsReq",
+            Schema::object(properties, vec!["x-tenant-id".to_string()]),
+        );
+    }
+    {
+        let mut properties = BTreeMap::new();
+        properties.insert("id".to_string(), Schema::integer("int64"));
+        properties.insert("x-tenant-id".to_string(), Schema::string());
+        properties.insert("expected_version".to_string(), Schema::integer("int64"));
+        properties.insert("name".to_string(), Schema::string());
+        properties.insert(
+            "description".to_string(),
+            Schema::reference("Option<String>"),
+        );
+        builder = builder.component_schema(
+            "UpdateProjectReq",
+            Schema::object(
+                properties,
+                vec![
+                    "id".to_string(),
+                    "x-tenant-id".to_string(),
+                    "expected_version".to_string(),
+                    "name".to_string(),
+                ],
+            ),
+        );
+    }
+    {
+        let mut properties = BTreeMap::new();
+        properties.insert("id".to_string(), Schema::integer("int64"));
+        properties.insert("tenant_id".to_string(), Schema::string());
+        properties.insert("name".to_string(), Schema::string());
+        properties.insert(
+            "description".to_string(),
+            Schema::reference("Option<String>"),
+        );
+        properties.insert("version".to_string(), Schema::integer("int64"));
+        properties.insert("deleted_at".to_string(), Schema::reference("Option<i64>"));
+        properties.insert("created_at".to_string(), Schema::integer("int64"));
+        properties.insert("updated_at".to_string(), Schema::integer("int64"));
+        builder = builder.component_schema(
+            "ProjectResp",
+            Schema::object(
+                properties,
+                vec![
+                    "id".to_string(),
+                    "tenant_id".to_string(),
+                    "name".to_string(),
+                    "description".to_string(),
+                    "version".to_string(),
+                    "deleted_at".to_string(),
+                    "created_at".to_string(),
+                    "updated_at".to_string(),
+                ],
+            ),
+        );
+    }
+    {
+        let mut properties = BTreeMap::new();
+        properties.insert(
+            "projects".to_string(),
+            Schema::array(Schema::reference("ProjectResp")),
+        );
+        builder = builder.component_schema(
+            "ListProjectsResp",
+            Schema::object(properties, vec!["projects".to_string()]),
+        );
+    }
+    {
         let properties = BTreeMap::new();
         builder = builder.component_schema("EmptyReq", Schema::object(properties, vec![]));
     }
@@ -739,5 +839,135 @@ pub fn document() -> serde_json::Value {
             )
         });
     builder.add_operation("/api/v1/users/:id/groups", HttpMethod::Get, op);
+    let op = Operation::new("createProject")
+        .tag("roze-ent")
+        .parameter(
+            "x-roze-locale",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            false,
+        )
+        .parameter(
+            "x-tenant-id",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            true,
+        )
+        .request_body("CreateProjectReq")
+        .response_with_schema("200", "OK", "application/json", {
+            let mut properties = BTreeMap::new();
+            properties.insert("code".to_string(), Schema::integer("int32"));
+            properties.insert("msg".to_string(), Schema::string());
+            properties.insert("data".to_string(), Schema::reference("ProjectResp"));
+            Schema::object(
+                properties,
+                vec!["code".to_string(), "msg".to_string(), "data".to_string()],
+            )
+        });
+    builder.add_operation("/api/v1/projects", HttpMethod::Post, op);
+    let op = Operation::new("getProject")
+        .tag("roze-ent")
+        .parameter(
+            "x-roze-locale",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            false,
+        )
+        .parameter("id", roze_openapi::ParameterLocation::Path, "i64", true)
+        .parameter(
+            "x-tenant-id",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            true,
+        )
+        .response_with_schema("200", "OK", "application/json", {
+            let mut properties = BTreeMap::new();
+            properties.insert("code".to_string(), Schema::integer("int32"));
+            properties.insert("msg".to_string(), Schema::string());
+            properties.insert("data".to_string(), Schema::reference("ProjectResp"));
+            Schema::object(
+                properties,
+                vec!["code".to_string(), "msg".to_string(), "data".to_string()],
+            )
+        });
+    builder.add_operation("/api/v1/projects/:id", HttpMethod::Get, op);
+    let op = Operation::new("listProjects")
+        .tag("roze-ent")
+        .parameter(
+            "x-roze-locale",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            false,
+        )
+        .parameter(
+            "x-tenant-id",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            true,
+        )
+        .response_with_schema("200", "OK", "application/json", {
+            let mut properties = BTreeMap::new();
+            properties.insert("code".to_string(), Schema::integer("int32"));
+            properties.insert("msg".to_string(), Schema::string());
+            properties.insert("data".to_string(), Schema::reference("ListProjectsResp"));
+            Schema::object(
+                properties,
+                vec!["code".to_string(), "msg".to_string(), "data".to_string()],
+            )
+        });
+    builder.add_operation("/api/v1/projects", HttpMethod::Get, op);
+    let op = Operation::new("updateProject")
+        .tag("roze-ent")
+        .parameter(
+            "x-roze-locale",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            false,
+        )
+        .parameter("id", roze_openapi::ParameterLocation::Path, "i64", true)
+        .parameter(
+            "x-tenant-id",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            true,
+        )
+        .request_body("UpdateProjectReq")
+        .response_with_schema("200", "OK", "application/json", {
+            let mut properties = BTreeMap::new();
+            properties.insert("code".to_string(), Schema::integer("int32"));
+            properties.insert("msg".to_string(), Schema::string());
+            properties.insert("data".to_string(), Schema::reference("ProjectResp"));
+            Schema::object(
+                properties,
+                vec!["code".to_string(), "msg".to_string(), "data".to_string()],
+            )
+        });
+    builder.add_operation("/api/v1/projects/:id", HttpMethod::Patch, op);
+    let op = Operation::new("deleteProject")
+        .tag("roze-ent")
+        .parameter(
+            "x-roze-locale",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            false,
+        )
+        .parameter("id", roze_openapi::ParameterLocation::Path, "i64", true)
+        .parameter(
+            "x-tenant-id",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            true,
+        )
+        .response_with_schema("200", "OK", "application/json", {
+            let mut properties = BTreeMap::new();
+            properties.insert("code".to_string(), Schema::integer("int32"));
+            properties.insert("msg".to_string(), Schema::string());
+            properties.insert("data".to_string(), Schema::reference("DeleteResp"));
+            Schema::object(
+                properties,
+                vec!["code".to_string(), "msg".to_string(), "data".to_string()],
+            )
+        });
+    builder.add_operation("/api/v1/projects/:id", HttpMethod::Delete, op);
     roze_openapi::to_json_value(&builder.finish())
 }

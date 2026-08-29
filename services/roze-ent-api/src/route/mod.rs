@@ -2,6 +2,7 @@
 
 mod groups;
 mod pets;
+mod projects;
 mod users;
 
 use std::{
@@ -49,6 +50,7 @@ pub fn router(ctx: ServiceContext) -> Router {
         .route("/api/v1/openapi.json", get(openapi_doc))
         .merge(groups::routes())
         .merge(pets::routes())
+        .merge(projects::routes())
         .merge(users::routes());
     let router = match timeout {
         Some(timeout_ms) => roze_middleware::apply_timeout(router, timeout_ms),

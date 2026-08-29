@@ -4,6 +4,7 @@
 use super::group::{GroupMutationHooks, GroupRepository};
 use super::membership::{MembershipMutationHooks, MembershipRepository};
 use super::pet::{PetMutationHooks, PetRepository};
+use super::project::{ProjectMutationHooks, ProjectRepository};
 use super::user::{UserMutationHooks, UserRepository};
 use crate::svc::ServiceContext;
 
@@ -81,6 +82,7 @@ pub struct TransactionModelClient<'tx> {
     pet_mutation_hooks: Vec<&'tx dyn PetMutationHooks>,
     group_mutation_hooks: Vec<&'tx dyn GroupMutationHooks>,
     membership_mutation_hooks: Vec<&'tx dyn MembershipMutationHooks>,
+    project_mutation_hooks: Vec<&'tx dyn ProjectMutationHooks>,
 }
 
 impl<'tx> TransactionModelClient<'tx> {
@@ -127,6 +129,17 @@ impl<'tx> TransactionModelClient<'tx> {
             |repository, hooks| repository.with_mutation_hooks(*hooks),
         )
     }
+
+    pub fn project(&self) -> ProjectRepository<'_> {
+        self.project_mutation_hooks.iter().fold(
+            ProjectRepository::new_in_transaction(
+                self.ctx,
+                self.transaction,
+                self.pending_invalidations,
+            ),
+            |repository, hooks| repository.with_mutation_hooks(*hooks),
+        )
+    }
 }
 
 pub struct ModelClient<'a> {
@@ -135,6 +148,7 @@ pub struct ModelClient<'a> {
     pet_mutation_hooks: Vec<&'a dyn PetMutationHooks>,
     group_mutation_hooks: Vec<&'a dyn GroupMutationHooks>,
     membership_mutation_hooks: Vec<&'a dyn MembershipMutationHooks>,
+    project_mutation_hooks: Vec<&'a dyn ProjectMutationHooks>,
 }
 
 impl<'a> ModelClient<'a> {
@@ -145,6 +159,7 @@ impl<'a> ModelClient<'a> {
             pet_mutation_hooks: Vec::new(),
             group_mutation_hooks: Vec::new(),
             membership_mutation_hooks: Vec::new(),
+            project_mutation_hooks: Vec::new(),
         }
     }
 
@@ -197,6 +212,7 @@ impl<'a> ModelClient<'a> {
             pet_mutation_hooks: self.pet_mutation_hooks.to_vec(),
             group_mutation_hooks: self.group_mutation_hooks.to_vec(),
             membership_mutation_hooks: self.membership_mutation_hooks.to_vec(),
+            project_mutation_hooks: self.project_mutation_hooks.to_vec(),
         };
         match func(client).await {
             Ok(value) => {
@@ -269,6 +285,19 @@ impl<'a> ModelClient<'a> {
         self.membership_mutation_hooks
             .iter()
             .fold(MembershipRepository::new(self.ctx), |repository, hooks| {
+                repository.with_mutation_hooks(*hooks)
+            })
+    }
+
+    pub fn use_project_mutation_hooks(mut self, hooks: &'a dyn ProjectMutationHooks) -> Self {
+        self.project_mutation_hooks.push(hooks);
+        self
+    }
+
+    pub fn project(&self) -> ProjectRepository<'a> {
+        self.project_mutation_hooks
+            .iter()
+            .fold(ProjectRepository::new(self.ctx), |repository, hooks| {
                 repository.with_mutation_hooks(*hooks)
             })
     }

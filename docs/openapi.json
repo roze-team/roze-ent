@@ -946,6 +946,350 @@
           }
         }
       }
+    },
+    "/api/v1/projects": {
+      "post": {
+        "operationId": "createProject",
+        "tags": [
+          "roze-ent"
+        ],
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "x-roze-validator": "required,max=64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120,
+                    "x-roze-validator": "required,min=1,max=120"
+                  },
+                  "description": {
+                    "$ref": "#/components/schemas/Option<String>",
+                    "x-roze-validator": "optional,max=500"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "format": "int32",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ProjectResp"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listProjects",
+        "tags": [
+          "roze-ent"
+        ],
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "x-roze-validator": "required,max=64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "format": "int32",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ListProjectsResp"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}": {
+      "get": {
+        "operationId": "getProject",
+        "tags": [
+          "roze-ent"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1,
+              "x-roze-validator": "min=1"
+            }
+          },
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "x-roze-validator": "required,max=64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "format": "int32",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ProjectResp"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateProject",
+        "tags": [
+          "roze-ent"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1,
+              "x-roze-validator": "min=1"
+            }
+          },
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "x-roze-validator": "required,max=64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "expected_version": {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 1,
+                    "x-roze-validator": "min=1"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120,
+                    "x-roze-validator": "required,min=1,max=120"
+                  },
+                  "description": {
+                    "$ref": "#/components/schemas/Option<String>",
+                    "x-roze-validator": "optional,max=500"
+                  }
+                },
+                "required": [
+                  "expected_version",
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "format": "int32",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ProjectResp"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteProject",
+        "tags": [
+          "roze-ent"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1,
+              "x-roze-validator": "min=1"
+            }
+          },
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "x-roze-validator": "required,max=64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "msg",
+                    "data"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "format": "int32",
+                      "enum": [
+                        0
+                      ]
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DeleteResp"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1283,6 +1627,158 @@
           "group_id",
           "role",
           "joined_at"
+        ]
+      },
+      "CreateProjectReq": {
+        "type": "object",
+        "properties": {
+          "x-tenant-id": {
+            "type": "string",
+            "maxLength": 64,
+            "x-roze-validator": "required,max=64"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "x-roze-validator": "required,min=1,max=120"
+          },
+          "description": {
+            "$ref": "#/components/schemas/Option<String>",
+            "x-roze-validator": "optional,max=500"
+          }
+        },
+        "required": [
+          "x-tenant-id",
+          "name"
+        ]
+      },
+      "ProjectPathReq": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "x-roze-validator": "min=1"
+          },
+          "x-tenant-id": {
+            "type": "string",
+            "maxLength": 64,
+            "x-roze-validator": "required,max=64"
+          }
+        },
+        "required": [
+          "id",
+          "x-tenant-id"
+        ]
+      },
+      "ListProjectsReq": {
+        "type": "object",
+        "properties": {
+          "x-tenant-id": {
+            "type": "string",
+            "maxLength": 64,
+            "x-roze-validator": "required,max=64"
+          }
+        },
+        "required": [
+          "x-tenant-id"
+        ]
+      },
+      "UpdateProjectReq": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "x-roze-validator": "min=1"
+          },
+          "x-tenant-id": {
+            "type": "string",
+            "maxLength": 64,
+            "x-roze-validator": "required,max=64"
+          },
+          "expected_version": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "x-roze-validator": "min=1"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "x-roze-validator": "required,min=1,max=120"
+          },
+          "description": {
+            "$ref": "#/components/schemas/Option<String>",
+            "x-roze-validator": "optional,max=500"
+          }
+        },
+        "required": [
+          "id",
+          "x-tenant-id",
+          "expected_version",
+          "name"
+        ]
+      },
+      "ProjectResp": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "$ref": "#/components/schemas/Option<String>"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "deleted_at": {
+            "$ref": "#/components/schemas/Option<i64>"
+          },
+          "created_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "updated_at": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "id",
+          "tenant_id",
+          "name",
+          "description",
+          "version",
+          "deleted_at",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "ListProjectsResp": {
+        "type": "object",
+        "properties": {
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectResp"
+            }
+          }
+        },
+        "required": [
+          "projects"
         ]
       },
       "EmptyReq": {

@@ -125,7 +125,7 @@ From the Roze workspace, generate a report scaffold with:
 bash scripts/production-evidence.sh \
   --area generated-services \
   --duration 24h \
-  --workload "health/readiness/startup probes, metrics scrape, and representative REST traffic for 16 route(s)" \
+  --workload "health/readiness/startup probes, metrics scrape, and representative REST traffic for 21 route(s)" \
   --failure-injection "shutdown signal, dependency timeout, invalid config reload, slow handler, readiness failure" \
   --command "cargo run"
 ```

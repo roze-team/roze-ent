@@ -43,6 +43,16 @@ pub use membership::{
     MembershipUpdateMany, Model as MembershipModel,
 };
 pub use membership_fields::{MembershipField, MEMBERSHIP_TABLE};
+pub mod project;
+pub mod project_ext;
+pub mod project_fields;
+pub use project::{
+    ActiveModel as ProjectActiveModel, Entity as ProjectEntity, Model as ProjectModel,
+    ProjectCreate, ProjectDelete, ProjectDeleteMany, ProjectMutationHooks, ProjectOrder,
+    ProjectPage, ProjectPredicate, ProjectQuery, ProjectRepository, ProjectUpdate,
+    ProjectUpdateMany,
+};
+pub use project_fields::{ProjectField, PROJECT_TABLE};
 
 pub async fn configure_context(ctx: ServiceContext) -> anyhow::Result<ServiceContext> {
     Ok(ctx)

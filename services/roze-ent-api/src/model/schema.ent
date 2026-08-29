@@ -142,3 +142,54 @@ entity Membership {
 
 }
 
+entity Project {
+  table "projects"
+  cache_key id
+  tenant tenant_id
+  soft_delete deleted_at
+
+  field id: i64 {
+    primary
+    auto_increment
+  }
+
+  field tenant_id: string {
+    immutable
+    not_empty
+    max_len 64
+  }
+
+  field name: string {
+    not_empty
+    max_len 120
+  }
+
+  field description: string? {
+    max_len 500
+  }
+
+  field version: i64 {
+    positive
+    default "1"
+  }
+
+  field deleted_at: i64? {
+  }
+
+  field created_at: i64 {
+    immutable
+    default "now_millis"
+  }
+
+  field updated_at: i64 {
+    update_default now_millis
+    default "now_millis"
+  }
+
+  index uniq_project_tenant_name {
+    fields tenant_id, name
+    unique
+  }
+
+}
+

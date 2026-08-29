@@ -17,6 +17,8 @@
 | predicates/order/pagination/projection/aggregate | 生成的 ent-style query API | 已落地 |
 | edge traversal | `.ent` edge 与生成的 relation query | 已落地：User/Pet、User/Group/Membership Through M2M |
 | optimistic update | `update_where().execute()` + `FailedPrecondition` | 已落地：Membership role |
+| tenant scope / soft delete | tenant predicate、live scope、`soft_delete_by_id` | 已落地：Project |
+| PostgreSQL smoke | migration + HTTP tenant/version/delete 流程 | 已接入 CI；本地需要 Docker |
 | hooks/interceptors/privacy/mixins | `roze-orm` operation chain 与 `*_ext.rs` | 框架已支持，领域规则待扩展 |
 | SQL migrations | `roze-migration` + `migrations/` | 首个 PostgreSQL schema 已落地 |
 | SQL dialects | SeaORM/Roze DB（PostgreSQL/MySQL/SQLite） | 生成层已支持，当前运行配置为 PostgreSQL |
@@ -40,8 +42,8 @@
 
 ## 后续阶段
 
-1. 增加事务、hook、policy、mixin 与 tenant/soft-delete 端到端测试。
-2. 增加 SQLite/MySQL 真实依赖矩阵和 `roze-migration` dry-run/rollback 证据。
+1. 增加事务、hook、policy 与 mixin 端到端测试。
+2. 增加 PostgreSQL/SQLite/MySQL 真实依赖矩阵和 `roze-migration` dry-run/rollback 证据。
 3. 对照 ent 的 predicate、projection、aggregate 与 edge 测试建立兼容矩阵。
 4. 评估 Gremlin、Atlas 和生成器扩展的真实使用需求，再决定是否实现 Rust 适配层。
 

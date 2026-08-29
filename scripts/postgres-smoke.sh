@@ -18,12 +18,19 @@ trap cleanup EXIT
 
 docker compose up -d postgres
 
+ready_checks=0
 for _ in $(seq 1 60); do
   if docker compose exec -T postgres pg_isready -U roze -d roze_ent >/dev/null 2>&1; then
-    break
+    ready_checks=$((ready_checks + 1))
+    if [[ "${ready_checks}" -ge 2 ]]; then
+      break
+    fi
+  else
+    ready_checks=0
   fi
   sleep 1
 done
+test "${ready_checks}" -ge 2
 docker compose exec -T postgres pg_isready -U roze -d roze_ent >/dev/null
 
 export ROZE_ENT_TEST_POSTGRES_URL="postgres://roze:roze@127.0.0.1:${ROZE_ENT_POSTGRES_PORT:-5432}/roze_ent"

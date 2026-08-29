@@ -66,4 +66,59 @@ pub struct DeleteResp {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
+pub struct CreateGroupReq {
+    #[validate(length(min = 1, max = 120))]
+    pub name: String,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
+pub struct GetGroupReq {
+    #[validate(range(min = 1))]
+    pub id: i64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
+pub struct GroupResp {
+    pub id: i64,
+    pub name: String,
+    pub description: Option<String>,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
+pub struct ListGroupsResp {
+    pub groups: Vec<GroupResp>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
+pub struct MembershipPathReq {
+    #[validate(range(min = 1))]
+    pub group_id: i64,
+    #[validate(range(min = 1))]
+    pub user_id: i64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
+pub struct UpdateMembershipRoleReq {
+    #[validate(range(min = 1))]
+    pub group_id: i64,
+    #[validate(range(min = 1))]
+    pub user_id: i64,
+    #[validate(length(min = 1))]
+    pub expected_role: String,
+    #[validate(length(min = 1))]
+    pub role: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
+pub struct MembershipResp {
+    pub id: i64,
+    pub user_id: i64,
+    pub group_id: i64,
+    pub role: String,
+    pub joined_at: i64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
 pub struct EmptyReq {}

@@ -29,6 +29,9 @@ entity User {
     default "now_millis"
   }
 
+  edge To("groups", Group.Type).Through("memberships", Membership.Type) {
+  }
+
 }
 
 entity Pet {
@@ -55,6 +58,83 @@ entity Pet {
   edge owner {
     to User
     field owner_id
+    ref id
+    unique
+    required
+  }
+
+}
+
+entity Group {
+  table "groups"
+  cache_key id
+
+  field id: i64 {
+    primary
+    auto_increment
+  }
+
+  field name: string {
+    not_empty
+    max_len 120
+    unique
+  }
+
+  field description: string? {
+    max_len 500
+  }
+
+  field created_at: i64 {
+    immutable
+    default "now_millis"
+  }
+
+  edge From("users", User.Type).Ref("groups").Through("memberships", Membership.Type) {
+  }
+
+}
+
+entity Membership {
+  table "memberships"
+  cache_key id
+
+  field id: i64 {
+    primary
+    auto_increment
+  }
+
+  field user_id: i64 {
+  }
+
+  field group_id: i64 {
+  }
+
+  field role: string {
+    enum "member", "admin"
+    default "member"
+  }
+
+  field joined_at: i64 {
+    immutable
+    default "now_millis"
+  }
+
+  index uniq_membership {
+    fields user_id, group_id
+    unique
+  }
+
+  edge user {
+    to User
+    field user_id
+    ref id
+    unique
+    required
+  }
+
+  edge group {
+    to Group
+    field group_id
     ref id
     unique
     required

@@ -23,6 +23,14 @@ cargo run
 - `GET` `/pets/:id`
 - `GET` `/users/:id/pets`
 - `DELETE` `/pets/:id`
+- `POST` `/groups`
+- `GET` `/groups/:id`
+- `GET` `/groups`
+- `POST` `/groups/:group_id/members/:user_id`
+- `PATCH` `/groups/:group_id/members/:user_id`
+- `DELETE` `/groups/:group_id/members/:user_id`
+- `GET` `/groups/:id/users`
+- `GET` `/users/:id/groups`
 
 ## Config
 

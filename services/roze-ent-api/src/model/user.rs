@@ -40,6 +40,70 @@ impl Model {
     }
 }
 
+impl Model {
+    pub async fn traverse_groups<'repo, 'ctx>(
+        &self,
+        through_repo: &crate::model::MembershipRepository<'_>,
+        repo: &'repo crate::model::GroupRepository<'ctx>,
+    ) -> anyhow::Result<crate::model::group::GroupQuery<'repo, 'ctx>> {
+        let value = self.id;
+        let values = through_repo
+            .query()
+            .where_(crate::model::membership::user_id_eq(value))
+            .pluck_group_id()
+            .await?;
+        Ok(repo.query().where_(crate::model::group::id_in(values)))
+    }
+
+    pub async fn query_groups(
+        &self,
+        through_repo: &crate::model::MembershipRepository<'_>,
+        repo: &crate::model::GroupRepository<'_>,
+    ) -> anyhow::Result<Vec<crate::model::GroupModel>> {
+        self.traverse_groups(through_repo, repo).await?.all().await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn add_groups(
+        &self,
+        target: &crate::model::GroupModel,
+        through_repo: &crate::model::MembershipRepository<'_>,
+    ) -> anyhow::Result<crate::model::MembershipModel> {
+        through_repo
+            .create()
+            .set_user_id(self.id.clone())
+            .set_group_id(target.id.clone())
+            .save()
+            .await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn remove_groups(
+        &self,
+        target: &crate::model::GroupModel,
+        through_repo: &crate::model::MembershipRepository<'_>,
+    ) -> anyhow::Result<u64> {
+        through_repo
+            .delete_many()
+            .where_(crate::model::membership::user_id_eq(self.id.clone()))
+            .where_(crate::model::membership::group_id_eq(target.id.clone()))
+            .exec()
+            .await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn clear_groups(
+        &self,
+        through_repo: &crate::model::MembershipRepository<'_>,
+    ) -> anyhow::Result<u64> {
+        through_repo
+            .delete_many()
+            .where_(crate::model::membership::user_id_eq(self.id.clone()))
+            .exec()
+            .await
+    }
+}
+
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {}
 
@@ -323,6 +387,23 @@ impl UserLoadedNode for Model {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct UserWithGroups {
+    pub node: Model,
+    pub edge: Vec<crate::model::GroupModel>,
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithGroupsNested<T> {
+    pub node: Model,
+    pub edge: Vec<T>,
+}
+impl<T> UserLoadedNode for UserWithGroupsNested<T> {
+    fn loaded_node(&self) -> &Model {
+        &self.node
+    }
+}
+
 pub struct UserQuery<'repo, 'ctx> {
     repo: &'repo UserRepository<'ctx>,
     interceptors: Vec<
@@ -450,6 +531,68 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
                 .push(UserPredicate::Not(Box::new(UserPredicate::Or(predicates))));
         }
         self
+    }
+
+    pub async fn has_groups(
+        self,
+        repo: &crate::model::GroupRepository<'_>,
+        through_repo: &crate::model::MembershipRepository<'_>,
+    ) -> anyhow::Result<Self> {
+        self.where_groups_with(
+            repo,
+            through_repo,
+            std::iter::empty::<crate::model::GroupPredicate>(),
+        )
+        .await
+    }
+
+    pub async fn where_groups_with<I>(
+        self,
+        repo: &crate::model::GroupRepository<'_>,
+        through_repo: &crate::model::MembershipRepository<'_>,
+        predicates: I,
+    ) -> anyhow::Result<Self>
+    where
+        I: IntoIterator<Item = crate::model::GroupPredicate>,
+    {
+        let target_values = repo.query().where_all(predicates).pluck_id().await?;
+        let values = through_repo
+            .query()
+            .where_(crate::model::membership::group_id_in(target_values))
+            .pluck_user_id()
+            .await?;
+        Ok(self.where_(id_in(values)))
+    }
+
+    pub async fn not_has_groups(
+        self,
+        repo: &crate::model::GroupRepository<'_>,
+        through_repo: &crate::model::MembershipRepository<'_>,
+    ) -> anyhow::Result<Self> {
+        self.where_groups_without(
+            repo,
+            through_repo,
+            std::iter::empty::<crate::model::GroupPredicate>(),
+        )
+        .await
+    }
+
+    pub async fn where_groups_without<I>(
+        self,
+        repo: &crate::model::GroupRepository<'_>,
+        through_repo: &crate::model::MembershipRepository<'_>,
+        predicates: I,
+    ) -> anyhow::Result<Self>
+    where
+        I: IntoIterator<Item = crate::model::GroupPredicate>,
+    {
+        let target_values = repo.query().where_all(predicates).pluck_id().await?;
+        let values = through_repo
+            .query()
+            .where_(crate::model::membership::group_id_in(target_values))
+            .pluck_user_id()
+            .await?;
+        Ok(self.where_not(id_in(values)))
     }
 
     pub fn order(mut self, order: UserOrder) -> Self {
@@ -705,6 +848,103 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
     /// Predicates, soft-delete scope, ordering and pagination are preserved.
     pub fn into_select(self) -> Select<Entity> {
         self.build_select()
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_groups(
+        self,
+        through_repo: &crate::model::MembershipRepository<'_>,
+        repo: &crate::model::GroupRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithGroups>> {
+        let nodes = self.all().await?;
+        let values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let joins = through_repo
+            .query()
+            .where_(crate::model::membership::user_id_in(values))
+            .all()
+            .await?;
+        let target_values = joins
+            .iter()
+            .map(|join| join.group_id.clone())
+            .collect::<Vec<_>>();
+        let targets = repo
+            .query()
+            .where_(crate::model::group::id_in(target_values))
+            .all()
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let target_values = joins
+                .iter()
+                .filter(|join| join.user_id == node.id)
+                .map(|join| &join.group_id)
+                .collect::<Vec<_>>();
+            let edge = targets
+                .iter()
+                .filter(|target| target_values.contains(&&target.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithGroups { node, edge });
+        }
+        Ok(loaded)
+    }
+
+    pub async fn first_with_groups(
+        mut self,
+        through_repo: &crate::model::MembershipRepository<'_>,
+        repo: &crate::model::GroupRepository<'_>,
+    ) -> anyhow::Result<Option<UserWithGroups>> {
+        self.limit = Some(1);
+        Ok(self
+            .all_with_groups(through_repo, repo)
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_groups_nested<'target_repo, 'target_ctx, T, F, Fut>(
+        self,
+        through_repo: &crate::model::MembershipRepository<'_>,
+        repo: &'target_repo crate::model::GroupRepository<'target_ctx>,
+        load: F,
+    ) -> anyhow::Result<Vec<UserWithGroupsNested<T>>>
+    where
+        T: crate::model::group::GroupLoadedNode + Clone,
+        F: FnOnce(crate::model::group::GroupQuery<'target_repo, 'target_ctx>) -> Fut,
+        Fut: std::future::Future<Output = anyhow::Result<Vec<T>>>,
+    {
+        let nodes = self.all().await?;
+        let values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let joins = through_repo
+            .query()
+            .where_(crate::model::membership::user_id_in(values))
+            .all()
+            .await?;
+        let target_values = joins
+            .iter()
+            .map(|join| join.group_id.clone())
+            .collect::<Vec<_>>();
+        let targets = load(
+            repo.query()
+                .where_(crate::model::group::id_in(target_values)),
+        )
+        .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let target_values = joins
+                .iter()
+                .filter(|join| join.user_id == node.id)
+                .map(|join| &join.group_id)
+                .collect::<Vec<_>>();
+            let edge = targets
+                .iter()
+                .filter(|target| target_values.contains(&&target.loaded_node().id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithGroupsNested { node, edge });
+        }
+        Ok(loaded)
     }
 
     pub async fn sum_id_by_id(self) -> anyhow::Result<Vec<(i64, i64)>> {

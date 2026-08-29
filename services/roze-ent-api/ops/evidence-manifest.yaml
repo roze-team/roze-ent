@@ -173,6 +173,38 @@ smoke_surface:
       path: "/pets/:id"
       request: "GetPetReq"
       response: "DeleteResp"
+    - method: POST
+      path: "/groups"
+      request: "CreateGroupReq"
+      response: "GroupResp"
+    - method: GET
+      path: "/groups/:id"
+      request: "GetGroupReq"
+      response: "GroupResp"
+    - method: GET
+      path: "/groups"
+      request: "EmptyReq"
+      response: "ListGroupsResp"
+    - method: POST
+      path: "/groups/:group_id/members/:user_id"
+      request: "MembershipPathReq"
+      response: "MembershipResp"
+    - method: PATCH
+      path: "/groups/:group_id/members/:user_id"
+      request: "UpdateMembershipRoleReq"
+      response: "MembershipResp"
+    - method: DELETE
+      path: "/groups/:group_id/members/:user_id"
+      request: "MembershipPathReq"
+      response: "DeleteResp"
+    - method: GET
+      path: "/groups/:id/users"
+      request: "GetGroupReq"
+      response: "ListUsersResp"
+    - method: GET
+      path: "/users/:id/groups"
+      request: "GetUserReq"
+      response: "ListGroupsResp"
 promotion_evidence:
   - ci_evidence_bundle
   - 24h_or_72h_soak_report

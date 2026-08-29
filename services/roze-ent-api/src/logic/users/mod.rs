@@ -10,3 +10,5 @@ mod delete_user;
 pub use delete_user::delete_user;
 mod list_user_pets;
 pub use list_user_pets::list_user_pets;
+mod list_user_groups;
+pub use list_user_groups::list_user_groups;

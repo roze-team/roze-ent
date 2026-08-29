@@ -15,4 +15,8 @@ pub fn routes() -> Router {
             "/api/v1/users/{id}/pets",
             get(handler::users::list_user_pets),
         )
+        .route(
+            "/api/v1/users/{id}/groups",
+            get(handler::users::list_user_groups),
+        )
 }

@@ -24,6 +24,25 @@ pub use pet::{
     PetUpdate, PetUpdateMany,
 };
 pub use pet_fields::{PetField, PET_TABLE};
+pub mod group;
+pub mod group_ext;
+pub mod group_fields;
+pub use group::{
+    ActiveModel as GroupActiveModel, Entity as GroupEntity, GroupCreate, GroupDelete,
+    GroupDeleteMany, GroupMutationHooks, GroupOrder, GroupPage, GroupPredicate, GroupQuery,
+    GroupRepository, GroupUpdate, GroupUpdateMany, Model as GroupModel,
+};
+pub use group_fields::{GroupField, GROUP_TABLE};
+pub mod membership;
+pub mod membership_ext;
+pub mod membership_fields;
+pub use membership::{
+    ActiveModel as MembershipActiveModel, Entity as MembershipEntity, MembershipCreate,
+    MembershipDelete, MembershipDeleteMany, MembershipMutationHooks, MembershipOrder,
+    MembershipPage, MembershipPredicate, MembershipQuery, MembershipRepository, MembershipUpdate,
+    MembershipUpdateMany, Model as MembershipModel,
+};
+pub use membership_fields::{MembershipField, MEMBERSHIP_TABLE};
 
 pub async fn configure_context(ctx: ServiceContext) -> anyhow::Result<ServiceContext> {
     Ok(ctx)

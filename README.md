@@ -10,7 +10,7 @@ as code、静态类型查询、关系遍历和代码生成——映射到 Roze �
 
 - Rust 1.98 Cargo workspace；
 - Roze 1.0 生成的 REST、DTO、校验、OpenAPI 与运行时边界；
-- `.ent` 驱动的 User/Pet 图模型；
+- `.ent` 驱动的 User/Pet 与 User/Group/Membership 图模型；
 - 生成的 typed predicate/query/create/update/delete、边遍历、事务与缓存接线；
 - User/Pet CRUD API 与 PostgreSQL 初始化；
 - 可重复的 API/model 再生成脚本与 CI 门禁。
@@ -39,9 +39,20 @@ cargo run -p roze-ent-api
 - `GET /api/v1/pets/:id`
 - `GET /api/v1/users/:id/pets`
 - `DELETE /api/v1/pets/:id`
+- `POST /api/v1/groups`
+- `GET /api/v1/groups`
+- `GET /api/v1/groups/:id`
+- `POST /api/v1/groups/:group_id/members/:user_id`
+- `PATCH /api/v1/groups/:group_id/members/:user_id`
+- `DELETE /api/v1/groups/:group_id/members/:user_id`
+- `GET /api/v1/groups/:id/users`
+- `GET /api/v1/users/:id/groups`
 
 Roze 自带的 `/healthz`、`/readyz`、`/startupz`、`/metrics` 和
 `/openapi.json` 也由服务暴露。
+
+Membership 使用显式 Through edge。角色更新要求同时提交 `expected_role` 和新
+`role`；并发修改时返回 `412 Failed Precondition`，避免静默覆盖。
 
 示例请求：
 
@@ -54,6 +65,7 @@ curl -X POST http://127.0.0.1:3000/api/v1/users \
 ## 事实源与再生成
 
 - HTTP/DTO：[`roze-ent.api`](roze-ent.api)
+- OpenAPI：[`docs/openapi.json`](docs/openapi.json)
 - 数据模型：[`model/schema.ent`](model/schema.ent)
 - 应用逻辑：`services/roze-ent-api/src/logic/**`
 - 生成模型：`services/roze-ent-api/src/model/**`

@@ -23,6 +23,25 @@ pub(crate) fn pet_response(model: crate::model::PetModel) -> PetResp {
     }
 }
 
+pub(crate) fn group_response(model: crate::model::GroupModel) -> GroupResp {
+    GroupResp {
+        id: model.id,
+        name: model.name,
+        description: model.description,
+        created_at: model.created_at,
+    }
+}
+
+pub(crate) fn membership_response(model: crate::model::MembershipModel) -> MembershipResp {
+    MembershipResp {
+        id: model.id,
+        user_id: model.user_id,
+        group_id: model.group_id,
+        role: model.role,
+        joined_at: model.joined_at,
+    }
+}
+
 pub(crate) fn model_error(error: anyhow::Error) -> RozeError {
     tracing::error!(error = %error, "entity model operation failed");
     RozeError::Internal("entity model operation failed".to_string())
@@ -62,5 +81,37 @@ mod tests {
         assert_eq!(response.owner_id, 7);
         assert_eq!(response.name, "Milo");
         assert_eq!(response.species, "cat");
+    }
+
+    #[test]
+    fn maps_group_model_to_wire_response() {
+        let response = group_response(crate::model::GroupModel {
+            id: 11,
+            name: "rustaceans".to_string(),
+            description: Some("Rust users".to_string()),
+            created_at: 77,
+        });
+
+        assert_eq!(response.id, 11);
+        assert_eq!(response.name, "rustaceans");
+        assert_eq!(response.description.as_deref(), Some("Rust users"));
+        assert_eq!(response.created_at, 77);
+    }
+
+    #[test]
+    fn maps_membership_model_to_wire_response() {
+        let response = membership_response(crate::model::MembershipModel {
+            id: 13,
+            user_id: 7,
+            group_id: 11,
+            role: "admin".to_string(),
+            joined_at: 99,
+        });
+
+        assert_eq!(response.id, 13);
+        assert_eq!(response.user_id, 7);
+        assert_eq!(response.group_id, 11);
+        assert_eq!(response.role, "admin");
+        assert_eq!(response.joined_at, 99);
     }
 }

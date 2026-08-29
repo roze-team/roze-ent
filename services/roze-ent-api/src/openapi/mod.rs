@@ -119,6 +119,111 @@ pub fn document() -> serde_json::Value {
         );
     }
     {
+        let mut properties = BTreeMap::new();
+        properties.insert("name".to_string(), Schema::string());
+        properties.insert(
+            "description".to_string(),
+            Schema::reference("Option<String>"),
+        );
+        builder = builder.component_schema(
+            "CreateGroupReq",
+            Schema::object(properties, vec!["name".to_string()]),
+        );
+    }
+    {
+        let mut properties = BTreeMap::new();
+        properties.insert("id".to_string(), Schema::integer("int64"));
+        builder = builder.component_schema(
+            "GetGroupReq",
+            Schema::object(properties, vec!["id".to_string()]),
+        );
+    }
+    {
+        let mut properties = BTreeMap::new();
+        properties.insert("id".to_string(), Schema::integer("int64"));
+        properties.insert("name".to_string(), Schema::string());
+        properties.insert(
+            "description".to_string(),
+            Schema::reference("Option<String>"),
+        );
+        properties.insert("created_at".to_string(), Schema::integer("int64"));
+        builder = builder.component_schema(
+            "GroupResp",
+            Schema::object(
+                properties,
+                vec![
+                    "id".to_string(),
+                    "name".to_string(),
+                    "description".to_string(),
+                    "created_at".to_string(),
+                ],
+            ),
+        );
+    }
+    {
+        let mut properties = BTreeMap::new();
+        properties.insert(
+            "groups".to_string(),
+            Schema::array(Schema::reference("GroupResp")),
+        );
+        builder = builder.component_schema(
+            "ListGroupsResp",
+            Schema::object(properties, vec!["groups".to_string()]),
+        );
+    }
+    {
+        let mut properties = BTreeMap::new();
+        properties.insert("group_id".to_string(), Schema::integer("int64"));
+        properties.insert("user_id".to_string(), Schema::integer("int64"));
+        builder = builder.component_schema(
+            "MembershipPathReq",
+            Schema::object(
+                properties,
+                vec!["group_id".to_string(), "user_id".to_string()],
+            ),
+        );
+    }
+    {
+        let mut properties = BTreeMap::new();
+        properties.insert("group_id".to_string(), Schema::integer("int64"));
+        properties.insert("user_id".to_string(), Schema::integer("int64"));
+        properties.insert("expected_role".to_string(), Schema::string());
+        properties.insert("role".to_string(), Schema::string());
+        builder = builder.component_schema(
+            "UpdateMembershipRoleReq",
+            Schema::object(
+                properties,
+                vec![
+                    "group_id".to_string(),
+                    "user_id".to_string(),
+                    "expected_role".to_string(),
+                    "role".to_string(),
+                ],
+            ),
+        );
+    }
+    {
+        let mut properties = BTreeMap::new();
+        properties.insert("id".to_string(), Schema::integer("int64"));
+        properties.insert("user_id".to_string(), Schema::integer("int64"));
+        properties.insert("group_id".to_string(), Schema::integer("int64"));
+        properties.insert("role".to_string(), Schema::string());
+        properties.insert("joined_at".to_string(), Schema::integer("int64"));
+        builder = builder.component_schema(
+            "MembershipResp",
+            Schema::object(
+                properties,
+                vec![
+                    "id".to_string(),
+                    "user_id".to_string(),
+                    "group_id".to_string(),
+                    "role".to_string(),
+                    "joined_at".to_string(),
+                ],
+            ),
+        );
+    }
+    {
         let properties = BTreeMap::new();
         builder = builder.component_schema("EmptyReq", Schema::object(properties, vec![]));
     }
@@ -429,5 +534,210 @@ pub fn document() -> serde_json::Value {
             )
         });
     builder.add_operation("/api/v1/pets/:id", HttpMethod::Delete, op);
+    let op = Operation::new("createGroup")
+        .tag("roze-ent")
+        .parameter(
+            "x-roze-locale",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            false,
+        )
+        .request_body("CreateGroupReq")
+        .response_with_schema("200", "OK", "application/json", {
+            let mut properties = BTreeMap::new();
+            properties.insert("code".to_string(), Schema::integer("int32"));
+            properties.insert("msg".to_string(), Schema::string());
+            properties.insert("data".to_string(), Schema::reference("GroupResp"));
+            Schema::object(
+                properties,
+                vec!["code".to_string(), "msg".to_string(), "data".to_string()],
+            )
+        });
+    builder.add_operation("/api/v1/groups", HttpMethod::Post, op);
+    let op = Operation::new("getGroup")
+        .tag("roze-ent")
+        .parameter(
+            "x-roze-locale",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            false,
+        )
+        .parameter("id", roze_openapi::ParameterLocation::Path, "i64", true)
+        .response_with_schema("200", "OK", "application/json", {
+            let mut properties = BTreeMap::new();
+            properties.insert("code".to_string(), Schema::integer("int32"));
+            properties.insert("msg".to_string(), Schema::string());
+            properties.insert("data".to_string(), Schema::reference("GroupResp"));
+            Schema::object(
+                properties,
+                vec!["code".to_string(), "msg".to_string(), "data".to_string()],
+            )
+        });
+    builder.add_operation("/api/v1/groups/:id", HttpMethod::Get, op);
+    let op = Operation::new("listGroups")
+        .tag("roze-ent")
+        .parameter(
+            "x-roze-locale",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            false,
+        )
+        .response_with_schema("200", "OK", "application/json", {
+            let mut properties = BTreeMap::new();
+            properties.insert("code".to_string(), Schema::integer("int32"));
+            properties.insert("msg".to_string(), Schema::string());
+            properties.insert("data".to_string(), Schema::reference("ListGroupsResp"));
+            Schema::object(
+                properties,
+                vec!["code".to_string(), "msg".to_string(), "data".to_string()],
+            )
+        });
+    builder.add_operation("/api/v1/groups", HttpMethod::Get, op);
+    let op = Operation::new("addGroupMember")
+        .tag("roze-ent")
+        .parameter(
+            "x-roze-locale",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            false,
+        )
+        .parameter(
+            "group_id",
+            roze_openapi::ParameterLocation::Path,
+            "i64",
+            true,
+        )
+        .parameter(
+            "user_id",
+            roze_openapi::ParameterLocation::Path,
+            "i64",
+            true,
+        )
+        .response_with_schema("200", "OK", "application/json", {
+            let mut properties = BTreeMap::new();
+            properties.insert("code".to_string(), Schema::integer("int32"));
+            properties.insert("msg".to_string(), Schema::string());
+            properties.insert("data".to_string(), Schema::reference("MembershipResp"));
+            Schema::object(
+                properties,
+                vec!["code".to_string(), "msg".to_string(), "data".to_string()],
+            )
+        });
+    builder.add_operation(
+        "/api/v1/groups/:group_id/members/:user_id",
+        HttpMethod::Post,
+        op,
+    );
+    let op = Operation::new("updateGroupMember")
+        .tag("roze-ent")
+        .parameter(
+            "x-roze-locale",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            false,
+        )
+        .parameter(
+            "group_id",
+            roze_openapi::ParameterLocation::Path,
+            "i64",
+            true,
+        )
+        .parameter(
+            "user_id",
+            roze_openapi::ParameterLocation::Path,
+            "i64",
+            true,
+        )
+        .request_body("UpdateMembershipRoleReq")
+        .response_with_schema("200", "OK", "application/json", {
+            let mut properties = BTreeMap::new();
+            properties.insert("code".to_string(), Schema::integer("int32"));
+            properties.insert("msg".to_string(), Schema::string());
+            properties.insert("data".to_string(), Schema::reference("MembershipResp"));
+            Schema::object(
+                properties,
+                vec!["code".to_string(), "msg".to_string(), "data".to_string()],
+            )
+        });
+    builder.add_operation(
+        "/api/v1/groups/:group_id/members/:user_id",
+        HttpMethod::Patch,
+        op,
+    );
+    let op = Operation::new("removeGroupMember")
+        .tag("roze-ent")
+        .parameter(
+            "x-roze-locale",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            false,
+        )
+        .parameter(
+            "group_id",
+            roze_openapi::ParameterLocation::Path,
+            "i64",
+            true,
+        )
+        .parameter(
+            "user_id",
+            roze_openapi::ParameterLocation::Path,
+            "i64",
+            true,
+        )
+        .response_with_schema("200", "OK", "application/json", {
+            let mut properties = BTreeMap::new();
+            properties.insert("code".to_string(), Schema::integer("int32"));
+            properties.insert("msg".to_string(), Schema::string());
+            properties.insert("data".to_string(), Schema::reference("DeleteResp"));
+            Schema::object(
+                properties,
+                vec!["code".to_string(), "msg".to_string(), "data".to_string()],
+            )
+        });
+    builder.add_operation(
+        "/api/v1/groups/:group_id/members/:user_id",
+        HttpMethod::Delete,
+        op,
+    );
+    let op = Operation::new("listGroupUsers")
+        .tag("roze-ent")
+        .parameter(
+            "x-roze-locale",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            false,
+        )
+        .parameter("id", roze_openapi::ParameterLocation::Path, "i64", true)
+        .response_with_schema("200", "OK", "application/json", {
+            let mut properties = BTreeMap::new();
+            properties.insert("code".to_string(), Schema::integer("int32"));
+            properties.insert("msg".to_string(), Schema::string());
+            properties.insert("data".to_string(), Schema::reference("ListUsersResp"));
+            Schema::object(
+                properties,
+                vec!["code".to_string(), "msg".to_string(), "data".to_string()],
+            )
+        });
+    builder.add_operation("/api/v1/groups/:id/users", HttpMethod::Get, op);
+    let op = Operation::new("listUserGroups")
+        .tag("roze-ent")
+        .parameter(
+            "x-roze-locale",
+            roze_openapi::ParameterLocation::Header,
+            "String",
+            false,
+        )
+        .parameter("id", roze_openapi::ParameterLocation::Path, "i64", true)
+        .response_with_schema("200", "OK", "application/json", {
+            let mut properties = BTreeMap::new();
+            properties.insert("code".to_string(), Schema::integer("int32"));
+            properties.insert("msg".to_string(), Schema::string());
+            properties.insert("data".to_string(), Schema::reference("ListGroupsResp"));
+            Schema::object(
+                properties,
+                vec!["code".to_string(), "msg".to_string(), "data".to_string()],
+            )
+        });
+    builder.add_operation("/api/v1/users/:id/groups", HttpMethod::Get, op);
     roze_openapi::to_json_value(&builder.finish())
 }

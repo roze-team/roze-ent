@@ -8,3 +8,5 @@ mod delete_user;
 pub(crate) use delete_user::delete_user;
 mod list_user_pets;
 pub(crate) use list_user_pets::list_user_pets;
+mod list_user_groups;
+pub(crate) use list_user_groups::list_user_groups;

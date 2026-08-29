@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS memberships;
+DROP TABLE IF EXISTS groups;
+

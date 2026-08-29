@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 
+mod groups;
 mod pets;
 mod users;
 
@@ -46,6 +47,7 @@ pub fn router(ctx: ServiceContext) -> Router {
         )
         .route("/api/v1/charts/query", post(chart_query))
         .route("/api/v1/openapi.json", get(openapi_doc))
+        .merge(groups::routes())
         .merge(pets::routes())
         .merge(users::routes());
     let router = match timeout {

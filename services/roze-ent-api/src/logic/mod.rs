@@ -37,6 +37,8 @@ pub fn current_scope(request_ctx: &roze_context::Context) -> Option<String> {
     request_ctx.metadata_value(roze_context::SCOPE_METADATA_KEY)
 }
 
+pub mod groups;
+pub use groups::*;
 pub mod pets;
 pub use pets::*;
 pub mod users;

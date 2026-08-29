@@ -27,6 +27,22 @@ service roze-ent {
     get /users/:id/pets (GetUserReq) returns (ListPetsResp)
     @handler deletePet
     delete /pets/:id (GetPetReq) returns (DeleteResp)
+    @handler createGroup
+    post /groups (CreateGroupReq) returns (GroupResp)
+    @handler getGroup
+    get /groups/:id (GetGroupReq) returns (GroupResp)
+    @handler listGroups
+    get /groups (EmptyReq) returns (ListGroupsResp)
+    @handler addGroupMember
+    post /groups/:group_id/members/:user_id (MembershipPathReq) returns (MembershipResp)
+    @handler updateGroupMember
+    patch /groups/:group_id/members/:user_id (UpdateMembershipRoleReq) returns (MembershipResp)
+    @handler removeGroupMember
+    delete /groups/:group_id/members/:user_id (MembershipPathReq) returns (DeleteResp)
+    @handler listGroupUsers
+    get /groups/:id/users (GetGroupReq) returns (ListUsersResp)
+    @handler listUserGroups
+    get /users/:id/groups (GetUserReq) returns (ListGroupsResp)
 }
 
 type (
@@ -66,6 +82,39 @@ type (
     }
     DeleteResp {
         deleted bool `json:"deleted"`
+    }
+    CreateGroupReq {
+        name string `json:"name" validate:"required,min=1,max=120"`
+        description Option<String> `json:"description" validate:"optional,max=500"`
+    }
+    GetGroupReq {
+        id i64 `path:"id" validate:"min=1"`
+    }
+    GroupResp {
+        id i64 `json:"id"`
+        name string `json:"name"`
+        description Option<String> `json:"description"`
+        createdAt i64 `json:"created_at"`
+    }
+    ListGroupsResp {
+        groups []GroupResp `json:"groups"`
+    }
+    MembershipPathReq {
+        groupId i64 `path:"group_id" validate:"min=1"`
+        userId i64 `path:"user_id" validate:"min=1"`
+    }
+    UpdateMembershipRoleReq {
+        groupId i64 `path:"group_id" validate:"min=1"`
+        userId i64 `path:"user_id" validate:"min=1"`
+        expectedRole string `json:"expected_role" validate:"required,oneof=member admin"`
+        role string `json:"role" validate:"required,oneof=member admin"`
+    }
+    MembershipResp {
+        id i64 `json:"id"`
+        userId i64 `json:"user_id"`
+        groupId i64 `json:"group_id"`
+        role string `json:"role"`
+        joinedAt i64 `json:"joined_at"`
     }
     EmptyReq {
     }

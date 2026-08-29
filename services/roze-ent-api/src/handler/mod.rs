@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 
+pub mod groups;
 pub mod pets;
 pub mod users;
 

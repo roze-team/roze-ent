@@ -39,9 +39,10 @@ export DATABASE_URL="${ROZE_ENT_TEST_POSTGRES_URL}"
 export ROZE_CONFIG_PATH="services/roze-ent-api/config.yaml"
 cargo run -p roze-ent-api >target/postgres-smoke-service.log 2>&1 &
 service_pid=$!
+readiness_url="http://127.0.0.1:3000/api/v1/readyz"
 
-for _ in $(seq 1 360); do
-  if curl --fail --silent http://127.0.0.1:3000/healthz >/dev/null; then
+for _ in $(seq 1 180); do
+  if curl --fail --silent "${readiness_url}" >/dev/null; then
     break
   fi
   if ! kill -0 "${service_pid}" 2>/dev/null; then
@@ -50,7 +51,7 @@ for _ in $(seq 1 360); do
   fi
   sleep 1
 done
-if ! curl --fail --silent http://127.0.0.1:3000/healthz >/dev/null; then
+if ! curl --fail --silent "${readiness_url}" >/dev/null; then
   cat target/postgres-smoke-service.log
   exit 1
 fi

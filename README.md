@@ -67,7 +67,7 @@ cargo run -p roze-ent-api
 - `PATCH /api/v1/projects/:id`
 - `DELETE /api/v1/projects/:id`
 
-Roze 自带的 `/healthz`、`/readyz`、`/startupz`、`/metrics` 和
+Roze 自带的 `/api/v1/healthz`、`/api/v1/readyz`、`/api/v1/startupz`、`/api/v1/metrics` 和
 `/openapi.json` 也由服务暴露。
 
 Membership 使用显式 Through edge。角色更新要求同时提交 `expected_role` 和新

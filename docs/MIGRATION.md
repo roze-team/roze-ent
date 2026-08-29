@@ -36,7 +36,7 @@
 | PostgreSQL smoke | migration + HTTP tenant/version/delete 流程 | 已接入 CI；本地需要 Docker |
 | transaction/hooks/privacy/mixins | `ModelClient::transaction`、operation chain 与 `*_ext.rs` | SQLite 真实事务提交/回滚及 Project hook/policy/mixin 已覆盖 |
 | SQL migrations | `roze-migration` + `migrations/` | SQLite dry-run/apply/partial rollback/full rollback/drift/atomicity 已验证 |
-| SQL dialects | SeaORM/Roze DB（PostgreSQL/MySQL/SQLite） | PostgreSQL smoke 与 SQLite 真实测试已覆盖；MySQL 真实证据待补 |
+| SQL dialects | SeaORM/Roze DB（PostgreSQL/MySQL/SQLite） | SQLite、PostgreSQL、MySQL 的真实 migration lifecycle 已覆盖 |
 | Gremlin/GraphSON | 独立图后端适配 | 未迁移 |
 | Atlas 深度集成 | Roze migration/gate 对接 | 未迁移 |
 | entc 自定义 Go template | Roze generator extension API | 未迁移具体扩展 |
@@ -57,7 +57,7 @@
 
 ## 后续阶段
 
-1. 增加 MySQL 真实依赖证据，并把 PostgreSQL smoke 切换为 `roze-migration` ledger 执行。
+1. 将真实 PostgreSQL/MySQL migration matrix 作为持续 CI 门禁，并把健康端点前缀差异反馈到 Roze 生成器。
 2. 对照 ent 的 predicate、projection、aggregate 与 edge 测试建立兼容矩阵。
 3. 扩展 Project 之外的领域 policy，并为事务型副作用接入 outbox 证据。
 4. 评估 Gremlin、Atlas 和生成器扩展的真实使用需求，再决定是否实现 Rust 适配层。
@@ -71,5 +71,7 @@ Project 的 SQLite 证据使用真实 SQL 连接验证提交和强制回滚，�
 
 SQLite 方言迁移位于 `migrations/sqlite/`，版本和名称与 PostgreSQL 迁移保持一致。
 集成测试直接通过固定 revision 的 `roze-migration` 加载这些项目文件，验证确定性 dry-run、
-apply、回滚到版本边界、全量回滚、名称漂移拒绝和失败批次原子回滚。当前没有 MySQL
-服务，因此 MySQL 只保留为生成层能力，不标记真实运行通过。
+apply、回滚到版本边界、全量回滚、名称漂移拒绝和失败批次原子回滚。PostgreSQL 与 MySQL
+分别由独立 CI smoke 在真实容器中执行 apply、账本幂等检查和全量 rollback；MySQL 迁移对
+保留关键字标识符使用方言引用。多语句项目迁移会先确定性拆分为单语句 ledger step，以
+满足 SQLx prepared-statement 边界。

@@ -13,6 +13,7 @@ as code、静态类型查询、关系遍历和代码生成——映射到 Roze �
 - `.ent` 驱动的 User/Pet 与 User/Group/Membership 图模型；
 - tenant-scoped、soft-delete、optimistic-lock Project 模型；
 - 生成的 typed predicate/query/create/update/delete、边遍历、事务与缓存接线；
+- SQLite 真实事务回滚及 Project hook/policy/mixin 兼容测试；
 - User/Pet CRUD API 与 PostgreSQL 初始化；
 - 可重复的 API/model 再生成脚本与 CI 门禁。
 
@@ -103,6 +104,10 @@ cargo check --workspace
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 ```
+
+工作区测试包含无需 Docker 的 SQLite 内存集成场景，验证生成模型事务的提交/回滚、
+Project create mixin、tenant policy 和 mutation hook。mutation hook 先于外层事务提交
+完成；不可逆副作用应进入事务型 outbox，而不是直接从 hook 发出。
 
 具备 Docker 的 Linux/CI 环境还可以运行真实 PostgreSQL smoke：
 

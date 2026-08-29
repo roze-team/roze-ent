@@ -40,7 +40,7 @@ export ROZE_CONFIG_PATH="services/roze-ent-api/config.yaml"
 cargo run -p roze-ent-api >target/postgres-smoke-service.log 2>&1 &
 service_pid=$!
 
-for _ in $(seq 1 180); do
+for _ in $(seq 1 360); do
   if curl --fail --silent http://127.0.0.1:3000/healthz >/dev/null; then
     break
   fi
@@ -50,7 +50,10 @@ for _ in $(seq 1 180); do
   fi
   sleep 1
 done
-curl --fail --silent http://127.0.0.1:3000/healthz >/dev/null
+if ! curl --fail --silent http://127.0.0.1:3000/healthz >/dev/null; then
+  cat target/postgres-smoke-service.log
+  exit 1
+fi
 
 project_name="smoke-$(date +%s)-${RANDOM}"
 created=$(curl --fail --silent \

@@ -43,6 +43,22 @@ mutation 矩阵还发现 SeaORM SQLite 的冲突 upsert 返回值错误：生成
 upsert 运行证据。本项目的 patched-rozectl 生成链已应用该补丁，并覆盖同一主键冲突更新、
 不可更新字段保持与返回行重载；Roze 上游仍需合入补丁才能移除临时构建链。
 
+自定义字符串 ID 和复合 ID 的 SQLite create 进一步发现 SeaORM `ActiveModel::insert()` 会按
+`last_insert_id` 回读，从而在记录已写入后返回 `RecordNotFound`。修复位于
+[`patches/roze/0003-fix-sea-orm-custom-id-insert-returning.patch`](../patches/roze/0003-fix-sea-orm-custom-id-insert-returning.patch)：
+非自增主键在插入前保存单一或复合键，执行 `exec_without_returning` 后从同一主写连接按键重载；
+自增主键保留原路径。生成器字符串/复合 ID 单测和本仓库 SQLite 真实测试均覆盖该行为。
+
+新增 Decimal 与 `f64` 标量矩阵还暴露了生成代码的严格 Clippy 问题：Decimal 是 Copy 类型却被
+不必要地 `clone()`，而 `f64` 聚合又生成同类型的 `as f64` 转换。修复位于
+[`patches/roze/0004-fix-sea-orm-scalar-clippy-output.patch`](../patches/roze/0004-fix-sea-orm-scalar-clippy-output.patch)：
+它将 Decimal 纳入 Copy filter 类型，并让平均值代码仅对非 `f64` 输入做转换；生成器回归测试、
+本仓库全量测试与 `clippy -D warnings` 共同固化该行为。
+
+标量矩阵还确认 `.ent u64` 虽可生成和编译，但 SeaORM/sqlx-sqlite 在运行时拒绝绑定 `u64`。
+该能力保持未完成，不能以 `i64` 替换后宣称等价；需要 Roze 提供带范围检查的 SQLite 存储转换，
+并同时保持 Rust 公共模型的 unsigned 语义。
+
 ## 基线
 
 迁移分析使用上游 `ent/ent` 提交 `69d5d4deb`。该基线约有 2,318 个 Go 文件，主要
@@ -59,6 +75,7 @@ upsert 运行证据。本项目的 patched-rozectl 生成链已应用该补丁�
 | Go schema as code | `model/schema.ent` | 已落地 |
 | `ent generate` / `entc` | `rozectl model generate --format ent` | 已落地 |
 | typed Client/Query/Create/Update/Delete | 生成的 SeaORM repository 与 builder | 已落地 |
+| 标量类型与自定义/复合 ID | ScalarFixture、LocaleSetting 与 patched-rozectl | SQLite 已覆盖 bytes/JSON/Decimal/time/float/signed integer、自定义字符串 ID 和复合键；UUID 强类型、u64、三方言 CRUD 仍待完成 |
 | create/update/delete one/many 与 batch/upsert | 生成的 mutation builder 与 repository batch API | SQLite 真实语义矩阵已覆盖必填/字段校验、唯一约束、one/many、原子条件更新、批量插入/删除，以及 upsert 插入和冲突更新返回语义；补丁 0002 待合入 Roze 上游 |
 | predicates/order/pagination/projection/aggregate | 生成的 ent-style query API | 已落地；SQLite 真实语义矩阵覆盖复合/IN/range/contains/IContains/EqualFold predicate、typed order、offset/limit/page、nullable projection、grouped count 与数值聚合；补丁 0001 待合入 Roze 上游 |
 | edge traversal | `.ent` edge 与生成的 relation query | 已落地；SQLite 真实语义矩阵覆盖 User/Group/Membership Through M2M、`HasXWith`、双向 traversal 与 eager loading，User/Pet 保留 ordinary edge 示例 |

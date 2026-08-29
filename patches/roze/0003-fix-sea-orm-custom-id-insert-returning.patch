@@ -1,0 +1,94 @@
+diff --git a/apps/rozectl/src/generator/model.rs b/apps/rozectl/src/generator/model.rs
+--- a/apps/rozectl/src/generator/model.rs
++++ b/apps/rozectl/src/generator/model.rs
+@@ -3559,8 +3559,19 @@ fn render_model_module_with_models(model: &ModelSpec, models: &[ModelSpec]) -> S
+-    writeln!(
+-        &mut out,
+-        "        let inserted = active.insert(&db).await?;"
+-    )
+-    .unwrap();
++    if model.fields.iter().any(|field| field.auto_increment) {
++        writeln!(
++            &mut out,
++            "        let inserted = active.insert(&db).await?;"
++        )
++        .unwrap();
++    } else {
++        let insert_key = sea_orm_active_primary_key_expr(model, "active");
++        writeln!(&mut out, "        let insert_key = {insert_key};").unwrap();
++        writeln!(
++            &mut out,
++            "        Entity::insert(active).exec_without_returning(&db).await?;"
++        )
++        .unwrap();
++        writeln!(&mut out, "        let inserted = Entity::find_by_id(insert_key).one(&db).await?.ok_or_else(|| anyhow::anyhow!(\"inserted {pascal} could not be reloaded\"))?;").unwrap();
++    }
+     if model.cache {
+         writeln!(
+             &mut out,
+@@ -4986,6 +4997,17 @@ fn render_sea_orm_create_builder(out: &mut String, model: &ModelSpec, pascal: &s
+     }
+     writeln!(out, "        }};").unwrap();
+-    writeln!(out, "        let inserted = active.insert(&db).await?;").unwrap();
++    if model.fields.iter().any(|field| field.auto_increment) {
++        writeln!(out, "        let inserted = active.insert(&db).await?;").unwrap();
++    } else {
++        let insert_key = sea_orm_active_primary_key_expr(model, "active");
++        writeln!(out, "        let insert_key = {insert_key};").unwrap();
++        writeln!(
++            out,
++            "        Entity::insert(active).exec_without_returning(&db).await?;"
++        )
++        .unwrap();
++        writeln!(out, "        let inserted = Entity::find_by_id(insert_key).one(&db).await?.ok_or_else(|| anyhow::anyhow!(\"inserted {pascal} could not be reloaded\"))?;").unwrap();
++    }
+     if model.cache {
+         writeln!(
+             out,
+@@ -13353,6 +13375,24 @@ fn sea_orm_reusable_value_expr(ty: &str, ident: &str) -> String {
+     }
+ }
+-
++
++fn sea_orm_active_primary_key_expr(model: &ModelSpec, active_ident: &str) -> String {
++    let values = model
++        .primary_fields
++        .iter()
++        .map(|name| {
++            format!(
++                "{active_ident}.{}.clone().unwrap()",
++                model_field_ident_by_name(name)
++            )
++        })
++        .collect::<Vec<_>>();
++    if values.len() == 1 {
++        values[0].clone()
++    } else {
++        format!("({})", values.join(", "))
++    }
++}
++
+ fn render_toasty_index_methods(out: &mut String, model: &ModelSpec, pascal: &str) {
+     use std::fmt::Write as _;
+     for index in model
+@@ -22753,5 +22793,8 @@ mod tests {
+         assert!(sea_orm.contains(
+             "if value.len() > 25 { anyhow::bail!(\"id validation failed: byte length must be at most 25\"); }"
+         ));
++        assert!(sea_orm.contains("let insert_key = active.id.clone().unwrap();"));
++        assert!(sea_orm.contains("Entity::insert(active).exec_without_returning(&db)"));
++        assert!(sea_orm.contains("inserted Pet could not be reloaded"));
+         assert!(!sea_orm.contains("IdUnique"));
+     }
+@@ -22831,6 +22874,11 @@ mod tests {
+         assert!(sea_orm.contains("update_columns([Column::LikedAt])"));
+         assert!(sea_orm.contains("let upsert_key = (model.user_id, model.tweet_id);"));
+         assert!(sea_orm.contains("Entity::find_by_id(upsert_key).one(&db)"));
++        assert!(sea_orm.contains(
++            "let insert_key = (active.user_id.clone().unwrap(), active.tweet_id.clone().unwrap());"
++        ));
++        assert!(sea_orm.contains("Entity::insert(active).exec_without_returning(&db)"));
++        assert!(sea_orm.contains("inserted Like could not be reloaded"));
+         assert!(sea_orm
+             .contains("pub async fn add_liked_at(mut self, delta: i64) -> anyhow::Result<Model>"));
+         assert!(sea_orm.contains("query = query.where_(user_id_eq(key.user_id.clone()))"));

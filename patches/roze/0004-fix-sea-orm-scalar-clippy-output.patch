@@ -1,0 +1,60 @@
+diff --git a/apps/rozectl/src/generator/model.rs b/apps/rozectl/src/generator/model.rs
+--- a/apps/rozectl/src/generator/model.rs
++++ b/apps/rozectl/src/generator/model.rs
+@@ -12800,7 +12800,12 @@ fn render_avg_body(out: &mut String, ty: &str, _result_kind: &str) {
+         writeln!(out, "        let mut sum = 0.0_f64;").unwrap();
+         writeln!(out, "        let mut count = 0u64;").unwrap();
+         writeln!(out, "        for value in {iterator} {{").unwrap();
+-        writeln!(out, "            sum += value as f64;").unwrap();
++        let value_expr = if value_ty == "f64" {
++            "value"
++        } else {
++            "value as f64"
++        };
++        writeln!(out, "            sum += {value_expr};").unwrap();
+         writeln!(out, "            count += 1;").unwrap();
+         writeln!(out, "        }}").unwrap();
+         writeln!(out, "        if count == 0 {{").unwrap();
+@@ -15751,6 +15756,7 @@ fn is_copy_filter_type(ty: &str) -> bool {
+             | "usize"
+             | "f32"
+             | "f64"
++            | "rust_decimal::Decimal"
+             | "DateTime"
+             | "DateTimeUtc"
+             | "jiff::civil::DateTime"
+@@ -26380,6 +26386,8 @@ mod tests {
+         assert!(sea_orm.contains("pub async fn subtract_discount_amount"));
+         assert!(sea_orm.contains("pub async fn add_min_order_amount"));
+         assert!(sea_orm.contains("pub async fn subtract_min_order_amount"));
++        assert!(!sea_orm.contains("Column::DiscountAmount.eq(value.clone())"));
++        assert!(!sea_orm.contains("Expr::value(value.clone())"));
+-
++
+         let rendered = render_toasty_model_module(model);
+         assert!(rendered.contains("pub status: i16"));
+@@ -26389,7 +26397,7 @@ mod tests {
+         assert!(rendered.contains("StatusBetween(i16, i16)"));
+         assert!(rendered.contains("DiscountAmountGte(rust_decimal::Decimal)"));
+         assert!(rendered.contains("Coupon::fields().status().eq(*value)"));
+-        assert!(rendered.contains("Coupon::fields().discount_amount().ge(value.clone())"));
++        assert!(rendered.contains("Coupon::fields().discount_amount().ge(*value)"));
+         assert!(rendered.contains("pub async fn add_status"));
+         assert!(rendered.contains("pub async fn subtract_status"));
+         assert!(!rendered.contains("fn add_discount_amount"));
+@@ -26420,6 +26428,14 @@ mod tests {
+         ));
+     }
+-
++
++    #[test]
++    fn f64_average_generation_avoids_redundant_same_type_cast() {
++        let mut rendered = String::new();
++        render_avg_body(&mut rendered, "f64", "anyhow");
++        assert!(rendered.contains("sum += value;"));
++        assert!(!rendered.contains("sum += value as f64;"));
++    }
++
+     #[test]
+     fn postgres_bigint_and_timestamps_generate_runtime_safe_types() {
+         let source = r#"

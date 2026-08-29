@@ -23,6 +23,7 @@ as code、静态类型查询、关系遍历和代码生成——映射到 Roze �
 - Roze 1.0 生成的 REST、DTO、校验、OpenAPI 与运行时边界；
 - `.ent` 驱动的 User/Pet 与 User/Group/Membership 图模型；
 - tenant-scoped、soft-delete、optimistic-lock Project 模型；
+- bytes/JSON/Decimal/time/float 标量、自定义字符串 ID 与复合 ID 验收模型；
 - 生成的 typed predicate/query/create/update/delete、边遍历、事务与缓存接线；
 - SQLite 真实事务回滚及 Project hook/policy/mixin 兼容测试；
 - `roze-migration` 驱动的 SQLite dry-run、apply、rollback、drift 与原子性证据；
@@ -33,7 +34,7 @@ as code、静态类型查询、关系遍历和代码生成——映射到 Roze �
 
 ## 快速开始
 
-要求 Docker 和 Rust 1.98。项目从固定 Roze revision 构建 `rozectl` 并应用两项尚待上游合入的
+要求 Docker 和 Rust 1.98。项目从固定 Roze revision 构建 `rozectl` 并应用四项尚待上游合入的
 生成器修复；完整的 ent 功能同步状态与验收条件见
 [`docs/ENT_COMPATIBILITY.md`](docs/ENT_COMPATIBILITY.md)：
 

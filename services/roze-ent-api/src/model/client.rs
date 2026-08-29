@@ -2,9 +2,11 @@
 #![allow(dead_code, unused_imports)]
 
 use super::group::{GroupMutationHooks, GroupRepository};
+use super::locale_setting::{LocaleSettingMutationHooks, LocaleSettingRepository};
 use super::membership::{MembershipMutationHooks, MembershipRepository};
 use super::pet::{PetMutationHooks, PetRepository};
 use super::project::{ProjectMutationHooks, ProjectRepository};
+use super::scalar_fixture::{ScalarFixtureMutationHooks, ScalarFixtureRepository};
 use super::user::{UserMutationHooks, UserRepository};
 use crate::svc::ServiceContext;
 
@@ -83,6 +85,8 @@ pub struct TransactionModelClient<'tx> {
     group_mutation_hooks: Vec<&'tx dyn GroupMutationHooks>,
     membership_mutation_hooks: Vec<&'tx dyn MembershipMutationHooks>,
     project_mutation_hooks: Vec<&'tx dyn ProjectMutationHooks>,
+    scalar_fixture_mutation_hooks: Vec<&'tx dyn ScalarFixtureMutationHooks>,
+    locale_setting_mutation_hooks: Vec<&'tx dyn LocaleSettingMutationHooks>,
 }
 
 impl<'tx> TransactionModelClient<'tx> {
@@ -140,6 +144,28 @@ impl<'tx> TransactionModelClient<'tx> {
             |repository, hooks| repository.with_mutation_hooks(*hooks),
         )
     }
+
+    pub fn scalar_fixture(&self) -> ScalarFixtureRepository<'_> {
+        self.scalar_fixture_mutation_hooks.iter().fold(
+            ScalarFixtureRepository::new_in_transaction(
+                self.ctx,
+                self.transaction,
+                self.pending_invalidations,
+            ),
+            |repository, hooks| repository.with_mutation_hooks(*hooks),
+        )
+    }
+
+    pub fn locale_setting(&self) -> LocaleSettingRepository<'_> {
+        self.locale_setting_mutation_hooks.iter().fold(
+            LocaleSettingRepository::new_in_transaction(
+                self.ctx,
+                self.transaction,
+                self.pending_invalidations,
+            ),
+            |repository, hooks| repository.with_mutation_hooks(*hooks),
+        )
+    }
 }
 
 pub struct ModelClient<'a> {
@@ -149,6 +175,8 @@ pub struct ModelClient<'a> {
     group_mutation_hooks: Vec<&'a dyn GroupMutationHooks>,
     membership_mutation_hooks: Vec<&'a dyn MembershipMutationHooks>,
     project_mutation_hooks: Vec<&'a dyn ProjectMutationHooks>,
+    scalar_fixture_mutation_hooks: Vec<&'a dyn ScalarFixtureMutationHooks>,
+    locale_setting_mutation_hooks: Vec<&'a dyn LocaleSettingMutationHooks>,
 }
 
 impl<'a> ModelClient<'a> {
@@ -160,6 +188,8 @@ impl<'a> ModelClient<'a> {
             group_mutation_hooks: Vec::new(),
             membership_mutation_hooks: Vec::new(),
             project_mutation_hooks: Vec::new(),
+            scalar_fixture_mutation_hooks: Vec::new(),
+            locale_setting_mutation_hooks: Vec::new(),
         }
     }
 
@@ -213,6 +243,8 @@ impl<'a> ModelClient<'a> {
             group_mutation_hooks: self.group_mutation_hooks.to_vec(),
             membership_mutation_hooks: self.membership_mutation_hooks.to_vec(),
             project_mutation_hooks: self.project_mutation_hooks.to_vec(),
+            scalar_fixture_mutation_hooks: self.scalar_fixture_mutation_hooks.to_vec(),
+            locale_setting_mutation_hooks: self.locale_setting_mutation_hooks.to_vec(),
         };
         match func(client).await {
             Ok(value) => {
@@ -300,5 +332,35 @@ impl<'a> ModelClient<'a> {
             .fold(ProjectRepository::new(self.ctx), |repository, hooks| {
                 repository.with_mutation_hooks(*hooks)
             })
+    }
+
+    pub fn use_scalar_fixture_mutation_hooks(
+        mut self,
+        hooks: &'a dyn ScalarFixtureMutationHooks,
+    ) -> Self {
+        self.scalar_fixture_mutation_hooks.push(hooks);
+        self
+    }
+
+    pub fn scalar_fixture(&self) -> ScalarFixtureRepository<'a> {
+        self.scalar_fixture_mutation_hooks.iter().fold(
+            ScalarFixtureRepository::new(self.ctx),
+            |repository, hooks| repository.with_mutation_hooks(*hooks),
+        )
+    }
+
+    pub fn use_locale_setting_mutation_hooks(
+        mut self,
+        hooks: &'a dyn LocaleSettingMutationHooks,
+    ) -> Self {
+        self.locale_setting_mutation_hooks.push(hooks);
+        self
+    }
+
+    pub fn locale_setting(&self) -> LocaleSettingRepository<'a> {
+        self.locale_setting_mutation_hooks.iter().fold(
+            LocaleSettingRepository::new(self.ctx),
+            |repository, hooks| repository.with_mutation_hooks(*hooks),
+        )
     }
 }

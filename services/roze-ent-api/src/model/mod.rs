@@ -53,6 +53,26 @@ pub use project::{
     ProjectUpdateMany,
 };
 pub use project_fields::{ProjectField, PROJECT_TABLE};
+pub mod scalar_fixture;
+pub mod scalar_fixture_ext;
+pub mod scalar_fixture_fields;
+pub use scalar_fixture::{
+    ActiveModel as ScalarFixtureActiveModel, Entity as ScalarFixtureEntity,
+    Model as ScalarFixtureModel, ScalarFixtureCreate, ScalarFixtureDelete, ScalarFixtureDeleteMany,
+    ScalarFixtureMutationHooks, ScalarFixtureOrder, ScalarFixturePage, ScalarFixturePredicate,
+    ScalarFixtureQuery, ScalarFixtureRepository, ScalarFixtureUpdate, ScalarFixtureUpdateMany,
+};
+pub use scalar_fixture_fields::{ScalarFixtureField, SCALAR_FIXTURE_TABLE};
+pub mod locale_setting;
+pub mod locale_setting_ext;
+pub mod locale_setting_fields;
+pub use locale_setting::{
+    ActiveModel as LocaleSettingActiveModel, Entity as LocaleSettingEntity, LocaleSettingCreate,
+    LocaleSettingDelete, LocaleSettingDeleteMany, LocaleSettingMutationHooks, LocaleSettingOrder,
+    LocaleSettingPage, LocaleSettingPredicate, LocaleSettingQuery, LocaleSettingRepository,
+    LocaleSettingUpdate, LocaleSettingUpdateMany, Model as LocaleSettingModel,
+};
+pub use locale_setting_fields::{LocaleSettingField, LOCALE_SETTING_TABLE};
 
 pub async fn configure_context(ctx: ServiceContext) -> anyhow::Result<ServiceContext> {
     Ok(ctx)

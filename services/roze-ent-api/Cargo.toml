@@ -39,9 +39,11 @@ validator = { version = "0.20", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
 tracing = "0.1"
 veil = { version = "0.3.0", default-features = false }
-sea-orm = { version = "1", default-features = false, features = ["macros", "runtime-tokio-rustls", "sqlx-mysql", "sqlx-postgres", "sqlx-sqlite"] }
+sea-orm = { version = "1", default-features = false, features = ["macros", "runtime-tokio-rustls", "sqlx-mysql", "sqlx-postgres", "sqlx-sqlite", "with-rust_decimal", "with-chrono", "with-json"] }
 roze-orm = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }
 async-trait = "0.1"
+rust_decimal = { version = "1", features = ["serde"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
 
 [dev-dependencies]
 roze-migration = { git = "https://github.com/roze-team/roze.git", rev = "1945a037558717ae9253fa61060fe900567e52de" }

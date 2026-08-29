@@ -174,3 +174,68 @@ entity Project {
     unique
   }
 }
+
+entity ScalarFixture {
+  table "scalar_fixtures"
+
+  field id: string {
+    primary
+    not_empty
+    max_len 64
+  }
+
+  field external_id: uuid {
+    unique
+  }
+
+  field small_value: i16 {
+  }
+
+  field int_value: i32 {
+  }
+
+  field big_value: i64 {
+  }
+
+  field float_value: f32 {
+  }
+
+  field double_value: f64 {
+  }
+
+  field payload: bytes? {
+  }
+
+  field metadata: json {
+  }
+
+  field amount: decimal {
+  }
+
+  field local_time: timestamp {
+  }
+
+  field event_time: timestamptz? {
+  }
+}
+
+entity LocaleSetting {
+  table "locale_settings"
+  primary tenant_id, locale
+
+  field tenant_id: string {
+    immutable
+    not_empty
+    max_len 64
+  }
+
+  field locale: string {
+    immutable
+    not_empty
+    max_len 32
+  }
+
+  field value: string {
+    max_len 500
+  }
+}

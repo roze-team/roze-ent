@@ -18,9 +18,9 @@
 | --- | --- | --- | --- |
 | schema-as-code、生成、格式化、校验 | `.ent` + `rozectl model` | 已兼容 | `scripts/regenerate.ps1` 可重复执行 |
 | string/bool/signed integer/enum/optional/default/immutable | 生成 entity、field 常量和 builder | 已兼容 | User/Pet/Group/Membership/Project 编译与 SQLite 行为测试 |
-| bytes、time、JSON、UUID、float、unsigned integer、custom/Other | `.ent` 类型解析与 SeaORM 映射 | 部分兼容 | 增加全标量 fixture，并在 SQLite/PostgreSQL/MySQL 做 CRUD、nullable、default、round-trip 矩阵 |
+| bytes、time、JSON、UUID、float、unsigned integer、custom/Other | `.ent` 类型解析与 SeaORM 映射 | 部分兼容 | SQLite 已覆盖 bytes/JSON/Decimal/timestamp/timestamptz/i16/i32/i64/f32/f64 与 nullable 往返；UUID 当前映射字符串，`u64` 被 sqlx-sqlite 拒绝，且 PostgreSQL/MySQL CRUD 矩阵待补 |
 | 字段 validator、unique、sensitive、comment | 生成 mutation 校验与元数据 | 部分兼容 | 已覆盖必填/唯一/部分 validator；补齐 sensitive redaction、comment/DDL 和所有类型 validator 证据 |
-| 单字段、自定义及复合 ID | 生成主键类型和查询 API | 部分兼容 | 当前样例以单 ID 为主；补齐 custom/composite ID 三方言 CRUD、edge、upsert 证据 |
+| 单字段、自定义及复合 ID | 生成主键类型和查询 API | 部分兼容 | patched-rozectl + SQLite 已覆盖自定义字符串 ID 插入/查改与复合键创建/查改删；补齐 edge、upsert 和 PostgreSQL/MySQL 证据 |
 | indexes、复合唯一、部分索引、前缀/类型/包含列 | schema index + migration | 部分兼容 | 基础索引已生成；补齐方言专属索引选项及 schema diff 证据 |
 | annotations、mixins、views | generator extension / model extension | 部分兼容 | mixin 已有运行证据；补齐 annotation 消费和只读 view 的生成/查询测试 |
 

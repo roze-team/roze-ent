@@ -20,8 +20,8 @@
 | tenant scope / soft delete | tenant predicate、live scope、`soft_delete_by_id` | 已落地：Project |
 | PostgreSQL smoke | migration + HTTP tenant/version/delete 流程 | 已接入 CI；本地需要 Docker |
 | transaction/hooks/privacy/mixins | `ModelClient::transaction`、operation chain 与 `*_ext.rs` | SQLite 真实事务提交/回滚及 Project hook/policy/mixin 已覆盖 |
-| SQL migrations | `roze-migration` + `migrations/` | 首个 PostgreSQL schema 已落地 |
-| SQL dialects | SeaORM/Roze DB（PostgreSQL/MySQL/SQLite） | 生成层已支持，当前运行配置为 PostgreSQL |
+| SQL migrations | `roze-migration` + `migrations/` | SQLite dry-run/apply/partial rollback/full rollback/drift/atomicity 已验证 |
+| SQL dialects | SeaORM/Roze DB（PostgreSQL/MySQL/SQLite） | PostgreSQL smoke 与 SQLite 真实测试已覆盖；MySQL 真实证据待补 |
 | Gremlin/GraphSON | 独立图后端适配 | 未迁移 |
 | Atlas 深度集成 | Roze migration/gate 对接 | 未迁移 |
 | entc 自定义 Go template | Roze generator extension API | 未迁移具体扩展 |
@@ -42,7 +42,7 @@
 
 ## 后续阶段
 
-1. 增加 PostgreSQL/SQLite/MySQL 真实依赖矩阵和 `roze-migration` dry-run/rollback 证据。
+1. 增加 MySQL 真实依赖证据，并把 PostgreSQL smoke 切换为 `roze-migration` ledger 执行。
 2. 对照 ent 的 predicate、projection、aggregate 与 edge 测试建立兼容矩阵。
 3. 扩展 Project 之外的领域 policy，并为事务型副作用接入 outbox 证据。
 4. 评估 Gremlin、Atlas 和生成器扩展的真实使用需求，再决定是否实现 Rust 适配层。
@@ -53,3 +53,8 @@ Project 的 SQLite 证据使用真实 SQL 连接验证提交和强制回滚，�
 链中覆盖字段 mixin、tenant policy 与 client-level mutation hook。hook 在 mutation
 成功后、外层事务提交前运行，因此事务内 hook 不得直接产生不可逆副作用；这类行为
 应通过与领域写入同事务的 outbox 或明确的提交后机制完成。
+
+SQLite 方言迁移位于 `migrations/sqlite/`，版本和名称与 PostgreSQL 迁移保持一致。
+集成测试直接通过固定 revision 的 `roze-migration` 加载这些项目文件，验证确定性 dry-run、
+apply、回滚到版本边界、全量回滚、名称漂移拒绝和失败批次原子回滚。当前没有 MySQL
+服务，因此 MySQL 只保留为生成层能力，不标记真实运行通过。

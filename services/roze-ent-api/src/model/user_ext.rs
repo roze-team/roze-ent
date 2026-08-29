@@ -11,3 +11,221 @@ impl Model {
 impl<'a> UserRepository<'a> {
     // Add application-owned repository queries here.
 }
+
+#[cfg(test)]
+mod tests {
+    use sea_orm::ConnectionTrait as _;
+
+    async fn sqlite_context() -> anyhow::Result<crate::svc::ServiceContext> {
+        let config: crate::config::Config = serde_json::from_value(serde_json::json!({
+            "name": "roze-ent-query-parity-test",
+            "profile": "test",
+            "governance": {},
+            "database": {
+                "mode": "direct",
+                "url": "sqlite::memory:",
+                "max_connections": 1,
+                "min_connections": 1
+            }
+        }))?;
+        let ctx = crate::svc::ServiceContext::new(config).await?;
+        let db = ctx.write_db()?;
+        for statement in [
+            "CREATE TABLE users (\
+                id INTEGER PRIMARY KEY AUTOINCREMENT, \
+                email TEXT NOT NULL UNIQUE, \
+                name TEXT NOT NULL, \
+                active BOOLEAN NOT NULL DEFAULT TRUE, \
+                created_at INTEGER NOT NULL\
+            )",
+            "CREATE TABLE groups (\
+                id INTEGER PRIMARY KEY AUTOINCREMENT, \
+                name TEXT NOT NULL UNIQUE, \
+                description TEXT NULL, \
+                created_at INTEGER NOT NULL\
+            )",
+            "CREATE TABLE memberships (\
+                id INTEGER PRIMARY KEY AUTOINCREMENT, \
+                user_id INTEGER NOT NULL, \
+                group_id INTEGER NOT NULL, \
+                role TEXT NOT NULL DEFAULT 'member', \
+                joined_at INTEGER NOT NULL, \
+                UNIQUE (user_id, group_id)\
+            )",
+        ] {
+            db.execute_unprepared(statement).await?;
+        }
+        Ok(ctx)
+    }
+
+    #[tokio::test]
+    async fn ent_style_query_surface_has_real_sqlite_evidence() -> anyhow::Result<()> {
+        use crate::model::{group, user};
+
+        let ctx = sqlite_context().await?;
+        let models = ctx.model();
+        let users = models.user();
+        let groups = models.group();
+        let memberships = models.membership();
+
+        let alice = users
+            .create()
+            .set_email("alice@example.com".to_string())
+            .set_name("Alice".to_string())
+            .set_active(true)
+            .set_created_at(100)
+            .save()
+            .await?;
+        let alicia = users
+            .create()
+            .set_email("alicia@example.com".to_string())
+            .set_name("ALICIA".to_string())
+            .set_active(false)
+            .set_created_at(200)
+            .save()
+            .await?;
+        let bob = users
+            .create()
+            .set_email("bob@example.com".to_string())
+            .set_name("Bob".to_string())
+            .set_active(true)
+            .set_created_at(300)
+            .save()
+            .await?;
+
+        let matched = users
+            .query()
+            .where_(user::and(vec![
+                user::name_contains("ali"),
+                user::created_at_between(50, 250),
+            ]))
+            .where_(user::not(user::active_eq(false)))
+            .only()
+            .await?;
+        assert_eq!(matched.id, alice.id);
+
+        let selected_ids = users
+            .query()
+            .where_(user::or(vec![
+                user::email_in(vec!["alicia@example.com".to_string()]),
+                user::name_eq("Bob".to_string()),
+            ]))
+            .order_by_created_at_asc()
+            .ids()
+            .await?;
+        assert_eq!(selected_ids, vec![alicia.id, bob.id]);
+
+        let page = users
+            .query()
+            .order_by_created_at_asc()
+            .paginate(2, 1)
+            .page()
+            .await?;
+        assert_eq!(page.total, 3);
+        assert_eq!((page.page, page.page_size), (2, 1));
+        assert_eq!(page.items[0].id, alicia.id);
+        assert_eq!(
+            users
+                .query()
+                .order_by_created_at_desc()
+                .offset(1)
+                .limit(1)
+                .first_id()
+                .await?,
+            Some(alicia.id)
+        );
+
+        assert_eq!(
+            users
+                .query()
+                .where_(user::email_eq("bob@example.com".to_string()))
+                .only_name()
+                .await?,
+            "Bob"
+        );
+        assert_eq!(
+            users.query().where_(user::active_eq(true)).count().await?,
+            2
+        );
+        let mut counts = users.query().count_by_active().await?;
+        counts.sort_by_key(|(active, _)| *active);
+        assert_eq!(counts, vec![(false, 1), (true, 2)]);
+        assert_eq!(users.query().sum_created_at().await?, 600);
+        assert_eq!(users.query().avg_created_at().await?, Some(200.0));
+        assert_eq!(users.query().min_created_at().await?, Some(100));
+        assert_eq!(users.query().max_created_at().await?, Some(300));
+
+        let admins = groups
+            .create()
+            .set_name("Admins".to_string())
+            .set_description(Some("Production access".to_string()))
+            .set_created_at(400)
+            .save()
+            .await?;
+        let engineering = groups
+            .create()
+            .set_name("Engineering".to_string())
+            .clear_description()
+            .set_created_at(500)
+            .save()
+            .await?;
+        alice.add_groups(&admins, &memberships).await?;
+        alice.add_groups(&engineering, &memberships).await?;
+        alicia.add_groups(&engineering, &memberships).await?;
+
+        assert_eq!(
+            groups
+                .query()
+                .where_(group::description_is_null())
+                .only_description()
+                .await?,
+            None
+        );
+        assert_eq!(
+            groups
+                .query()
+                .order_by_name_asc()
+                .pluck_description()
+                .await?,
+            vec![Some("Production access".to_string()), None]
+        );
+
+        let alice_groups = alice
+            .traverse_groups(&memberships, &groups)
+            .await?
+            .order_by_name_asc()
+            .pluck_name()
+            .await?;
+        assert_eq!(alice_groups, vec!["Admins", "Engineering"]);
+        let engineering_users = engineering
+            .traverse_users(&memberships, &users)
+            .await?
+            .order_by_name_asc()
+            .pluck_name()
+            .await?;
+        assert_eq!(engineering_users, vec!["ALICIA", "Alice"]);
+
+        let admin_users = users
+            .query()
+            .where_groups_with(
+                &groups,
+                &memberships,
+                [group::name_eq("Admins".to_string())],
+            )
+            .await?
+            .only_id()
+            .await?;
+        assert_eq!(admin_users, alice.id);
+
+        let loaded = users
+            .query()
+            .order_by_id_asc()
+            .all_with_groups(&memberships, &groups)
+            .await?;
+        assert_eq!(loaded.len(), 3);
+        assert_eq!(loaded[0].edge.len(), 2);
+        assert_eq!(loaded[1].edge.len(), 1);
+        assert!(loaded[2].edge.is_empty());
+        Ok(())
+    }
+}

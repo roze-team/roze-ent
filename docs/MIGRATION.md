@@ -15,6 +15,22 @@
 孵化阶段固定 Roze Git revision，以便验证真实集成；正式迁入时使用 Roze workspace path
 依赖并通过 `rozectl --update` 再生成，以生成 diff、兼容矩阵和数据库 smoke 作为合并门禁。
 
+## Roze 全量兼容门禁
+
+“本项目功能全部兼容 Roze”按以下可执行证据判定，而不是仅以接口名称或生成成功判定：
+
+| 门禁 | 通过条件 | 当前状态 |
+| --- | --- | --- |
+| 依赖 | 所有 Roze crate 与 `rozectl` 固定到同一上游 revision | 已通过：`39bb1af`，与当前 Roze `main` 一致 |
+| 生成 | `rozectl api/model/openapi --update` 可重复执行，应用自有文件保留且生成结果无漂移 | 持续门禁 |
+| 编译与质量 | Rust 1.98 下 fmt/check/test/clippy 全部通过 | CI 门禁 |
+| 数据行为 | SQLite/PostgreSQL/MySQL 的查询、变更、事务与迁移语义有真实数据库证据 | 持续扩展；三方言 migration 已覆盖 |
+| 运行时 | HTTP、配置、健康检查、中间件与数据库只使用 Roze 公共接口 | 已纳入服务 smoke |
+| 上游归属 | 框架能力进入 `rozectl`、Roze 数据层 crate 或 `roze-migration`，生成文件不接受手工补丁 | 强制边界 |
+
+任何一项失败都视为 Roze 兼容阻断。目前已知阻断项是生成的 `IContains/EqualFold` 使用 PostgreSQL
+`ILIKE`，在 SQLite SeaQuery builder 上会 panic；该项必须在 Roze 生成器中完成方言化并重新生成后，才能标记为全量通过。
+
 ## 基线
 
 迁移分析使用上游 `ent/ent` 提交 `69d5d4deb`。该基线约有 2,318 个 Go 文件，主要
@@ -29,8 +45,8 @@
 | Go schema as code | `model/schema.ent` | 已落地 |
 | `ent generate` / `entc` | `rozectl model generate --format ent` | 已落地 |
 | typed Client/Query/Create/Update/Delete | 生成的 SeaORM repository 与 builder | 已落地 |
-| predicates/order/pagination/projection/aggregate | 生成的 ent-style query API | 已落地 |
-| edge traversal | `.ent` edge 与生成的 relation query | 已落地：User/Pet、User/Group/Membership Through M2M |
+| predicates/order/pagination/projection/aggregate | 生成的 ent-style query API | 已落地；SQLite 真实语义矩阵覆盖复合/IN/range/contains predicate、typed order、offset/limit/page、nullable projection、grouped count 与数值聚合；`IContains/EqualFold` 的 SQLite 方言化仍需修复 Roze 生成器 |
+| edge traversal | `.ent` edge 与生成的 relation query | 已落地；SQLite 真实语义矩阵覆盖 User/Group/Membership Through M2M、`HasXWith`、双向 traversal 与 eager loading，User/Pet 保留 ordinary edge 示例 |
 | optimistic update | `update_where().execute()` + `FailedPrecondition` | 已落地：Membership role |
 | tenant scope / soft delete | tenant predicate、live scope、`soft_delete_by_id` | 已落地：Project |
 | PostgreSQL smoke | migration + HTTP tenant/version/delete 流程 | 已接入 CI；本地需要 Docker |
@@ -58,7 +74,7 @@
 ## 后续阶段
 
 1. 将真实 PostgreSQL/MySQL migration matrix 作为持续 CI 门禁，并把健康端点前缀差异反馈到 Roze 生成器。
-2. 对照 ent 的 predicate、projection、aggregate 与 edge 测试建立兼容矩阵。
+2. 将当前 SQLite ent-style 查询兼容矩阵扩展到 PostgreSQL/MySQL，并把发现的生成器语义差异反馈到 Roze 上游门禁。
 3. 扩展 Project 之外的领域 policy，并为事务型副作用接入 outbox 证据。
 4. 评估 Gremlin、Atlas 和生成器扩展的真实使用需求，再决定是否实现 Rust 适配层。
 

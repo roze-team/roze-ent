@@ -29,7 +29,10 @@
 | 上游归属 | 框架能力进入 `rozectl`、Roze 数据层 crate 或 `roze-migration`，生成文件不接受手工补丁 | 强制边界 |
 
 任何一项失败都视为 Roze 兼容阻断。目前已知阻断项是生成的 `IContains/EqualFold` 使用 PostgreSQL
-`ILIKE`，在 SQLite SeaQuery builder 上会 panic；该项必须在 Roze 生成器中完成方言化并重新生成后，才能标记为全量通过。
+`ILIKE`，在 SQLite SeaQuery builder 上会 panic。可上游应用的修复位于
+[`patches/roze/0001-fix-sea-orm-case-insensitive-predicates.patch`](../patches/roze/0001-fix-sea-orm-case-insensitive-predicates.patch)：
+它统一生成 `LOWER(column) LIKE lowercased_pattern`，已通过 Roze 生成器测试、309 项 `rozectl` 测试和生成 SeaORM
+SQLite crate 的真实运行证据。该补丁合入 Roze、更新本项目固定 revision 并重新生成后，才能解除阻断。
 
 ## 基线
 

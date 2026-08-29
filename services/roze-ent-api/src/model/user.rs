@@ -3,7 +3,7 @@
 
 use sea_orm::entity::prelude::*;
 use sea_orm::{
-    sea_query::{extension::postgres::PgExpr, Condition, Expr, ExprTrait, Func, OnConflict},
+    sea_query::{Condition, Expr, ExprTrait, Func, OnConflict},
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
     DatabaseTransaction, DbErr, DeleteResult, EntityTrait, IntoActiveModel, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, Select, SelectorTrait, Set, TransactionError,
@@ -702,17 +702,25 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
             UserPredicate::EmailNotContains(value) => Condition::all()
                 .add(Column::Email.like(contains_like_pattern(value)))
                 .not(),
-            UserPredicate::EmailIContains(value) => {
-                Condition::all().add(Expr::col(Column::Email).ilike(contains_like_pattern(value)))
-            }
+            UserPredicate::EmailIContains(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Email))
+                    .like(contains_like_pattern(&value.to_lowercase())),
+            ),
             UserPredicate::EmailNotIContains(value) => Condition::all()
-                .add(Expr::col(Column::Email).ilike(contains_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Email))
+                        .like(contains_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
-            UserPredicate::EmailEqualFold(value) => {
-                Condition::all().add(Expr::col(Column::Email).ilike(escape_like_pattern(value)))
-            }
+            UserPredicate::EmailEqualFold(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Email))
+                    .like(escape_like_pattern(&value.to_lowercase())),
+            ),
             UserPredicate::EmailNotEqualFold(value) => Condition::all()
-                .add(Expr::col(Column::Email).ilike(escape_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Email))
+                        .like(escape_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
             UserPredicate::EmailStartsWith(value) => {
                 Condition::all().add(Column::Email.like(format!("{}%", escape_like_pattern(value))))
@@ -740,17 +748,25 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
             UserPredicate::NameNotContains(value) => Condition::all()
                 .add(Column::Name.like(contains_like_pattern(value)))
                 .not(),
-            UserPredicate::NameIContains(value) => {
-                Condition::all().add(Expr::col(Column::Name).ilike(contains_like_pattern(value)))
-            }
+            UserPredicate::NameIContains(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Name))
+                    .like(contains_like_pattern(&value.to_lowercase())),
+            ),
             UserPredicate::NameNotIContains(value) => Condition::all()
-                .add(Expr::col(Column::Name).ilike(contains_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Name))
+                        .like(contains_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
-            UserPredicate::NameEqualFold(value) => {
-                Condition::all().add(Expr::col(Column::Name).ilike(escape_like_pattern(value)))
-            }
+            UserPredicate::NameEqualFold(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Name))
+                    .like(escape_like_pattern(&value.to_lowercase())),
+            ),
             UserPredicate::NameNotEqualFold(value) => Condition::all()
-                .add(Expr::col(Column::Name).ilike(escape_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Name))
+                        .like(escape_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
             UserPredicate::NameStartsWith(value) => {
                 Condition::all().add(Column::Name.like(format!("{}%", escape_like_pattern(value))))
@@ -3957,15 +3973,20 @@ impl<'a> UserRepository<'a> {
 
     pub async fn upsert(&self, model: Model) -> anyhow::Result<Model> {
         let db = self.write_db()?;
+        let upsert_key = model.id;
         let active: ActiveModel = model.into_active_model();
-        let saved = Entity::insert(active)
+        Entity::insert(active)
             .on_conflict(
                 OnConflict::columns([Column::Id])
                     .update_columns([Column::Email, Column::Name, Column::Active])
                     .to_owned(),
             )
-            .exec_with_returning(&db)
+            .exec(&db)
             .await?;
+        let saved = Entity::find_by_id(upsert_key)
+            .one(&db)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("upserted User could not be reloaded"))?;
         Ok(saved)
     }
 

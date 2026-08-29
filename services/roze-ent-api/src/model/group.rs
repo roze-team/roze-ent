@@ -3,7 +3,7 @@
 
 use sea_orm::entity::prelude::*;
 use sea_orm::{
-    sea_query::{extension::postgres::PgExpr, Condition, Expr, ExprTrait, Func, OnConflict},
+    sea_query::{Condition, Expr, ExprTrait, Func, OnConflict},
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
     DatabaseTransaction, DbErr, DeleteResult, EntityTrait, IntoActiveModel, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, Select, SelectorTrait, Set, TransactionError,
@@ -675,17 +675,25 @@ impl<'repo, 'ctx> GroupQuery<'repo, 'ctx> {
             GroupPredicate::NameNotContains(value) => Condition::all()
                 .add(Column::Name.like(contains_like_pattern(value)))
                 .not(),
-            GroupPredicate::NameIContains(value) => {
-                Condition::all().add(Expr::col(Column::Name).ilike(contains_like_pattern(value)))
-            }
+            GroupPredicate::NameIContains(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Name))
+                    .like(contains_like_pattern(&value.to_lowercase())),
+            ),
             GroupPredicate::NameNotIContains(value) => Condition::all()
-                .add(Expr::col(Column::Name).ilike(contains_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Name))
+                        .like(contains_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
-            GroupPredicate::NameEqualFold(value) => {
-                Condition::all().add(Expr::col(Column::Name).ilike(escape_like_pattern(value)))
-            }
+            GroupPredicate::NameEqualFold(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Name))
+                    .like(escape_like_pattern(&value.to_lowercase())),
+            ),
             GroupPredicate::NameNotEqualFold(value) => Condition::all()
-                .add(Expr::col(Column::Name).ilike(escape_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Name))
+                        .like(escape_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
             GroupPredicate::NameStartsWith(value) => {
                 Condition::all().add(Column::Name.like(format!("{}%", escape_like_pattern(value))))
@@ -723,15 +731,25 @@ impl<'repo, 'ctx> GroupQuery<'repo, 'ctx> {
             GroupPredicate::DescriptionNotContains(value) => Condition::all()
                 .add(Column::Description.like(contains_like_pattern(value)))
                 .not(),
-            GroupPredicate::DescriptionIContains(value) => Condition::all()
-                .add(Expr::col(Column::Description).ilike(contains_like_pattern(value))),
+            GroupPredicate::DescriptionIContains(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Description))
+                    .like(contains_like_pattern(&value.to_lowercase())),
+            ),
             GroupPredicate::DescriptionNotIContains(value) => Condition::all()
-                .add(Expr::col(Column::Description).ilike(contains_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Description))
+                        .like(contains_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
-            GroupPredicate::DescriptionEqualFold(value) => Condition::all()
-                .add(Expr::col(Column::Description).ilike(escape_like_pattern(value))),
+            GroupPredicate::DescriptionEqualFold(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Description))
+                    .like(escape_like_pattern(&value.to_lowercase())),
+            ),
             GroupPredicate::DescriptionNotEqualFold(value) => Condition::all()
-                .add(Expr::col(Column::Description).ilike(escape_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Description))
+                        .like(escape_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
             GroupPredicate::DescriptionStartsWith(value) => Condition::all()
                 .add(Column::Description.like(format!("{}%", escape_like_pattern(value)))),
@@ -3764,15 +3782,20 @@ impl<'a> GroupRepository<'a> {
 
     pub async fn upsert(&self, model: Model) -> anyhow::Result<Model> {
         let db = self.write_db()?;
+        let upsert_key = model.id;
         let active: ActiveModel = model.into_active_model();
-        let saved = Entity::insert(active)
+        Entity::insert(active)
             .on_conflict(
                 OnConflict::columns([Column::Id])
                     .update_columns([Column::Name, Column::Description])
                     .to_owned(),
             )
-            .exec_with_returning(&db)
+            .exec(&db)
             .await?;
+        let saved = Entity::find_by_id(upsert_key)
+            .one(&db)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("upserted Group could not be reloaded"))?;
         Ok(saved)
     }
 

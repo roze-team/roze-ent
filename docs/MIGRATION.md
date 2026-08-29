@@ -28,18 +28,20 @@
 | 运行时 | HTTP、配置、健康检查、中间件与数据库只使用 Roze 公共接口 | 已纳入服务 smoke |
 | 上游归属 | 框架能力进入 `rozectl`、Roze 数据层 crate 或 `roze-migration`，生成文件不接受手工补丁 | 强制边界 |
 
-任何一项失败都视为 Roze 兼容阻断。目前已知阻断项是生成的 `IContains/EqualFold` 使用 PostgreSQL
-`ILIKE`，在 SQLite SeaQuery builder 上会 panic。可上游应用的修复位于
+任何一项失败都视为 Roze 兼容阻断。固定 Roze revision 原生生成的 `IContains/EqualFold` 使用 PostgreSQL
+`ILIKE`，在 SQLite SeaQuery builder 上会 panic。修复位于
 [`patches/roze/0001-fix-sea-orm-case-insensitive-predicates.patch`](../patches/roze/0001-fix-sea-orm-case-insensitive-predicates.patch)：
 它统一生成 `LOWER(column) LIKE lowercased_pattern`，已通过 Roze 生成器测试、309 项 `rozectl` 测试和生成 SeaORM
-SQLite crate 的真实运行证据。该补丁合入 Roze、更新本项目固定 revision 并重新生成后，才能解除阻断。
+SQLite crate 的真实运行证据。本项目的 patched-rozectl 生成链已应用该补丁，并由 SQLite
+`IContains/EqualFold` 测试及 `generated-code` CI 固化；Roze 上游仍需合入补丁才能移除临时构建链。
 
 mutation 矩阵还发现 SeaORM SQLite 的冲突 upsert 返回值错误：生成代码调用
 `exec_with_returning` 时会按旧的 `last_insert_id` 读取其他记录。可上游应用的修复位于
 [`patches/roze/0002-fix-sea-orm-sqlite-upsert-returning.patch`](../patches/roze/0002-fix-sea-orm-sqlite-upsert-returning.patch)：
 它在消费模型前保存单一或复合主键，执行 upsert 后从主写连接按该主键重新读取目标行。
 该补丁已通过 125 项 Roze model generator 测试和生成 SeaORM SQLite crate 的真实冲突
-upsert 运行证据。补丁合入、revision 更新并重新生成前，该返回值语义仍是兼容阻断项。
+upsert 运行证据。本项目的 patched-rozectl 生成链已应用该补丁，并覆盖同一主键冲突更新、
+不可更新字段保持与返回行重载；Roze 上游仍需合入补丁才能移除临时构建链。
 
 ## 基线
 
@@ -57,8 +59,8 @@ upsert 运行证据。补丁合入、revision 更新并重新生成前，该返�
 | Go schema as code | `model/schema.ent` | 已落地 |
 | `ent generate` / `entc` | `rozectl model generate --format ent` | 已落地 |
 | typed Client/Query/Create/Update/Delete | 生成的 SeaORM repository 与 builder | 已落地 |
-| create/update/delete one/many 与 batch/upsert | 生成的 mutation builder 与 repository batch API | SQLite 真实语义矩阵已覆盖必填/字段校验、唯一约束、one/many、原子条件更新、批量插入/删除及 upsert 插入路径；SQLite 冲突 upsert 返回值仍需合入 Roze 补丁 0002 |
-| predicates/order/pagination/projection/aggregate | 生成的 ent-style query API | 已落地；SQLite 真实语义矩阵覆盖复合/IN/range/contains predicate、typed order、offset/limit/page、nullable projection、grouped count 与数值聚合；`IContains/EqualFold` 的 SQLite 方言化仍需修复 Roze 生成器 |
+| create/update/delete one/many 与 batch/upsert | 生成的 mutation builder 与 repository batch API | SQLite 真实语义矩阵已覆盖必填/字段校验、唯一约束、one/many、原子条件更新、批量插入/删除，以及 upsert 插入和冲突更新返回语义；补丁 0002 待合入 Roze 上游 |
+| predicates/order/pagination/projection/aggregate | 生成的 ent-style query API | 已落地；SQLite 真实语义矩阵覆盖复合/IN/range/contains/IContains/EqualFold predicate、typed order、offset/limit/page、nullable projection、grouped count 与数值聚合；补丁 0001 待合入 Roze 上游 |
 | edge traversal | `.ent` edge 与生成的 relation query | 已落地；SQLite 真实语义矩阵覆盖 User/Group/Membership Through M2M、`HasXWith`、双向 traversal 与 eager loading，User/Pet 保留 ordinary edge 示例 |
 | optimistic update | `update_where().execute()` + `FailedPrecondition` | 已落地：Membership role |
 | tenant scope / soft delete | tenant predicate、live scope、`soft_delete_by_id` | 已落地：Project |

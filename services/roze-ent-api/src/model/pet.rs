@@ -3,7 +3,7 @@
 
 use sea_orm::entity::prelude::*;
 use sea_orm::{
-    sea_query::{extension::postgres::PgExpr, Condition, Expr, ExprTrait, Func, OnConflict},
+    sea_query::{Condition, Expr, ExprTrait, Func, OnConflict},
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
     DatabaseTransaction, DbErr, DeleteResult, EntityTrait, IntoActiveModel, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, Select, SelectorTrait, Set, TransactionError,
@@ -606,17 +606,25 @@ impl<'repo, 'ctx> PetQuery<'repo, 'ctx> {
             PetPredicate::NameNotContains(value) => Condition::all()
                 .add(Column::Name.like(contains_like_pattern(value)))
                 .not(),
-            PetPredicate::NameIContains(value) => {
-                Condition::all().add(Expr::col(Column::Name).ilike(contains_like_pattern(value)))
-            }
+            PetPredicate::NameIContains(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Name))
+                    .like(contains_like_pattern(&value.to_lowercase())),
+            ),
             PetPredicate::NameNotIContains(value) => Condition::all()
-                .add(Expr::col(Column::Name).ilike(contains_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Name))
+                        .like(contains_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
-            PetPredicate::NameEqualFold(value) => {
-                Condition::all().add(Expr::col(Column::Name).ilike(escape_like_pattern(value)))
-            }
+            PetPredicate::NameEqualFold(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Name))
+                    .like(escape_like_pattern(&value.to_lowercase())),
+            ),
             PetPredicate::NameNotEqualFold(value) => Condition::all()
-                .add(Expr::col(Column::Name).ilike(escape_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Name))
+                        .like(escape_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
             PetPredicate::NameStartsWith(value) => {
                 Condition::all().add(Column::Name.like(format!("{}%", escape_like_pattern(value))))
@@ -648,17 +656,25 @@ impl<'repo, 'ctx> PetQuery<'repo, 'ctx> {
             PetPredicate::SpeciesNotContains(value) => Condition::all()
                 .add(Column::Species.like(contains_like_pattern(value)))
                 .not(),
-            PetPredicate::SpeciesIContains(value) => {
-                Condition::all().add(Expr::col(Column::Species).ilike(contains_like_pattern(value)))
-            }
+            PetPredicate::SpeciesIContains(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Species))
+                    .like(contains_like_pattern(&value.to_lowercase())),
+            ),
             PetPredicate::SpeciesNotIContains(value) => Condition::all()
-                .add(Expr::col(Column::Species).ilike(contains_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Species))
+                        .like(contains_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
-            PetPredicate::SpeciesEqualFold(value) => {
-                Condition::all().add(Expr::col(Column::Species).ilike(escape_like_pattern(value)))
-            }
+            PetPredicate::SpeciesEqualFold(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Species))
+                    .like(escape_like_pattern(&value.to_lowercase())),
+            ),
             PetPredicate::SpeciesNotEqualFold(value) => Condition::all()
-                .add(Expr::col(Column::Species).ilike(escape_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Species))
+                        .like(escape_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
             PetPredicate::SpeciesStartsWith(value) => Condition::all()
                 .add(Column::Species.like(format!("{}%", escape_like_pattern(value)))),
@@ -3845,15 +3861,20 @@ impl<'a> PetRepository<'a> {
 
     pub async fn upsert(&self, model: Model) -> anyhow::Result<Model> {
         let db = self.write_db()?;
+        let upsert_key = model.id;
         let active: ActiveModel = model.into_active_model();
-        let saved = Entity::insert(active)
+        Entity::insert(active)
             .on_conflict(
                 OnConflict::columns([Column::Id])
                     .update_columns([Column::OwnerId, Column::Name, Column::Species])
                     .to_owned(),
             )
-            .exec_with_returning(&db)
+            .exec(&db)
             .await?;
+        let saved = Entity::find_by_id(upsert_key)
+            .one(&db)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("upserted Pet could not be reloaded"))?;
         Ok(saved)
     }
 

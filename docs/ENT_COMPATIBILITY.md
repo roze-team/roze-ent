@@ -39,7 +39,7 @@
 | ent 能力 | Roze/Rust 落点 | 状态 | 完成条件/证据 |
 | --- | --- | --- | --- |
 | typed predicates、AND/OR/NOT、IN/range/null | 生成 query builder | 已兼容 | SQLite 真实查询矩阵 |
-| contains/prefix/suffix/equal-fold/contains-fold | 生成字符串 predicate | 部分兼容 | 普通 contains 已覆盖；大小写无关查询须合入补丁 0001，并在三方言运行 |
+| contains/prefix/suffix/equal-fold/contains-fold | 生成字符串 predicate | 部分兼容 | patched-rozectl + SQLite 已覆盖 `IContains/EqualFold`；补齐其余变体和 PostgreSQL/MySQL 运行证据 |
 | HasEdge/HasEdgeWith 与反向 traversal | relation predicate | 已兼容 | Through M2M SQLite 行为测试 |
 | order、offset/limit、page、projection、only/exist/count | typed query API | 已兼容 | SQLite 查询矩阵 |
 | scalar aggregate、group-by、group aggregate、自定义 scan | aggregate API | 部分兼容 | count/sum/min/max/group 已覆盖；补齐多列 group、自定义 selector/scan 和三方言结果类型 |
@@ -53,7 +53,7 @@
 | create/update/delete one/many | mutation builder/repository | 已兼容 | SQLite 必填、唯一、one/many、批量删除矩阵 |
 | bulk create / map create / update where | batch API | 已兼容 | SQLite batch 与条件更新证据 |
 | arithmetic mutation、clear/null、edge add/remove/clear | mutation builder | 部分兼容 | 原子数值更新已覆盖；补齐所有标量、nullable 和 relation mutation 组合 |
-| upsert / on-conflict / conflict columns | generated upsert API | 部分兼容 | 插入路径已覆盖；SQLite 冲突返回值须合入补丁 0002，再跑三方言矩阵 |
+| upsert / on-conflict / conflict columns | generated upsert API | 部分兼容 | patched-rozectl + SQLite 已覆盖插入和冲突返回语义；补齐冲突列/选择性更新和 PostgreSQL/MySQL 矩阵 |
 | mutation hooks、policy/privacy、mixins | `*_ext.rs` + operation chain | 部分兼容 | Project 已覆盖；补齐 query/mutation 全操作、组合顺序、deny/allow/skip 语义 |
 | transaction、commit/rollback、事务 client | `ModelClient::transaction` | 已兼容 | SQLite 提交/强制回滚真实连接证据 |
 | optimistic locking | `update_where().execute()` | 已兼容 | Membership version/role 冲突映射为 `FailedPrecondition` |
@@ -99,7 +99,7 @@
 | `sql/lock` | 待实现 | 缺 typed lock API 与并发证据 |
 | `sql/modifier` | 待实现 | 缺稳定、安全的 selector/mutation modifier API |
 | `sql/execquery` | 待实现 | 缺 mutation query-returning 等价 API |
-| `sql/upsert` | 部分兼容 | 补丁 0002 尚未进入固定 Roze revision |
+| `sql/upsert` | 部分兼容 | 项目生成链已应用补丁 0002 并有 SQLite 证据；Roze 上游及三方言完整矩阵待完成 |
 | `sql/versioned-migration` | 部分兼容 | `roze-migration` 已有 ledger，模型 diff/version directory 互操作待补 |
 | `sql/globalid` | 待实现 | 缺全局 ID range/稳定性/升级测试 |
 

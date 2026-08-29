@@ -33,11 +33,14 @@ as code、静态类型查询、关系遍历和代码生成——映射到 Roze �
 
 ## 快速开始
 
-要求 Docker、Rust 1.98 和与本项目固定 revision 一致的 `rozectl`。完整的 ent 功能同步状态与验收条件见
+要求 Docker 和 Rust 1.98。项目从固定 Roze revision 构建 `rozectl` 并应用两项尚待上游合入的
+生成器修复；完整的 ent 功能同步状态与验收条件见
 [`docs/ENT_COMPATIBILITY.md`](docs/ENT_COMPATIBILITY.md)：
 
 ```powershell
-cargo install --git https://github.com/roze-team/roze.git --rev 1945a037558717ae9253fa61060fe900567e52de rozectl
+$rozeSource = Join-Path $env:TEMP "roze-ent-roze-1945a03"
+./scripts/build-patched-rozectl.ps1 -SourceDir $rozeSource
+./scripts/regenerate.ps1 -Rozectl (Join-Path $rozeSource "target/debug/rozectl.exe")
 docker compose up -d postgres
 $env:DATABASE_URL = "postgres://roze:roze@127.0.0.1:5432/roze_ent"
 $env:ROZE_CONFIG_PATH = "services/roze-ent-api/config.yaml"

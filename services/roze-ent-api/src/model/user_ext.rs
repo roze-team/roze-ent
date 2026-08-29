@@ -103,6 +103,22 @@ mod tests {
             .only()
             .await?;
         assert_eq!(matched.id, alice.id);
+        assert_eq!(
+            users
+                .query()
+                .where_(user::name_icontains("LiCe"))
+                .only_id()
+                .await?,
+            alice.id
+        );
+        assert_eq!(
+            users
+                .query()
+                .where_(user::name_equal_fold("aLiCiA"))
+                .only_id()
+                .await?,
+            alicia.id
+        );
 
         let selected_ids = users
             .query()
@@ -347,6 +363,25 @@ mod tests {
         assert_eq!(upserted.id, 102);
         assert_eq!(upserted.name, "Batch 102 Upserted");
         assert!(!upserted.active);
+
+        let conflict_upserted = users
+            .upsert(user::Model {
+                id: 102,
+                email: "batch-102-updated@example.com".to_string(),
+                name: "Batch 102 Conflict Updated".to_string(),
+                active: true,
+                created_at: 999,
+            })
+            .await?;
+        assert_eq!(conflict_upserted.id, 102);
+        assert_eq!(conflict_upserted.email, "batch-102-updated@example.com");
+        assert_eq!(conflict_upserted.name, "Batch 102 Conflict Updated");
+        assert!(conflict_upserted.active);
+        assert_eq!(conflict_upserted.created_at, 450);
+        assert_eq!(
+            users.query().where_(user::id_eq(102)).only().await?,
+            conflict_upserted
+        );
 
         let deleted_one = users.delete_one(bob.id).exec().await?;
         assert_eq!(deleted_one.rows_affected, 1);

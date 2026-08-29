@@ -3,7 +3,7 @@
 
 use sea_orm::entity::prelude::*;
 use sea_orm::{
-    sea_query::{extension::postgres::PgExpr, Condition, Expr, ExprTrait, Func, OnConflict},
+    sea_query::{Condition, Expr, ExprTrait, Func, OnConflict},
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
     DatabaseTransaction, DbErr, DeleteResult, EntityTrait, IntoActiveModel, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, Select, SelectorTrait, Set, TransactionError,
@@ -760,17 +760,25 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             MembershipPredicate::RoleNotContains(value) => Condition::all()
                 .add(Column::Role.like(contains_like_pattern(value)))
                 .not(),
-            MembershipPredicate::RoleIContains(value) => {
-                Condition::all().add(Expr::col(Column::Role).ilike(contains_like_pattern(value)))
-            }
+            MembershipPredicate::RoleIContains(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Role))
+                    .like(contains_like_pattern(&value.to_lowercase())),
+            ),
             MembershipPredicate::RoleNotIContains(value) => Condition::all()
-                .add(Expr::col(Column::Role).ilike(contains_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Role))
+                        .like(contains_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
-            MembershipPredicate::RoleEqualFold(value) => {
-                Condition::all().add(Expr::col(Column::Role).ilike(escape_like_pattern(value)))
-            }
+            MembershipPredicate::RoleEqualFold(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Role))
+                    .like(escape_like_pattern(&value.to_lowercase())),
+            ),
             MembershipPredicate::RoleNotEqualFold(value) => Condition::all()
-                .add(Expr::col(Column::Role).ilike(escape_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Role))
+                        .like(escape_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
             MembershipPredicate::RoleStartsWith(value) => {
                 Condition::all().add(Column::Role.like(format!("{}%", escape_like_pattern(value))))
@@ -4571,15 +4579,20 @@ impl<'a> MembershipRepository<'a> {
 
     pub async fn upsert(&self, model: Model) -> anyhow::Result<Model> {
         let db = self.write_db()?;
+        let upsert_key = model.id;
         let active: ActiveModel = model.into_active_model();
-        let saved = Entity::insert(active)
+        Entity::insert(active)
             .on_conflict(
                 OnConflict::columns([Column::Id])
                     .update_columns([Column::UserId, Column::GroupId, Column::Role])
                     .to_owned(),
             )
-            .exec_with_returning(&db)
+            .exec(&db)
             .await?;
+        let saved = Entity::find_by_id(upsert_key)
+            .one(&db)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("upserted Membership could not be reloaded"))?;
         Ok(saved)
     }
 

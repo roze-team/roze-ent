@@ -15,9 +15,11 @@ jobs:
           toolchain: 1.98.0
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
-      - name: Install pinned rozectl
-        run: cargo install --locked --git https://github.com/roze-team/roze.git --rev 1945a037558717ae9253fa61060fe900567e52de rozectl
+      - name: Build pinned and patched rozectl
+        run: bash scripts/build-patched-rozectl.sh "$RUNNER_TEMP/roze-patched"
       - name: Regenerate API, model, and OpenAPI
+        env:
+          ROZECTL_BIN: ${{ runner.temp }}/roze-patched/target/debug/rozectl
         run: bash scripts/regenerate.sh
       - name: Reject generated drift
         run: git diff --exit-code

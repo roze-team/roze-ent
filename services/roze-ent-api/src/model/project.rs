@@ -3,7 +3,7 @@
 
 use sea_orm::entity::prelude::*;
 use sea_orm::{
-    sea_query::{extension::postgres::PgExpr, Condition, Expr, ExprTrait, Func, OnConflict},
+    sea_query::{Condition, Expr, ExprTrait, Func, OnConflict},
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
     DatabaseTransaction, DbErr, DeleteResult, EntityTrait, IntoActiveModel, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, Select, SelectorTrait, Set, TransactionError,
@@ -737,16 +737,25 @@ impl<'repo, 'ctx> ProjectQuery<'repo, 'ctx> {
             ProjectPredicate::TenantIdNotContains(value) => Condition::all()
                 .add(Column::TenantId.like(contains_like_pattern(value)))
                 .not(),
-            ProjectPredicate::TenantIdIContains(value) => Condition::all()
-                .add(Expr::col(Column::TenantId).ilike(contains_like_pattern(value))),
+            ProjectPredicate::TenantIdIContains(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::TenantId))
+                    .like(contains_like_pattern(&value.to_lowercase())),
+            ),
             ProjectPredicate::TenantIdNotIContains(value) => Condition::all()
-                .add(Expr::col(Column::TenantId).ilike(contains_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::TenantId))
+                        .like(contains_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
-            ProjectPredicate::TenantIdEqualFold(value) => {
-                Condition::all().add(Expr::col(Column::TenantId).ilike(escape_like_pattern(value)))
-            }
+            ProjectPredicate::TenantIdEqualFold(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::TenantId))
+                    .like(escape_like_pattern(&value.to_lowercase())),
+            ),
             ProjectPredicate::TenantIdNotEqualFold(value) => Condition::all()
-                .add(Expr::col(Column::TenantId).ilike(escape_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::TenantId))
+                        .like(escape_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
             ProjectPredicate::TenantIdStartsWith(value) => Condition::all()
                 .add(Column::TenantId.like(format!("{}%", escape_like_pattern(value)))),
@@ -772,17 +781,25 @@ impl<'repo, 'ctx> ProjectQuery<'repo, 'ctx> {
             ProjectPredicate::NameNotContains(value) => Condition::all()
                 .add(Column::Name.like(contains_like_pattern(value)))
                 .not(),
-            ProjectPredicate::NameIContains(value) => {
-                Condition::all().add(Expr::col(Column::Name).ilike(contains_like_pattern(value)))
-            }
+            ProjectPredicate::NameIContains(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Name))
+                    .like(contains_like_pattern(&value.to_lowercase())),
+            ),
             ProjectPredicate::NameNotIContains(value) => Condition::all()
-                .add(Expr::col(Column::Name).ilike(contains_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Name))
+                        .like(contains_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
-            ProjectPredicate::NameEqualFold(value) => {
-                Condition::all().add(Expr::col(Column::Name).ilike(escape_like_pattern(value)))
-            }
+            ProjectPredicate::NameEqualFold(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Name))
+                    .like(escape_like_pattern(&value.to_lowercase())),
+            ),
             ProjectPredicate::NameNotEqualFold(value) => Condition::all()
-                .add(Expr::col(Column::Name).ilike(escape_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Name))
+                        .like(escape_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
             ProjectPredicate::NameStartsWith(value) => {
                 Condition::all().add(Column::Name.like(format!("{}%", escape_like_pattern(value))))
@@ -820,15 +837,25 @@ impl<'repo, 'ctx> ProjectQuery<'repo, 'ctx> {
             ProjectPredicate::DescriptionNotContains(value) => Condition::all()
                 .add(Column::Description.like(contains_like_pattern(value)))
                 .not(),
-            ProjectPredicate::DescriptionIContains(value) => Condition::all()
-                .add(Expr::col(Column::Description).ilike(contains_like_pattern(value))),
+            ProjectPredicate::DescriptionIContains(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Description))
+                    .like(contains_like_pattern(&value.to_lowercase())),
+            ),
             ProjectPredicate::DescriptionNotIContains(value) => Condition::all()
-                .add(Expr::col(Column::Description).ilike(contains_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Description))
+                        .like(contains_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
-            ProjectPredicate::DescriptionEqualFold(value) => Condition::all()
-                .add(Expr::col(Column::Description).ilike(escape_like_pattern(value))),
+            ProjectPredicate::DescriptionEqualFold(value) => Condition::all().add(
+                Func::lower(Expr::col(Column::Description))
+                    .like(escape_like_pattern(&value.to_lowercase())),
+            ),
             ProjectPredicate::DescriptionNotEqualFold(value) => Condition::all()
-                .add(Expr::col(Column::Description).ilike(escape_like_pattern(value)))
+                .add(
+                    Func::lower(Expr::col(Column::Description))
+                        .like(escape_like_pattern(&value.to_lowercase())),
+                )
                 .not(),
             ProjectPredicate::DescriptionStartsWith(value) => Condition::all()
                 .add(Column::Description.like(format!("{}%", escape_like_pattern(value)))),
@@ -5381,8 +5408,9 @@ impl<'a> ProjectRepository<'a> {
 
     pub async fn upsert(&self, model: Model) -> anyhow::Result<Model> {
         let db = self.write_db()?;
+        let upsert_key = model.id;
         let active: ActiveModel = model.into_active_model();
-        let saved = Entity::insert(active)
+        Entity::insert(active)
             .on_conflict(
                 OnConflict::columns([Column::Id])
                     .update_columns([
@@ -5394,8 +5422,12 @@ impl<'a> ProjectRepository<'a> {
                     ])
                     .to_owned(),
             )
-            .exec_with_returning(&db)
+            .exec(&db)
             .await?;
+        let saved = Entity::find_by_id(upsert_key)
+            .one(&db)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("upserted Project could not be reloaded"))?;
         Ok(saved)
     }
 

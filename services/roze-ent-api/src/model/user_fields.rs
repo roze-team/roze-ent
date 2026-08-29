@@ -8,6 +8,7 @@ pub const USER_FIELDS: &[UserField] = &[
     UserField::Name,
     UserField::Active,
     UserField::CreatedAt,
+    UserField::ManagerId,
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -17,6 +18,7 @@ pub enum UserField {
     Name,
     Active,
     CreatedAt,
+    ManagerId,
 }
 
 impl UserField {
@@ -27,6 +29,7 @@ impl UserField {
             Self::Name => "name",
             Self::Active => "active",
             Self::CreatedAt => "created_at",
+            Self::ManagerId => "manager_id",
         }
     }
 }

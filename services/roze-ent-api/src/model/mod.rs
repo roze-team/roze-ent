@@ -43,6 +43,16 @@ pub use membership::{
     MembershipUpdateMany, Model as MembershipModel,
 };
 pub use membership_fields::{MembershipField, MEMBERSHIP_TABLE};
+pub mod friendship;
+pub mod friendship_ext;
+pub mod friendship_fields;
+pub use friendship::{
+    ActiveModel as FriendshipActiveModel, Entity as FriendshipEntity, FriendshipCreate,
+    FriendshipDelete, FriendshipDeleteMany, FriendshipMutationHooks, FriendshipOrder,
+    FriendshipPage, FriendshipPredicate, FriendshipQuery, FriendshipRepository, FriendshipUpdate,
+    FriendshipUpdateMany, Model as FriendshipModel,
+};
+pub use friendship_fields::{FriendshipField, FRIENDSHIP_TABLE};
 pub mod project;
 pub mod project_ext;
 pub mod project_fields;

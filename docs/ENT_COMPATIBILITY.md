@@ -30,8 +30,8 @@
 | --- | --- | --- | --- |
 | O2O、O2M、M2M、inverse、required/unique edge | 生成 relation API | 已兼容 | User/Pet、User/Group/Membership SQLite traversal 矩阵 |
 | edge schema / Through 与 edge 字段 | Membership 显式关联实体 | 已兼容 | 双向 traversal、`HasXWith`、eager-load 证据 |
-| self-reference、双向边、named edges | 生成 relation API | 待实现 | 增加树/好友 fixture，覆盖新增、删除、遍历、命名 eager load |
-| eager loading 与嵌套 eager loading | `with_*` 生成 API | 部分兼容 | 单层已有证据；补齐嵌套、空关系、分页组合和三方言证据 |
+| self-reference、双向边、named edges | 生成 relation API | 已兼容 | User manager/reports、friends/friended_by 与 Friendship user/friend SQLite 矩阵覆盖新增、删除、清空、双向遍历及命名 eager load |
+| eager loading 与嵌套 eager loading | `with_*` 生成 API | 部分兼容 | 单层及 manager→reports 嵌套已有证据；补齐空关系、分页组合和三方言查询证据 |
 | Gremlin/GraphSON 图存储 | 独立图后端适配 crate | 框架外适配 | 实现连接、CRUD、predicate、traversal、事务能力，并通过兼容套件 |
 
 ## Query、聚合与 entql
@@ -52,7 +52,7 @@
 | --- | --- | --- | --- |
 | create/update/delete one/many | mutation builder/repository | 已兼容 | SQLite 必填、唯一、one/many、批量删除矩阵 |
 | bulk create / map create / update where | batch API | 已兼容 | SQLite batch 与条件更新证据 |
-| arithmetic mutation、clear/null、edge add/remove/clear | mutation builder | 部分兼容 | 原子数值更新已覆盖；补齐所有标量、nullable 和 relation mutation 组合 |
+| arithmetic mutation、clear/null、edge add/remove/clear | mutation builder | 部分兼容 | 原子数值更新、nullable manager clear 与 self-Through friends add/remove/clear 已覆盖；补齐其余标量和 relation 组合 |
 | upsert / on-conflict / conflict columns | generated upsert API | 部分兼容 | patched-rozectl + SQLite 已覆盖插入和冲突返回语义；补齐冲突列/选择性更新和 PostgreSQL/MySQL 矩阵 |
 | mutation hooks、policy/privacy、mixins | `*_ext.rs` + operation chain | 部分兼容 | Project 已覆盖；补齐 query/mutation 全操作、组合顺序、deny/allow/skip 语义 |
 | transaction、commit/rollback、事务 client | `ModelClient::transaction` | 已兼容 | SQLite 提交/强制回滚真实连接证据 |
@@ -92,8 +92,8 @@
 | `privacy` | 部分兼容 | Project policy 有证据，完整 allow/deny/skip 与全操作矩阵待补 |
 | `intercept` | 部分兼容 | operation chain 已生成，完整终结方法/嵌套遍历待补 |
 | `entql` | 待实现 | 缺动态 AST、序列化和 edge expression |
-| `namedges` | 待实现 | 缺命名 eager-load 结果槽位证据 |
-| `bidiedges` | 待实现 | 缺 self/bidirectional edge fixture |
+| `namedges` | 已兼容 | Friendship 的 user/friend 同目标边生成独立命名 eager-load 结果槽位并有 SQLite 证据 |
+| `bidiedges` | 已兼容 | manager/reports 与 friends/friended_by self/bidirectional fixture 已覆盖双向查询和关系变更 |
 | `schema/snapshot` | 部分兼容 | 生成可重复，缺显式 snapshot 升级协议 |
 | `sql/schemaconfig` | 待实现 | 缺多 schema 运行证据 |
 | `sql/lock` | 待实现 | 缺 typed lock API 与并发证据 |

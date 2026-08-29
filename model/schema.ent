@@ -32,6 +32,15 @@ entity User {
 
   edge To("groups", Group.Type).Through("memberships", Membership.Type) {
   }
+
+  edge To("reports", User.Type).From("manager").Unique() {
+  }
+
+  edge To("friends", User.Type).Through("friendships", Friendship.Type) {
+  }
+
+  edge From("friended_by", User.Type).Ref("friends").Through("friendships", Friendship.Type) {
+  }
 }
 
 entity Pet {
@@ -122,6 +131,37 @@ entity Membership {
 
   index uniq_membership {
     fields user_id, group_id
+    unique
+  }
+}
+
+entity Friendship {
+  table "friendships"
+
+  field id: i64 {
+    primary
+    auto_increment
+  }
+
+  field user_id: i64 {
+  }
+
+  field friend_id: i64 {
+  }
+
+  field created_at: i64 {
+    immutable
+    default now_millis
+  }
+
+  edge To("user", User.Type).Field("user_id").Ref("id").Unique().Required() {
+  }
+
+  edge To("friend", User.Type).Field("friend_id").Ref("id").Unique().Required() {
+  }
+
+  index uniq_friendship {
+    fields user_id, friend_id
     unique
   }
 }

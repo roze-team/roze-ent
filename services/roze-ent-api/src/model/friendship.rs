@@ -16,16 +16,14 @@ use super::client::ModelConnection;
 use crate::svc::ServiceContext;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, DeriveEntityModel)]
-#[sea_orm(table_name = "memberships")]
+#[sea_orm(table_name = "friendships")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
     pub user_id: i64,
-    pub group_id: i64,
-    /// default: member
-    pub role: String,
+    pub friend_id: i64,
     /// default: now_millis
-    pub joined_at: i64,
+    pub created_at: i64,
 }
 
 impl Model {
@@ -33,9 +31,8 @@ impl Model {
         Self {
             id: index.saturating_add(1) as i64,
             user_id: index.saturating_add(1) as i64,
-            group_id: index.saturating_add(1) as i64,
-            role: "member".to_string(),
-            joined_at: index.saturating_add(1) as i64,
+            friend_id: index.saturating_add(1) as i64,
+            created_at: index.saturating_add(1) as i64,
         }
     }
 }
@@ -56,19 +53,19 @@ impl Model {
         self.traverse_user(repo).await?.first().await
     }
 
-    pub async fn traverse_group<'repo, 'ctx>(
+    pub async fn traverse_friend<'repo, 'ctx>(
         &self,
-        repo: &'repo crate::model::GroupRepository<'ctx>,
-    ) -> anyhow::Result<crate::model::group::GroupQuery<'repo, 'ctx>> {
-        let value = self.group_id;
-        Ok(repo.query().where_(crate::model::group::id_eq(value)))
+        repo: &'repo crate::model::UserRepository<'ctx>,
+    ) -> anyhow::Result<crate::model::user::UserQuery<'repo, 'ctx>> {
+        let value = self.friend_id;
+        Ok(repo.query().where_(crate::model::user::id_eq(value)))
     }
 
-    pub async fn query_group(
+    pub async fn query_friend(
         &self,
-        repo: &crate::model::GroupRepository<'_>,
-    ) -> anyhow::Result<Option<crate::model::GroupModel>> {
-        self.traverse_group(repo).await?.first().await
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<crate::model::UserModel>> {
+        self.traverse_friend(repo).await?.first().await
     }
 }
 
@@ -78,21 +75,19 @@ pub enum Relation {}
 impl ActiveModelBehavior for ActiveModel {}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum MembershipOrder {
+pub enum FriendshipOrder {
     IdAsc,
     IdDesc,
     UserIdAsc,
     UserIdDesc,
-    GroupIdAsc,
-    GroupIdDesc,
-    RoleAsc,
-    RoleDesc,
-    JoinedAtAsc,
-    JoinedAtDesc,
+    FriendIdAsc,
+    FriendIdDesc,
+    CreatedAtAsc,
+    CreatedAtDesc,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum MembershipPredicate {
+pub enum FriendshipPredicate {
     IdEq(i64),
     IdNe(i64),
     IdIn(Vec<i64>),
@@ -111,307 +106,245 @@ pub enum MembershipPredicate {
     UserIdLt(i64),
     UserIdLte(i64),
     UserIdBetween(i64, i64),
-    GroupIdEq(i64),
-    GroupIdNe(i64),
-    GroupIdIn(Vec<i64>),
-    GroupIdNotIn(Vec<i64>),
-    GroupIdGt(i64),
-    GroupIdGte(i64),
-    GroupIdLt(i64),
-    GroupIdLte(i64),
-    GroupIdBetween(i64, i64),
-    RoleEq(String),
-    RoleNe(String),
-    RoleIn(Vec<String>),
-    RoleNotIn(Vec<String>),
-    RoleContains(String),
-    RoleNotContains(String),
-    RoleIContains(String),
-    RoleNotIContains(String),
-    RoleEqualFold(String),
-    RoleNotEqualFold(String),
-    RoleStartsWith(String),
-    RoleNotStartsWith(String),
-    RoleEndsWith(String),
-    RoleNotEndsWith(String),
-    JoinedAtEq(i64),
-    JoinedAtNe(i64),
-    JoinedAtIn(Vec<i64>),
-    JoinedAtNotIn(Vec<i64>),
-    JoinedAtGt(i64),
-    JoinedAtGte(i64),
-    JoinedAtLt(i64),
-    JoinedAtLte(i64),
-    JoinedAtBetween(i64, i64),
-    And(Vec<MembershipPredicate>),
-    Or(Vec<MembershipPredicate>),
-    Not(Box<MembershipPredicate>),
+    FriendIdEq(i64),
+    FriendIdNe(i64),
+    FriendIdIn(Vec<i64>),
+    FriendIdNotIn(Vec<i64>),
+    FriendIdGt(i64),
+    FriendIdGte(i64),
+    FriendIdLt(i64),
+    FriendIdLte(i64),
+    FriendIdBetween(i64, i64),
+    CreatedAtEq(i64),
+    CreatedAtNe(i64),
+    CreatedAtIn(Vec<i64>),
+    CreatedAtNotIn(Vec<i64>),
+    CreatedAtGt(i64),
+    CreatedAtGte(i64),
+    CreatedAtLt(i64),
+    CreatedAtLte(i64),
+    CreatedAtBetween(i64, i64),
+    And(Vec<FriendshipPredicate>),
+    Or(Vec<FriendshipPredicate>),
+    Not(Box<FriendshipPredicate>),
 }
 
-pub fn id_eq(value: i64) -> MembershipPredicate {
-    MembershipPredicate::IdEq(value)
+pub fn id_eq(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::IdEq(value)
 }
-pub fn id_ne(value: i64) -> MembershipPredicate {
-    MembershipPredicate::IdNe(value)
+pub fn id_ne(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::IdNe(value)
 }
-pub fn id_in(values: Vec<i64>) -> MembershipPredicate {
-    MembershipPredicate::IdIn(values)
+pub fn id_in(values: Vec<i64>) -> FriendshipPredicate {
+    FriendshipPredicate::IdIn(values)
 }
-pub fn id_not_in(values: Vec<i64>) -> MembershipPredicate {
-    MembershipPredicate::IdNotIn(values)
+pub fn id_not_in(values: Vec<i64>) -> FriendshipPredicate {
+    FriendshipPredicate::IdNotIn(values)
 }
-pub fn id_gt(value: i64) -> MembershipPredicate {
-    MembershipPredicate::IdGt(value)
+pub fn id_gt(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::IdGt(value)
 }
-pub fn id_gte(value: i64) -> MembershipPredicate {
-    MembershipPredicate::IdGte(value)
+pub fn id_gte(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::IdGte(value)
 }
-pub fn id_lt(value: i64) -> MembershipPredicate {
-    MembershipPredicate::IdLt(value)
+pub fn id_lt(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::IdLt(value)
 }
-pub fn id_lte(value: i64) -> MembershipPredicate {
-    MembershipPredicate::IdLte(value)
+pub fn id_lte(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::IdLte(value)
 }
-pub fn id_between(start: i64, end: i64) -> MembershipPredicate {
-    MembershipPredicate::IdBetween(start, end)
+pub fn id_between(start: i64, end: i64) -> FriendshipPredicate {
+    FriendshipPredicate::IdBetween(start, end)
 }
-pub fn user_id_eq(value: i64) -> MembershipPredicate {
-    MembershipPredicate::UserIdEq(value)
+pub fn user_id_eq(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::UserIdEq(value)
 }
-pub fn user_id_ne(value: i64) -> MembershipPredicate {
-    MembershipPredicate::UserIdNe(value)
+pub fn user_id_ne(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::UserIdNe(value)
 }
-pub fn user_id_in(values: Vec<i64>) -> MembershipPredicate {
-    MembershipPredicate::UserIdIn(values)
+pub fn user_id_in(values: Vec<i64>) -> FriendshipPredicate {
+    FriendshipPredicate::UserIdIn(values)
 }
-pub fn user_id_not_in(values: Vec<i64>) -> MembershipPredicate {
-    MembershipPredicate::UserIdNotIn(values)
+pub fn user_id_not_in(values: Vec<i64>) -> FriendshipPredicate {
+    FriendshipPredicate::UserIdNotIn(values)
 }
-pub fn user_id_gt(value: i64) -> MembershipPredicate {
-    MembershipPredicate::UserIdGt(value)
+pub fn user_id_gt(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::UserIdGt(value)
 }
-pub fn user_id_gte(value: i64) -> MembershipPredicate {
-    MembershipPredicate::UserIdGte(value)
+pub fn user_id_gte(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::UserIdGte(value)
 }
-pub fn user_id_lt(value: i64) -> MembershipPredicate {
-    MembershipPredicate::UserIdLt(value)
+pub fn user_id_lt(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::UserIdLt(value)
 }
-pub fn user_id_lte(value: i64) -> MembershipPredicate {
-    MembershipPredicate::UserIdLte(value)
+pub fn user_id_lte(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::UserIdLte(value)
 }
-pub fn user_id_between(start: i64, end: i64) -> MembershipPredicate {
-    MembershipPredicate::UserIdBetween(start, end)
+pub fn user_id_between(start: i64, end: i64) -> FriendshipPredicate {
+    FriendshipPredicate::UserIdBetween(start, end)
 }
-pub fn group_id_eq(value: i64) -> MembershipPredicate {
-    MembershipPredicate::GroupIdEq(value)
+pub fn friend_id_eq(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::FriendIdEq(value)
 }
-pub fn group_id_ne(value: i64) -> MembershipPredicate {
-    MembershipPredicate::GroupIdNe(value)
+pub fn friend_id_ne(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::FriendIdNe(value)
 }
-pub fn group_id_in(values: Vec<i64>) -> MembershipPredicate {
-    MembershipPredicate::GroupIdIn(values)
+pub fn friend_id_in(values: Vec<i64>) -> FriendshipPredicate {
+    FriendshipPredicate::FriendIdIn(values)
 }
-pub fn group_id_not_in(values: Vec<i64>) -> MembershipPredicate {
-    MembershipPredicate::GroupIdNotIn(values)
+pub fn friend_id_not_in(values: Vec<i64>) -> FriendshipPredicate {
+    FriendshipPredicate::FriendIdNotIn(values)
 }
-pub fn group_id_gt(value: i64) -> MembershipPredicate {
-    MembershipPredicate::GroupIdGt(value)
+pub fn friend_id_gt(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::FriendIdGt(value)
 }
-pub fn group_id_gte(value: i64) -> MembershipPredicate {
-    MembershipPredicate::GroupIdGte(value)
+pub fn friend_id_gte(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::FriendIdGte(value)
 }
-pub fn group_id_lt(value: i64) -> MembershipPredicate {
-    MembershipPredicate::GroupIdLt(value)
+pub fn friend_id_lt(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::FriendIdLt(value)
 }
-pub fn group_id_lte(value: i64) -> MembershipPredicate {
-    MembershipPredicate::GroupIdLte(value)
+pub fn friend_id_lte(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::FriendIdLte(value)
 }
-pub fn group_id_between(start: i64, end: i64) -> MembershipPredicate {
-    MembershipPredicate::GroupIdBetween(start, end)
+pub fn friend_id_between(start: i64, end: i64) -> FriendshipPredicate {
+    FriendshipPredicate::FriendIdBetween(start, end)
 }
-pub fn role_eq(value: String) -> MembershipPredicate {
-    MembershipPredicate::RoleEq(value)
+pub fn created_at_eq(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::CreatedAtEq(value)
 }
-pub fn role_ne(value: String) -> MembershipPredicate {
-    MembershipPredicate::RoleNe(value)
+pub fn created_at_ne(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::CreatedAtNe(value)
 }
-pub fn role_in(values: Vec<String>) -> MembershipPredicate {
-    MembershipPredicate::RoleIn(values)
+pub fn created_at_in(values: Vec<i64>) -> FriendshipPredicate {
+    FriendshipPredicate::CreatedAtIn(values)
 }
-pub fn role_not_in(values: Vec<String>) -> MembershipPredicate {
-    MembershipPredicate::RoleNotIn(values)
+pub fn created_at_not_in(values: Vec<i64>) -> FriendshipPredicate {
+    FriendshipPredicate::CreatedAtNotIn(values)
 }
-pub fn role_contains(value: impl Into<String>) -> MembershipPredicate {
-    MembershipPredicate::RoleContains(value.into())
+pub fn created_at_gt(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::CreatedAtGt(value)
 }
-pub fn role_not_contains(value: impl Into<String>) -> MembershipPredicate {
-    MembershipPredicate::RoleNotContains(value.into())
+pub fn created_at_gte(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::CreatedAtGte(value)
 }
-pub fn role_icontains(value: impl Into<String>) -> MembershipPredicate {
-    MembershipPredicate::RoleIContains(value.into())
+pub fn created_at_lt(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::CreatedAtLt(value)
 }
-pub fn role_not_icontains(value: impl Into<String>) -> MembershipPredicate {
-    MembershipPredicate::RoleNotIContains(value.into())
+pub fn created_at_lte(value: i64) -> FriendshipPredicate {
+    FriendshipPredicate::CreatedAtLte(value)
 }
-pub fn role_equal_fold(value: impl Into<String>) -> MembershipPredicate {
-    MembershipPredicate::RoleEqualFold(value.into())
+pub fn created_at_between(start: i64, end: i64) -> FriendshipPredicate {
+    FriendshipPredicate::CreatedAtBetween(start, end)
 }
-pub fn role_not_equal_fold(value: impl Into<String>) -> MembershipPredicate {
-    MembershipPredicate::RoleNotEqualFold(value.into())
+pub fn and(predicates: Vec<FriendshipPredicate>) -> FriendshipPredicate {
+    FriendshipPredicate::And(predicates)
 }
-pub fn role_starts_with(value: impl Into<String>) -> MembershipPredicate {
-    MembershipPredicate::RoleStartsWith(value.into())
+pub fn or(predicates: Vec<FriendshipPredicate>) -> FriendshipPredicate {
+    FriendshipPredicate::Or(predicates)
 }
-pub fn role_not_starts_with(value: impl Into<String>) -> MembershipPredicate {
-    MembershipPredicate::RoleNotStartsWith(value.into())
+pub fn not(predicate: FriendshipPredicate) -> FriendshipPredicate {
+    FriendshipPredicate::Not(Box::new(predicate))
 }
-pub fn role_ends_with(value: impl Into<String>) -> MembershipPredicate {
-    MembershipPredicate::RoleEndsWith(value.into())
+pub fn id_asc() -> FriendshipOrder {
+    FriendshipOrder::IdAsc
 }
-pub fn role_not_ends_with(value: impl Into<String>) -> MembershipPredicate {
-    MembershipPredicate::RoleNotEndsWith(value.into())
+pub fn id_desc() -> FriendshipOrder {
+    FriendshipOrder::IdDesc
 }
-pub fn joined_at_eq(value: i64) -> MembershipPredicate {
-    MembershipPredicate::JoinedAtEq(value)
+pub fn user_id_asc() -> FriendshipOrder {
+    FriendshipOrder::UserIdAsc
 }
-pub fn joined_at_ne(value: i64) -> MembershipPredicate {
-    MembershipPredicate::JoinedAtNe(value)
+pub fn user_id_desc() -> FriendshipOrder {
+    FriendshipOrder::UserIdDesc
 }
-pub fn joined_at_in(values: Vec<i64>) -> MembershipPredicate {
-    MembershipPredicate::JoinedAtIn(values)
+pub fn friend_id_asc() -> FriendshipOrder {
+    FriendshipOrder::FriendIdAsc
 }
-pub fn joined_at_not_in(values: Vec<i64>) -> MembershipPredicate {
-    MembershipPredicate::JoinedAtNotIn(values)
+pub fn friend_id_desc() -> FriendshipOrder {
+    FriendshipOrder::FriendIdDesc
 }
-pub fn joined_at_gt(value: i64) -> MembershipPredicate {
-    MembershipPredicate::JoinedAtGt(value)
+pub fn created_at_asc() -> FriendshipOrder {
+    FriendshipOrder::CreatedAtAsc
 }
-pub fn joined_at_gte(value: i64) -> MembershipPredicate {
-    MembershipPredicate::JoinedAtGte(value)
-}
-pub fn joined_at_lt(value: i64) -> MembershipPredicate {
-    MembershipPredicate::JoinedAtLt(value)
-}
-pub fn joined_at_lte(value: i64) -> MembershipPredicate {
-    MembershipPredicate::JoinedAtLte(value)
-}
-pub fn joined_at_between(start: i64, end: i64) -> MembershipPredicate {
-    MembershipPredicate::JoinedAtBetween(start, end)
-}
-pub fn and(predicates: Vec<MembershipPredicate>) -> MembershipPredicate {
-    MembershipPredicate::And(predicates)
-}
-pub fn or(predicates: Vec<MembershipPredicate>) -> MembershipPredicate {
-    MembershipPredicate::Or(predicates)
-}
-pub fn not(predicate: MembershipPredicate) -> MembershipPredicate {
-    MembershipPredicate::Not(Box::new(predicate))
-}
-pub fn id_asc() -> MembershipOrder {
-    MembershipOrder::IdAsc
-}
-pub fn id_desc() -> MembershipOrder {
-    MembershipOrder::IdDesc
-}
-pub fn user_id_asc() -> MembershipOrder {
-    MembershipOrder::UserIdAsc
-}
-pub fn user_id_desc() -> MembershipOrder {
-    MembershipOrder::UserIdDesc
-}
-pub fn group_id_asc() -> MembershipOrder {
-    MembershipOrder::GroupIdAsc
-}
-pub fn group_id_desc() -> MembershipOrder {
-    MembershipOrder::GroupIdDesc
-}
-pub fn role_asc() -> MembershipOrder {
-    MembershipOrder::RoleAsc
-}
-pub fn role_desc() -> MembershipOrder {
-    MembershipOrder::RoleDesc
-}
-pub fn joined_at_asc() -> MembershipOrder {
-    MembershipOrder::JoinedAtAsc
-}
-pub fn joined_at_desc() -> MembershipOrder {
-    MembershipOrder::JoinedAtDesc
+pub fn created_at_desc() -> FriendshipOrder {
+    FriendshipOrder::CreatedAtDesc
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct MembershipPage {
+pub struct FriendshipPage {
     pub items: Vec<Model>,
     pub total: u64,
     pub page: u64,
     pub page_size: u64,
 }
 
-pub trait MembershipLoadedNode {
+pub trait FriendshipLoadedNode {
     fn loaded_node(&self) -> &Model;
 }
-impl MembershipLoadedNode for Model {
+impl FriendshipLoadedNode for Model {
     fn loaded_node(&self) -> &Model {
         self
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct MembershipWithUser {
+pub struct FriendshipWithUser {
     pub node: Model,
     pub edge: Option<crate::model::UserModel>,
 }
 
 #[derive(Clone, Debug)]
-pub struct MembershipWithUserNested<T> {
+pub struct FriendshipWithUserNested<T> {
     pub node: Model,
     pub edge: Option<T>,
 }
-impl<T> MembershipLoadedNode for MembershipWithUserNested<T> {
+impl<T> FriendshipLoadedNode for FriendshipWithUserNested<T> {
     fn loaded_node(&self) -> &Model {
         &self.node
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct MembershipWithGroup {
+pub struct FriendshipWithFriend {
     pub node: Model,
-    pub edge: Option<crate::model::GroupModel>,
+    pub edge: Option<crate::model::UserModel>,
 }
 
 #[derive(Clone, Debug)]
-pub struct MembershipWithGroupNested<T> {
+pub struct FriendshipWithFriendNested<T> {
     pub node: Model,
     pub edge: Option<T>,
 }
-impl<T> MembershipLoadedNode for MembershipWithGroupNested<T> {
+impl<T> FriendshipLoadedNode for FriendshipWithFriendNested<T> {
     fn loaded_node(&self) -> &Model {
         &self.node
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct MembershipWithUserAndGroup {
+pub struct FriendshipWithUserAndFriend {
     pub node: Model,
     pub user: Option<crate::model::UserModel>,
-    pub group: Option<crate::model::GroupModel>,
+    pub friend: Option<crate::model::UserModel>,
 }
 
-pub struct MembershipQuery<'repo, 'ctx> {
-    repo: &'repo MembershipRepository<'ctx>,
+pub struct FriendshipQuery<'repo, 'ctx> {
+    repo: &'repo FriendshipRepository<'ctx>,
     interceptors: Vec<
         std::sync::Arc<dyn roze_orm::OperationMiddleware<Self, Vec<Model>, anyhow::Error> + 'repo>,
     >,
     atomic_interceptors:
         Vec<std::sync::Arc<dyn roze_orm::OperationMiddleware<Self, u64, anyhow::Error> + 'repo>>,
-    predicates: Vec<MembershipPredicate>,
-    orders: Vec<MembershipOrder>,
+    predicates: Vec<FriendshipPredicate>,
+    orders: Vec<FriendshipOrder>,
     limit: Option<u64>,
     offset: Option<u64>,
     page: Option<(u64, u64)>,
     read_source: roze_orm::ReadSource,
 }
 
-impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
+impl<'repo, 'ctx> FriendshipQuery<'repo, 'ctx> {
     pub fn intercept<F>(self, interceptor: F) -> Self
     where
         F: FnOnce(Self) -> Self,
@@ -456,7 +389,7 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         mixin.apply(self)
     }
 
-    pub fn new(repo: &'repo MembershipRepository<'ctx>) -> Self {
+    pub fn new(repo: &'repo FriendshipRepository<'ctx>) -> Self {
         Self {
             repo,
             interceptors: Vec::new(),
@@ -483,14 +416,14 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         self.repo.read_db_from(self.read_source)
     }
 
-    pub fn where_(mut self, predicate: MembershipPredicate) -> Self {
+    pub fn where_(mut self, predicate: FriendshipPredicate) -> Self {
         self.predicates.push(predicate);
         self
     }
 
     pub fn where_all<I>(mut self, predicates: I) -> Self
     where
-        I: IntoIterator<Item = MembershipPredicate>,
+        I: IntoIterator<Item = FriendshipPredicate>,
     {
         self.predicates.extend(predicates);
         self
@@ -498,29 +431,29 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
 
     pub fn where_any<I>(mut self, predicates: I) -> Self
     where
-        I: IntoIterator<Item = MembershipPredicate>,
+        I: IntoIterator<Item = FriendshipPredicate>,
     {
         let predicates = predicates.into_iter().collect::<Vec<_>>();
         if !predicates.is_empty() {
-            self.predicates.push(MembershipPredicate::Or(predicates));
+            self.predicates.push(FriendshipPredicate::Or(predicates));
         }
         self
     }
 
-    pub fn where_not(mut self, predicate: MembershipPredicate) -> Self {
+    pub fn where_not(mut self, predicate: FriendshipPredicate) -> Self {
         self.predicates
-            .push(MembershipPredicate::Not(Box::new(predicate)));
+            .push(FriendshipPredicate::Not(Box::new(predicate)));
         self
     }
 
     pub fn where_none<I>(mut self, predicates: I) -> Self
     where
-        I: IntoIterator<Item = MembershipPredicate>,
+        I: IntoIterator<Item = FriendshipPredicate>,
     {
         let predicates = predicates.into_iter().collect::<Vec<_>>();
         if !predicates.is_empty() {
             self.predicates
-                .push(MembershipPredicate::Not(Box::new(MembershipPredicate::Or(
+                .push(FriendshipPredicate::Not(Box::new(FriendshipPredicate::Or(
                     predicates,
                 ))));
         }
@@ -564,103 +497,93 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         Ok(self.where_not(user_id_in(values)))
     }
 
-    pub async fn has_group(self, repo: &crate::model::GroupRepository<'_>) -> anyhow::Result<Self> {
-        self.where_group_with(repo, std::iter::empty::<crate::model::GroupPredicate>())
+    pub async fn has_friend(self, repo: &crate::model::UserRepository<'_>) -> anyhow::Result<Self> {
+        self.where_friend_with(repo, std::iter::empty::<crate::model::UserPredicate>())
             .await
     }
 
-    pub async fn where_group_with<I>(
+    pub async fn where_friend_with<I>(
         self,
-        repo: &crate::model::GroupRepository<'_>,
+        repo: &crate::model::UserRepository<'_>,
         predicates: I,
     ) -> anyhow::Result<Self>
     where
-        I: IntoIterator<Item = crate::model::GroupPredicate>,
+        I: IntoIterator<Item = crate::model::UserPredicate>,
     {
         let values = repo.query().where_all(predicates).pluck_id().await?;
-        Ok(self.where_(group_id_in(values)))
+        Ok(self.where_(friend_id_in(values)))
     }
 
-    pub async fn not_has_group(
+    pub async fn not_has_friend(
         self,
-        repo: &crate::model::GroupRepository<'_>,
+        repo: &crate::model::UserRepository<'_>,
     ) -> anyhow::Result<Self> {
-        self.where_group_without(repo, std::iter::empty::<crate::model::GroupPredicate>())
+        self.where_friend_without(repo, std::iter::empty::<crate::model::UserPredicate>())
             .await
     }
 
-    pub async fn where_group_without<I>(
+    pub async fn where_friend_without<I>(
         self,
-        repo: &crate::model::GroupRepository<'_>,
+        repo: &crate::model::UserRepository<'_>,
         predicates: I,
     ) -> anyhow::Result<Self>
     where
-        I: IntoIterator<Item = crate::model::GroupPredicate>,
+        I: IntoIterator<Item = crate::model::UserPredicate>,
     {
         let values = repo.query().where_all(predicates).pluck_id().await?;
-        Ok(self.where_not(group_id_in(values)))
+        Ok(self.where_not(friend_id_in(values)))
     }
 
-    pub fn order(mut self, order: MembershipOrder) -> Self {
+    pub fn order(mut self, order: FriendshipOrder) -> Self {
         self.orders.push(order);
         self
     }
 
     pub fn order_all<I>(mut self, orders: I) -> Self
     where
-        I: IntoIterator<Item = MembershipOrder>,
+        I: IntoIterator<Item = FriendshipOrder>,
     {
         self.orders.extend(orders);
         self
     }
 
     pub fn order_by_id_asc(mut self) -> Self {
-        self.orders.push(MembershipOrder::IdAsc);
+        self.orders.push(FriendshipOrder::IdAsc);
         self
     }
 
     pub fn order_by_id_desc(mut self) -> Self {
-        self.orders.push(MembershipOrder::IdDesc);
+        self.orders.push(FriendshipOrder::IdDesc);
         self
     }
 
     pub fn order_by_user_id_asc(mut self) -> Self {
-        self.orders.push(MembershipOrder::UserIdAsc);
+        self.orders.push(FriendshipOrder::UserIdAsc);
         self
     }
 
     pub fn order_by_user_id_desc(mut self) -> Self {
-        self.orders.push(MembershipOrder::UserIdDesc);
+        self.orders.push(FriendshipOrder::UserIdDesc);
         self
     }
 
-    pub fn order_by_group_id_asc(mut self) -> Self {
-        self.orders.push(MembershipOrder::GroupIdAsc);
+    pub fn order_by_friend_id_asc(mut self) -> Self {
+        self.orders.push(FriendshipOrder::FriendIdAsc);
         self
     }
 
-    pub fn order_by_group_id_desc(mut self) -> Self {
-        self.orders.push(MembershipOrder::GroupIdDesc);
+    pub fn order_by_friend_id_desc(mut self) -> Self {
+        self.orders.push(FriendshipOrder::FriendIdDesc);
         self
     }
 
-    pub fn order_by_role_asc(mut self) -> Self {
-        self.orders.push(MembershipOrder::RoleAsc);
+    pub fn order_by_created_at_asc(mut self) -> Self {
+        self.orders.push(FriendshipOrder::CreatedAtAsc);
         self
     }
 
-    pub fn order_by_role_desc(mut self) -> Self {
-        self.orders.push(MembershipOrder::RoleDesc);
-        self
-    }
-
-    pub fn order_by_joined_at_asc(mut self) -> Self {
-        self.orders.push(MembershipOrder::JoinedAtAsc);
-        self
-    }
-
-    pub fn order_by_joined_at_desc(mut self) -> Self {
-        self.orders.push(MembershipOrder::JoinedAtDesc);
+    pub fn order_by_created_at_desc(mut self) -> Self {
+        self.orders.push(FriendshipOrder::CreatedAtDesc);
         self
     }
 
@@ -679,157 +602,107 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         self
     }
 
-    fn predicate_condition(predicate: &MembershipPredicate) -> Condition {
+    fn predicate_condition(predicate: &FriendshipPredicate) -> Condition {
         match predicate {
-            MembershipPredicate::IdEq(value) => Condition::all().add(Column::Id.eq(*value)),
-            MembershipPredicate::IdNe(value) => Condition::all().add(Column::Id.ne(*value)),
-            MembershipPredicate::IdIn(values) => {
+            FriendshipPredicate::IdEq(value) => Condition::all().add(Column::Id.eq(*value)),
+            FriendshipPredicate::IdNe(value) => Condition::all().add(Column::Id.ne(*value)),
+            FriendshipPredicate::IdIn(values) => {
                 Condition::all().add(Column::Id.is_in(values.clone()))
             }
-            MembershipPredicate::IdNotIn(values) => {
+            FriendshipPredicate::IdNotIn(values) => {
                 Condition::all().add(Column::Id.is_not_in(values.clone()))
             }
-            MembershipPredicate::IdGt(value) => Condition::all().add(Column::Id.gt(*value)),
-            MembershipPredicate::IdGte(value) => Condition::all().add(Column::Id.gte(*value)),
-            MembershipPredicate::IdLt(value) => Condition::all().add(Column::Id.lt(*value)),
-            MembershipPredicate::IdLte(value) => Condition::all().add(Column::Id.lte(*value)),
-            MembershipPredicate::IdBetween(start, end) => {
+            FriendshipPredicate::IdGt(value) => Condition::all().add(Column::Id.gt(*value)),
+            FriendshipPredicate::IdGte(value) => Condition::all().add(Column::Id.gte(*value)),
+            FriendshipPredicate::IdLt(value) => Condition::all().add(Column::Id.lt(*value)),
+            FriendshipPredicate::IdLte(value) => Condition::all().add(Column::Id.lte(*value)),
+            FriendshipPredicate::IdBetween(start, end) => {
                 Condition::all().add(Column::Id.between(*start, *end))
             }
-            MembershipPredicate::UserIdEq(value) => Condition::all().add(Column::UserId.eq(*value)),
-            MembershipPredicate::UserIdNe(value) => Condition::all().add(Column::UserId.ne(*value)),
-            MembershipPredicate::UserIdIn(values) => {
+            FriendshipPredicate::UserIdEq(value) => Condition::all().add(Column::UserId.eq(*value)),
+            FriendshipPredicate::UserIdNe(value) => Condition::all().add(Column::UserId.ne(*value)),
+            FriendshipPredicate::UserIdIn(values) => {
                 Condition::all().add(Column::UserId.is_in(values.clone()))
             }
-            MembershipPredicate::UserIdNotIn(values) => {
+            FriendshipPredicate::UserIdNotIn(values) => {
                 Condition::all().add(Column::UserId.is_not_in(values.clone()))
             }
-            MembershipPredicate::UserIdGt(value) => Condition::all().add(Column::UserId.gt(*value)),
-            MembershipPredicate::UserIdGte(value) => {
+            FriendshipPredicate::UserIdGt(value) => Condition::all().add(Column::UserId.gt(*value)),
+            FriendshipPredicate::UserIdGte(value) => {
                 Condition::all().add(Column::UserId.gte(*value))
             }
-            MembershipPredicate::UserIdLt(value) => Condition::all().add(Column::UserId.lt(*value)),
-            MembershipPredicate::UserIdLte(value) => {
+            FriendshipPredicate::UserIdLt(value) => Condition::all().add(Column::UserId.lt(*value)),
+            FriendshipPredicate::UserIdLte(value) => {
                 Condition::all().add(Column::UserId.lte(*value))
             }
-            MembershipPredicate::UserIdBetween(start, end) => {
+            FriendshipPredicate::UserIdBetween(start, end) => {
                 Condition::all().add(Column::UserId.between(*start, *end))
             }
-            MembershipPredicate::GroupIdEq(value) => {
-                Condition::all().add(Column::GroupId.eq(*value))
+            FriendshipPredicate::FriendIdEq(value) => {
+                Condition::all().add(Column::FriendId.eq(*value))
             }
-            MembershipPredicate::GroupIdNe(value) => {
-                Condition::all().add(Column::GroupId.ne(*value))
+            FriendshipPredicate::FriendIdNe(value) => {
+                Condition::all().add(Column::FriendId.ne(*value))
             }
-            MembershipPredicate::GroupIdIn(values) => {
-                Condition::all().add(Column::GroupId.is_in(values.clone()))
+            FriendshipPredicate::FriendIdIn(values) => {
+                Condition::all().add(Column::FriendId.is_in(values.clone()))
             }
-            MembershipPredicate::GroupIdNotIn(values) => {
-                Condition::all().add(Column::GroupId.is_not_in(values.clone()))
+            FriendshipPredicate::FriendIdNotIn(values) => {
+                Condition::all().add(Column::FriendId.is_not_in(values.clone()))
             }
-            MembershipPredicate::GroupIdGt(value) => {
-                Condition::all().add(Column::GroupId.gt(*value))
+            FriendshipPredicate::FriendIdGt(value) => {
+                Condition::all().add(Column::FriendId.gt(*value))
             }
-            MembershipPredicate::GroupIdGte(value) => {
-                Condition::all().add(Column::GroupId.gte(*value))
+            FriendshipPredicate::FriendIdGte(value) => {
+                Condition::all().add(Column::FriendId.gte(*value))
             }
-            MembershipPredicate::GroupIdLt(value) => {
-                Condition::all().add(Column::GroupId.lt(*value))
+            FriendshipPredicate::FriendIdLt(value) => {
+                Condition::all().add(Column::FriendId.lt(*value))
             }
-            MembershipPredicate::GroupIdLte(value) => {
-                Condition::all().add(Column::GroupId.lte(*value))
+            FriendshipPredicate::FriendIdLte(value) => {
+                Condition::all().add(Column::FriendId.lte(*value))
             }
-            MembershipPredicate::GroupIdBetween(start, end) => {
-                Condition::all().add(Column::GroupId.between(*start, *end))
+            FriendshipPredicate::FriendIdBetween(start, end) => {
+                Condition::all().add(Column::FriendId.between(*start, *end))
             }
-            MembershipPredicate::RoleEq(value) => {
-                Condition::all().add(Column::Role.eq(value.clone()))
+            FriendshipPredicate::CreatedAtEq(value) => {
+                Condition::all().add(Column::CreatedAt.eq(*value))
             }
-            MembershipPredicate::RoleNe(value) => {
-                Condition::all().add(Column::Role.ne(value.clone()))
+            FriendshipPredicate::CreatedAtNe(value) => {
+                Condition::all().add(Column::CreatedAt.ne(*value))
             }
-            MembershipPredicate::RoleIn(values) => {
-                Condition::all().add(Column::Role.is_in(values.clone()))
+            FriendshipPredicate::CreatedAtIn(values) => {
+                Condition::all().add(Column::CreatedAt.is_in(values.clone()))
             }
-            MembershipPredicate::RoleNotIn(values) => {
-                Condition::all().add(Column::Role.is_not_in(values.clone()))
+            FriendshipPredicate::CreatedAtNotIn(values) => {
+                Condition::all().add(Column::CreatedAt.is_not_in(values.clone()))
             }
-            MembershipPredicate::RoleContains(value) => {
-                Condition::all().add(Column::Role.like(contains_like_pattern(value)))
+            FriendshipPredicate::CreatedAtGt(value) => {
+                Condition::all().add(Column::CreatedAt.gt(*value))
             }
-            MembershipPredicate::RoleNotContains(value) => Condition::all()
-                .add(Column::Role.like(contains_like_pattern(value)))
-                .not(),
-            MembershipPredicate::RoleIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::Role))
-                    .like(contains_like_pattern(&value.to_lowercase())),
-            ),
-            MembershipPredicate::RoleNotIContains(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Role))
-                        .like(contains_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            MembershipPredicate::RoleEqualFold(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::Role))
-                    .like(escape_like_pattern(&value.to_lowercase())),
-            ),
-            MembershipPredicate::RoleNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Role))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            MembershipPredicate::RoleStartsWith(value) => {
-                Condition::all().add(Column::Role.like(format!("{}%", escape_like_pattern(value))))
+            FriendshipPredicate::CreatedAtGte(value) => {
+                Condition::all().add(Column::CreatedAt.gte(*value))
             }
-            MembershipPredicate::RoleNotStartsWith(value) => Condition::all()
-                .add(Column::Role.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            MembershipPredicate::RoleEndsWith(value) => {
-                Condition::all().add(Column::Role.like(format!("%{}", escape_like_pattern(value))))
+            FriendshipPredicate::CreatedAtLt(value) => {
+                Condition::all().add(Column::CreatedAt.lt(*value))
             }
-            MembershipPredicate::RoleNotEndsWith(value) => Condition::all()
-                .add(Column::Role.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
-            MembershipPredicate::JoinedAtEq(value) => {
-                Condition::all().add(Column::JoinedAt.eq(*value))
+            FriendshipPredicate::CreatedAtLte(value) => {
+                Condition::all().add(Column::CreatedAt.lte(*value))
             }
-            MembershipPredicate::JoinedAtNe(value) => {
-                Condition::all().add(Column::JoinedAt.ne(*value))
+            FriendshipPredicate::CreatedAtBetween(start, end) => {
+                Condition::all().add(Column::CreatedAt.between(*start, *end))
             }
-            MembershipPredicate::JoinedAtIn(values) => {
-                Condition::all().add(Column::JoinedAt.is_in(values.clone()))
-            }
-            MembershipPredicate::JoinedAtNotIn(values) => {
-                Condition::all().add(Column::JoinedAt.is_not_in(values.clone()))
-            }
-            MembershipPredicate::JoinedAtGt(value) => {
-                Condition::all().add(Column::JoinedAt.gt(*value))
-            }
-            MembershipPredicate::JoinedAtGte(value) => {
-                Condition::all().add(Column::JoinedAt.gte(*value))
-            }
-            MembershipPredicate::JoinedAtLt(value) => {
-                Condition::all().add(Column::JoinedAt.lt(*value))
-            }
-            MembershipPredicate::JoinedAtLte(value) => {
-                Condition::all().add(Column::JoinedAt.lte(*value))
-            }
-            MembershipPredicate::JoinedAtBetween(start, end) => {
-                Condition::all().add(Column::JoinedAt.between(*start, *end))
-            }
-            MembershipPredicate::And(predicates) => predicates
+            FriendshipPredicate::And(predicates) => predicates
                 .iter()
                 .fold(Condition::all(), |condition, predicate| {
                     condition.add(Self::predicate_condition(predicate))
                 }),
-            MembershipPredicate::Or(predicates) => predicates
+            FriendshipPredicate::Or(predicates) => predicates
                 .iter()
                 .fold(Condition::any(), |condition, predicate| {
                     condition.add(Self::predicate_condition(predicate))
                 }),
-            MembershipPredicate::Not(predicate) => Condition::all()
+            FriendshipPredicate::Not(predicate) => Condition::all()
                 .add(Self::predicate_condition(predicate))
                 .not(),
         }
@@ -846,16 +719,14 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
     fn apply_order(&self, mut select: Select<Entity>) -> Select<Entity> {
         for order in &self.orders {
             match order {
-                MembershipOrder::IdAsc => select = select.order_by_asc(Column::Id),
-                MembershipOrder::IdDesc => select = select.order_by_desc(Column::Id),
-                MembershipOrder::UserIdAsc => select = select.order_by_asc(Column::UserId),
-                MembershipOrder::UserIdDesc => select = select.order_by_desc(Column::UserId),
-                MembershipOrder::GroupIdAsc => select = select.order_by_asc(Column::GroupId),
-                MembershipOrder::GroupIdDesc => select = select.order_by_desc(Column::GroupId),
-                MembershipOrder::RoleAsc => select = select.order_by_asc(Column::Role),
-                MembershipOrder::RoleDesc => select = select.order_by_desc(Column::Role),
-                MembershipOrder::JoinedAtAsc => select = select.order_by_asc(Column::JoinedAt),
-                MembershipOrder::JoinedAtDesc => select = select.order_by_desc(Column::JoinedAt),
+                FriendshipOrder::IdAsc => select = select.order_by_asc(Column::Id),
+                FriendshipOrder::IdDesc => select = select.order_by_desc(Column::Id),
+                FriendshipOrder::UserIdAsc => select = select.order_by_asc(Column::UserId),
+                FriendshipOrder::UserIdDesc => select = select.order_by_desc(Column::UserId),
+                FriendshipOrder::FriendIdAsc => select = select.order_by_asc(Column::FriendId),
+                FriendshipOrder::FriendIdDesc => select = select.order_by_desc(Column::FriendId),
+                FriendshipOrder::CreatedAtAsc => select = select.order_by_asc(Column::CreatedAt),
+                FriendshipOrder::CreatedAtDesc => select = select.order_by_desc(Column::CreatedAt),
             }
         }
         select
@@ -881,7 +752,7 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
     pub async fn all_with_user(
         self,
         repo: &crate::model::UserRepository<'_>,
-    ) -> anyhow::Result<Vec<MembershipWithUser>> {
+    ) -> anyhow::Result<Vec<FriendshipWithUser>> {
         let nodes = self.all().await?;
         let values = nodes.iter().map(|node| node.user_id).collect::<Vec<_>>();
         let targets = repo
@@ -895,7 +766,7 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
                 .iter()
                 .find(|target| target.id == node.user_id)
                 .cloned();
-            loaded.push(MembershipWithUser { node, edge });
+            loaded.push(FriendshipWithUser { node, edge });
         }
         Ok(loaded)
     }
@@ -903,7 +774,7 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
     pub async fn first_with_user(
         mut self,
         repo: &crate::model::UserRepository<'_>,
-    ) -> anyhow::Result<Option<MembershipWithUser>> {
+    ) -> anyhow::Result<Option<FriendshipWithUser>> {
         self.limit = Some(1);
         Ok(self.all_with_user(repo).await?.into_iter().next())
     }
@@ -913,7 +784,7 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         self,
         repo: &'target_repo crate::model::UserRepository<'target_ctx>,
         load: F,
-    ) -> anyhow::Result<Vec<MembershipWithUserNested<T>>>
+    ) -> anyhow::Result<Vec<FriendshipWithUserNested<T>>>
     where
         T: crate::model::user::UserLoadedNode + Clone,
         F: FnOnce(crate::model::user::UserQuery<'target_repo, 'target_ctx>) -> Fut,
@@ -928,72 +799,72 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
                 .iter()
                 .find(|target| target.loaded_node().id == node.user_id)
                 .cloned();
-            loaded.push(MembershipWithUserNested { node, edge });
+            loaded.push(FriendshipWithUserNested { node, edge });
         }
         Ok(loaded)
     }
 
-    pub async fn all_with_group(
+    pub async fn all_with_friend(
         self,
-        repo: &crate::model::GroupRepository<'_>,
-    ) -> anyhow::Result<Vec<MembershipWithGroup>> {
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<FriendshipWithFriend>> {
         let nodes = self.all().await?;
-        let values = nodes.iter().map(|node| node.group_id).collect::<Vec<_>>();
+        let values = nodes.iter().map(|node| node.friend_id).collect::<Vec<_>>();
         let targets = repo
             .query()
-            .where_(crate::model::group::id_in(values))
+            .where_(crate::model::user::id_in(values))
             .all()
             .await?;
         let mut loaded = Vec::with_capacity(nodes.len());
         for node in nodes {
             let edge = targets
                 .iter()
-                .find(|target| target.id == node.group_id)
+                .find(|target| target.id == node.friend_id)
                 .cloned();
-            loaded.push(MembershipWithGroup { node, edge });
+            loaded.push(FriendshipWithFriend { node, edge });
         }
         Ok(loaded)
     }
 
-    pub async fn first_with_group(
+    pub async fn first_with_friend(
         mut self,
-        repo: &crate::model::GroupRepository<'_>,
-    ) -> anyhow::Result<Option<MembershipWithGroup>> {
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<FriendshipWithFriend>> {
         self.limit = Some(1);
-        Ok(self.all_with_group(repo).await?.into_iter().next())
+        Ok(self.all_with_friend(repo).await?.into_iter().next())
     }
 
     #[allow(clippy::clone_on_copy)]
-    pub async fn all_with_group_nested<'target_repo, 'target_ctx, T, F, Fut>(
+    pub async fn all_with_friend_nested<'target_repo, 'target_ctx, T, F, Fut>(
         self,
-        repo: &'target_repo crate::model::GroupRepository<'target_ctx>,
+        repo: &'target_repo crate::model::UserRepository<'target_ctx>,
         load: F,
-    ) -> anyhow::Result<Vec<MembershipWithGroupNested<T>>>
+    ) -> anyhow::Result<Vec<FriendshipWithFriendNested<T>>>
     where
-        T: crate::model::group::GroupLoadedNode + Clone,
-        F: FnOnce(crate::model::group::GroupQuery<'target_repo, 'target_ctx>) -> Fut,
+        T: crate::model::user::UserLoadedNode + Clone,
+        F: FnOnce(crate::model::user::UserQuery<'target_repo, 'target_ctx>) -> Fut,
         Fut: std::future::Future<Output = anyhow::Result<Vec<T>>>,
     {
         let nodes = self.all().await?;
-        let values = nodes.iter().map(|node| node.group_id).collect::<Vec<_>>();
-        let targets = load(repo.query().where_(crate::model::group::id_in(values))).await?;
+        let values = nodes.iter().map(|node| node.friend_id).collect::<Vec<_>>();
+        let targets = load(repo.query().where_(crate::model::user::id_in(values))).await?;
         let mut loaded = Vec::with_capacity(nodes.len());
         for node in nodes {
             let edge = targets
                 .iter()
-                .find(|target| target.loaded_node().id == node.group_id)
+                .find(|target| target.loaded_node().id == node.friend_id)
                 .cloned();
-            loaded.push(MembershipWithGroupNested { node, edge });
+            loaded.push(FriendshipWithFriendNested { node, edge });
         }
         Ok(loaded)
     }
 
     #[allow(clippy::clone_on_copy)]
-    pub async fn all_with_user_and_group(
+    pub async fn all_with_user_and_friend(
         self,
         first_repo: &crate::model::UserRepository<'_>,
-        second_repo: &crate::model::GroupRepository<'_>,
-    ) -> anyhow::Result<Vec<MembershipWithUserAndGroup>> {
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<FriendshipWithUserAndFriend>> {
         let nodes = self.all().await?;
         let first_values = nodes.iter().map(|node| node.user_id).collect::<Vec<_>>();
         let first_targets = first_repo
@@ -1001,10 +872,10 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .where_(crate::model::user::id_in(first_values))
             .all()
             .await?;
-        let second_values = nodes.iter().map(|node| node.group_id).collect::<Vec<_>>();
+        let second_values = nodes.iter().map(|node| node.friend_id).collect::<Vec<_>>();
         let second_targets = second_repo
             .query()
-            .where_(crate::model::group::id_in(second_values))
+            .where_(crate::model::user::id_in(second_values))
             .all()
             .await?;
         let mut loaded = Vec::with_capacity(nodes.len());
@@ -1013,24 +884,24 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
                 .iter()
                 .find(|target| target.id == node.user_id)
                 .cloned();
-            let group = second_targets
+            let friend = second_targets
                 .iter()
-                .find(|target| target.id == node.group_id)
+                .find(|target| target.id == node.friend_id)
                 .cloned();
-            loaded.push(MembershipWithUserAndGroup { node, user, group });
+            loaded.push(FriendshipWithUserAndFriend { node, user, friend });
         }
         Ok(loaded)
     }
 
     #[allow(clippy::clone_on_copy)]
-    pub async fn first_with_user_and_group(
+    pub async fn first_with_user_and_friend(
         mut self,
         first_repo: &crate::model::UserRepository<'_>,
-        second_repo: &crate::model::GroupRepository<'_>,
-    ) -> anyhow::Result<Option<MembershipWithUserAndGroup>> {
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<FriendshipWithUserAndFriend>> {
         self.limit = Some(1);
         Ok(self
-            .all_with_user_and_group(first_repo, second_repo)
+            .all_with_user_and_friend(first_repo, second_repo)
             .await?
             .into_iter()
             .next())
@@ -1041,15 +912,15 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         struct AtomicTerminal {
             delta: i64,
         }
-        impl<'repo, 'ctx> roze_orm::Operation<MembershipQuery<'repo, 'ctx>, u64, anyhow::Error>
+        impl<'repo, 'ctx> roze_orm::Operation<FriendshipQuery<'repo, 'ctx>, u64, anyhow::Error>
             for AtomicTerminal
         {
             fn call<'call>(
                 &'call self,
-                query: MembershipQuery<'repo, 'ctx>,
+                query: FriendshipQuery<'repo, 'ctx>,
             ) -> roze_orm::OperationFuture<'call, u64, anyhow::Error>
             where
-                MembershipQuery<'repo, 'ctx>: 'call,
+                FriendshipQuery<'repo, 'ctx>: 'call,
                 u64: 'call,
                 anyhow::Error: 'call,
             {
@@ -1078,15 +949,15 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         struct AtomicTerminal {
             delta: i64,
         }
-        impl<'repo, 'ctx> roze_orm::Operation<MembershipQuery<'repo, 'ctx>, u64, anyhow::Error>
+        impl<'repo, 'ctx> roze_orm::Operation<FriendshipQuery<'repo, 'ctx>, u64, anyhow::Error>
             for AtomicTerminal
         {
             fn call<'call>(
                 &'call self,
-                query: MembershipQuery<'repo, 'ctx>,
+                query: FriendshipQuery<'repo, 'ctx>,
             ) -> roze_orm::OperationFuture<'call, u64, anyhow::Error>
             where
-                MembershipQuery<'repo, 'ctx>: 'call,
+                FriendshipQuery<'repo, 'ctx>: 'call,
                 u64: 'call,
                 anyhow::Error: 'call,
             {
@@ -1111,24 +982,24 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
     }
 
     #[allow(clippy::clone_on_copy)]
-    pub async fn add_group_id(mut self, delta: i64) -> anyhow::Result<u64> {
+    pub async fn add_friend_id(mut self, delta: i64) -> anyhow::Result<u64> {
         struct AtomicTerminal {
             delta: i64,
         }
-        impl<'repo, 'ctx> roze_orm::Operation<MembershipQuery<'repo, 'ctx>, u64, anyhow::Error>
+        impl<'repo, 'ctx> roze_orm::Operation<FriendshipQuery<'repo, 'ctx>, u64, anyhow::Error>
             for AtomicTerminal
         {
             fn call<'call>(
                 &'call self,
-                query: MembershipQuery<'repo, 'ctx>,
+                query: FriendshipQuery<'repo, 'ctx>,
             ) -> roze_orm::OperationFuture<'call, u64, anyhow::Error>
             where
-                MembershipQuery<'repo, 'ctx>: 'call,
+                FriendshipQuery<'repo, 'ctx>: 'call,
                 u64: 'call,
                 anyhow::Error: 'call,
             {
                 let delta = self.delta.clone();
-                Box::pin(query.add_group_id_unintercepted(delta))
+                Box::pin(query.add_friend_id_unintercepted(delta))
             }
         }
         let interceptors = std::mem::take(&mut self.atomic_interceptors);
@@ -1136,11 +1007,11 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
     }
 
     #[allow(clippy::clone_on_copy)]
-    async fn add_group_id_unintercepted(self, delta: i64) -> anyhow::Result<u64> {
+    async fn add_friend_id_unintercepted(self, delta: i64) -> anyhow::Result<u64> {
         let db = self.repo.write_db()?;
         let mut update = Entity::update_many().col_expr(
-            Column::GroupId,
-            Expr::col(Column::GroupId).add(delta.clone()),
+            Column::FriendId,
+            Expr::col(Column::FriendId).add(delta.clone()),
         );
         for predicate in &self.predicates {
             update = update.filter(Self::predicate_condition(predicate));
@@ -1150,24 +1021,24 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
     }
 
     #[allow(clippy::clone_on_copy)]
-    pub async fn subtract_group_id(mut self, delta: i64) -> anyhow::Result<u64> {
+    pub async fn subtract_friend_id(mut self, delta: i64) -> anyhow::Result<u64> {
         struct AtomicTerminal {
             delta: i64,
         }
-        impl<'repo, 'ctx> roze_orm::Operation<MembershipQuery<'repo, 'ctx>, u64, anyhow::Error>
+        impl<'repo, 'ctx> roze_orm::Operation<FriendshipQuery<'repo, 'ctx>, u64, anyhow::Error>
             for AtomicTerminal
         {
             fn call<'call>(
                 &'call self,
-                query: MembershipQuery<'repo, 'ctx>,
+                query: FriendshipQuery<'repo, 'ctx>,
             ) -> roze_orm::OperationFuture<'call, u64, anyhow::Error>
             where
-                MembershipQuery<'repo, 'ctx>: 'call,
+                FriendshipQuery<'repo, 'ctx>: 'call,
                 u64: 'call,
                 anyhow::Error: 'call,
             {
                 let delta = self.delta.clone();
-                Box::pin(query.subtract_group_id_unintercepted(delta))
+                Box::pin(query.subtract_friend_id_unintercepted(delta))
             }
         }
         let interceptors = std::mem::take(&mut self.atomic_interceptors);
@@ -1175,11 +1046,11 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
     }
 
     #[allow(clippy::clone_on_copy)]
-    async fn subtract_group_id_unintercepted(self, delta: i64) -> anyhow::Result<u64> {
+    async fn subtract_friend_id_unintercepted(self, delta: i64) -> anyhow::Result<u64> {
         let db = self.repo.write_db()?;
         let mut update = Entity::update_many().col_expr(
-            Column::GroupId,
-            Expr::col(Column::GroupId).sub(delta.clone()),
+            Column::FriendId,
+            Expr::col(Column::FriendId).sub(delta.clone()),
         );
         for predicate in &self.predicates {
             update = update.filter(Self::predicate_condition(predicate));
@@ -1476,12 +1347,12 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .await?)
     }
 
-    pub async fn sum_group_id_by_id(self) -> anyhow::Result<Vec<(i64, i64)>> {
+    pub async fn sum_friend_id_by_id(self) -> anyhow::Result<Vec<(i64, i64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::GroupId).sum().cast_as("BIGINT")
+            Expr::col(Column::FriendId).sum().cast_as("BIGINT")
         } else {
-            Expr::col(Column::GroupId).sum()
+            Expr::col(Column::FriendId).sum()
         };
         let rows = self
             .build_filter_select()
@@ -1498,15 +1369,15 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn sum_group_id_by_id_having_at_least(
+    pub async fn sum_friend_id_by_id_having_at_least(
         self,
         minimum: i64,
     ) -> anyhow::Result<Vec<(i64, i64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::GroupId).sum().cast_as("BIGINT")
+            Expr::col(Column::FriendId).sum().cast_as("BIGINT")
         } else {
-            Expr::col(Column::GroupId).sum()
+            Expr::col(Column::FriendId).sum()
         };
         let rows = self
             .build_filter_select()
@@ -1524,15 +1395,15 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn sum_group_id_by_id_having_at_most(
+    pub async fn sum_friend_id_by_id_having_at_most(
         self,
         maximum: i64,
     ) -> anyhow::Result<Vec<(i64, i64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::GroupId).sum().cast_as("BIGINT")
+            Expr::col(Column::FriendId).sum().cast_as("BIGINT")
         } else {
-            Expr::col(Column::GroupId).sum()
+            Expr::col(Column::FriendId).sum()
         };
         let rows = self
             .build_filter_select()
@@ -1550,16 +1421,16 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn sum_group_id_by_id_having_between(
+    pub async fn sum_friend_id_by_id_having_between(
         self,
         minimum: i64,
         maximum: i64,
     ) -> anyhow::Result<Vec<(i64, i64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::GroupId).sum().cast_as("BIGINT")
+            Expr::col(Column::FriendId).sum().cast_as("BIGINT")
         } else {
-            Expr::col(Column::GroupId).sum()
+            Expr::col(Column::FriendId).sum()
         };
         let rows = self
             .build_filter_select()
@@ -1578,151 +1449,7 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn avg_group_id_by_id(self) -> anyhow::Result<Vec<(i64, Option<f64>)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        Ok(self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Id)
-            .column_as(
-                Into::<sea_orm::sea_query::SimpleExpr>::into(Func::avg(Expr::col(Column::GroupId))),
-                "roze_avg",
-            )
-            .group_by(Column::Id)
-            .into_tuple::<(i64, Option<f64>)>()
-            .all(&db)
-            .await?)
-    }
-
-    pub async fn min_group_id_by_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        Ok(self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Id)
-            .column_as(Expr::col(Column::GroupId).min(), "roze_min")
-            .group_by(Column::Id)
-            .into_tuple::<(i64, Option<i64>)>()
-            .all(&db)
-            .await?)
-    }
-
-    pub async fn max_group_id_by_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        Ok(self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Id)
-            .column_as(Expr::col(Column::GroupId).max(), "roze_max")
-            .group_by(Column::Id)
-            .into_tuple::<(i64, Option<i64>)>()
-            .all(&db)
-            .await?)
-    }
-
-    pub async fn sum_joined_at_by_id(self) -> anyhow::Result<Vec<(i64, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::JoinedAt).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::JoinedAt).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Id)
-            .column_as(sum, "roze_sum")
-            .group_by(Column::Id)
-            .into_tuple::<(i64, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn sum_joined_at_by_id_having_at_least(
-        self,
-        minimum: i64,
-    ) -> anyhow::Result<Vec<(i64, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::JoinedAt).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::JoinedAt).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Id)
-            .column_as(sum.clone(), "roze_sum")
-            .group_by(Column::Id)
-            .having(sum.gte(minimum))
-            .into_tuple::<(i64, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn sum_joined_at_by_id_having_at_most(
-        self,
-        maximum: i64,
-    ) -> anyhow::Result<Vec<(i64, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::JoinedAt).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::JoinedAt).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Id)
-            .column_as(sum.clone(), "roze_sum")
-            .group_by(Column::Id)
-            .having(sum.lte(maximum))
-            .into_tuple::<(i64, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn sum_joined_at_by_id_having_between(
-        self,
-        minimum: i64,
-        maximum: i64,
-    ) -> anyhow::Result<Vec<(i64, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::JoinedAt).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::JoinedAt).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Id)
-            .column_as(sum.clone(), "roze_sum")
-            .group_by(Column::Id)
-            .having(sum.clone().gte(minimum))
-            .having(sum.lte(maximum))
-            .into_tuple::<(i64, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn avg_joined_at_by_id(self) -> anyhow::Result<Vec<(i64, Option<f64>)>> {
+    pub async fn avg_friend_id_by_id(self) -> anyhow::Result<Vec<(i64, Option<f64>)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         Ok(self
             .build_filter_select()
@@ -1730,7 +1457,7 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .column(Column::Id)
             .column_as(
                 Into::<sea_orm::sea_query::SimpleExpr>::into(Func::avg(Expr::col(
-                    Column::JoinedAt,
+                    Column::FriendId,
                 ))),
                 "roze_avg",
             )
@@ -1740,26 +1467,172 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .await?)
     }
 
-    pub async fn min_joined_at_by_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
+    pub async fn min_friend_id_by_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         Ok(self
             .build_filter_select()
             .select_only()
             .column(Column::Id)
-            .column_as(Expr::col(Column::JoinedAt).min(), "roze_min")
+            .column_as(Expr::col(Column::FriendId).min(), "roze_min")
             .group_by(Column::Id)
             .into_tuple::<(i64, Option<i64>)>()
             .all(&db)
             .await?)
     }
 
-    pub async fn max_joined_at_by_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
+    pub async fn max_friend_id_by_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         Ok(self
             .build_filter_select()
             .select_only()
             .column(Column::Id)
-            .column_as(Expr::col(Column::JoinedAt).max(), "roze_max")
+            .column_as(Expr::col(Column::FriendId).max(), "roze_max")
+            .group_by(Column::Id)
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?)
+    }
+
+    pub async fn sum_created_at_by_id(self) -> anyhow::Result<Vec<(i64, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::CreatedAt).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::CreatedAt).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Id)
+            .column_as(sum, "roze_sum")
+            .group_by(Column::Id)
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn sum_created_at_by_id_having_at_least(
+        self,
+        minimum: i64,
+    ) -> anyhow::Result<Vec<(i64, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::CreatedAt).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::CreatedAt).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Id)
+            .column_as(sum.clone(), "roze_sum")
+            .group_by(Column::Id)
+            .having(sum.gte(minimum))
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn sum_created_at_by_id_having_at_most(
+        self,
+        maximum: i64,
+    ) -> anyhow::Result<Vec<(i64, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::CreatedAt).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::CreatedAt).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Id)
+            .column_as(sum.clone(), "roze_sum")
+            .group_by(Column::Id)
+            .having(sum.lte(maximum))
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn sum_created_at_by_id_having_between(
+        self,
+        minimum: i64,
+        maximum: i64,
+    ) -> anyhow::Result<Vec<(i64, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::CreatedAt).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::CreatedAt).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Id)
+            .column_as(sum.clone(), "roze_sum")
+            .group_by(Column::Id)
+            .having(sum.clone().gte(minimum))
+            .having(sum.lte(maximum))
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn avg_created_at_by_id(self) -> anyhow::Result<Vec<(i64, Option<f64>)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        Ok(self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Id)
+            .column_as(
+                Into::<sea_orm::sea_query::SimpleExpr>::into(Func::avg(Expr::col(
+                    Column::CreatedAt,
+                ))),
+                "roze_avg",
+            )
+            .group_by(Column::Id)
+            .into_tuple::<(i64, Option<f64>)>()
+            .all(&db)
+            .await?)
+    }
+
+    pub async fn min_created_at_by_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        Ok(self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Id)
+            .column_as(Expr::col(Column::CreatedAt).min(), "roze_min")
+            .group_by(Column::Id)
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?)
+    }
+
+    pub async fn max_created_at_by_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        Ok(self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Id)
+            .column_as(Expr::col(Column::CreatedAt).max(), "roze_max")
             .group_by(Column::Id)
             .into_tuple::<(i64, Option<i64>)>()
             .all(&db)
@@ -2054,12 +1927,12 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .await?)
     }
 
-    pub async fn sum_group_id_by_user_id(self) -> anyhow::Result<Vec<(i64, i64)>> {
+    pub async fn sum_friend_id_by_user_id(self) -> anyhow::Result<Vec<(i64, i64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::GroupId).sum().cast_as("BIGINT")
+            Expr::col(Column::FriendId).sum().cast_as("BIGINT")
         } else {
-            Expr::col(Column::GroupId).sum()
+            Expr::col(Column::FriendId).sum()
         };
         let rows = self
             .build_filter_select()
@@ -2076,15 +1949,15 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn sum_group_id_by_user_id_having_at_least(
+    pub async fn sum_friend_id_by_user_id_having_at_least(
         self,
         minimum: i64,
     ) -> anyhow::Result<Vec<(i64, i64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::GroupId).sum().cast_as("BIGINT")
+            Expr::col(Column::FriendId).sum().cast_as("BIGINT")
         } else {
-            Expr::col(Column::GroupId).sum()
+            Expr::col(Column::FriendId).sum()
         };
         let rows = self
             .build_filter_select()
@@ -2102,15 +1975,15 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn sum_group_id_by_user_id_having_at_most(
+    pub async fn sum_friend_id_by_user_id_having_at_most(
         self,
         maximum: i64,
     ) -> anyhow::Result<Vec<(i64, i64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::GroupId).sum().cast_as("BIGINT")
+            Expr::col(Column::FriendId).sum().cast_as("BIGINT")
         } else {
-            Expr::col(Column::GroupId).sum()
+            Expr::col(Column::FriendId).sum()
         };
         let rows = self
             .build_filter_select()
@@ -2128,16 +2001,16 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn sum_group_id_by_user_id_having_between(
+    pub async fn sum_friend_id_by_user_id_having_between(
         self,
         minimum: i64,
         maximum: i64,
     ) -> anyhow::Result<Vec<(i64, i64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::GroupId).sum().cast_as("BIGINT")
+            Expr::col(Column::FriendId).sum().cast_as("BIGINT")
         } else {
-            Expr::col(Column::GroupId).sum()
+            Expr::col(Column::FriendId).sum()
         };
         let rows = self
             .build_filter_select()
@@ -2156,151 +2029,7 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn avg_group_id_by_user_id(self) -> anyhow::Result<Vec<(i64, Option<f64>)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        Ok(self
-            .build_filter_select()
-            .select_only()
-            .column(Column::UserId)
-            .column_as(
-                Into::<sea_orm::sea_query::SimpleExpr>::into(Func::avg(Expr::col(Column::GroupId))),
-                "roze_avg",
-            )
-            .group_by(Column::UserId)
-            .into_tuple::<(i64, Option<f64>)>()
-            .all(&db)
-            .await?)
-    }
-
-    pub async fn min_group_id_by_user_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        Ok(self
-            .build_filter_select()
-            .select_only()
-            .column(Column::UserId)
-            .column_as(Expr::col(Column::GroupId).min(), "roze_min")
-            .group_by(Column::UserId)
-            .into_tuple::<(i64, Option<i64>)>()
-            .all(&db)
-            .await?)
-    }
-
-    pub async fn max_group_id_by_user_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        Ok(self
-            .build_filter_select()
-            .select_only()
-            .column(Column::UserId)
-            .column_as(Expr::col(Column::GroupId).max(), "roze_max")
-            .group_by(Column::UserId)
-            .into_tuple::<(i64, Option<i64>)>()
-            .all(&db)
-            .await?)
-    }
-
-    pub async fn sum_joined_at_by_user_id(self) -> anyhow::Result<Vec<(i64, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::JoinedAt).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::JoinedAt).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::UserId)
-            .column_as(sum, "roze_sum")
-            .group_by(Column::UserId)
-            .into_tuple::<(i64, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn sum_joined_at_by_user_id_having_at_least(
-        self,
-        minimum: i64,
-    ) -> anyhow::Result<Vec<(i64, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::JoinedAt).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::JoinedAt).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::UserId)
-            .column_as(sum.clone(), "roze_sum")
-            .group_by(Column::UserId)
-            .having(sum.gte(minimum))
-            .into_tuple::<(i64, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn sum_joined_at_by_user_id_having_at_most(
-        self,
-        maximum: i64,
-    ) -> anyhow::Result<Vec<(i64, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::JoinedAt).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::JoinedAt).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::UserId)
-            .column_as(sum.clone(), "roze_sum")
-            .group_by(Column::UserId)
-            .having(sum.lte(maximum))
-            .into_tuple::<(i64, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn sum_joined_at_by_user_id_having_between(
-        self,
-        minimum: i64,
-        maximum: i64,
-    ) -> anyhow::Result<Vec<(i64, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::JoinedAt).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::JoinedAt).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::UserId)
-            .column_as(sum.clone(), "roze_sum")
-            .group_by(Column::UserId)
-            .having(sum.clone().gte(minimum))
-            .having(sum.lte(maximum))
-            .into_tuple::<(i64, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn avg_joined_at_by_user_id(self) -> anyhow::Result<Vec<(i64, Option<f64>)>> {
+    pub async fn avg_friend_id_by_user_id(self) -> anyhow::Result<Vec<(i64, Option<f64>)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         Ok(self
             .build_filter_select()
@@ -2308,7 +2037,7 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .column(Column::UserId)
             .column_as(
                 Into::<sea_orm::sea_query::SimpleExpr>::into(Func::avg(Expr::col(
-                    Column::JoinedAt,
+                    Column::FriendId,
                 ))),
                 "roze_avg",
             )
@@ -2318,26 +2047,172 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .await?)
     }
 
-    pub async fn min_joined_at_by_user_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
+    pub async fn min_friend_id_by_user_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         Ok(self
             .build_filter_select()
             .select_only()
             .column(Column::UserId)
-            .column_as(Expr::col(Column::JoinedAt).min(), "roze_min")
+            .column_as(Expr::col(Column::FriendId).min(), "roze_min")
             .group_by(Column::UserId)
             .into_tuple::<(i64, Option<i64>)>()
             .all(&db)
             .await?)
     }
 
-    pub async fn max_joined_at_by_user_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
+    pub async fn max_friend_id_by_user_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         Ok(self
             .build_filter_select()
             .select_only()
             .column(Column::UserId)
-            .column_as(Expr::col(Column::JoinedAt).max(), "roze_max")
+            .column_as(Expr::col(Column::FriendId).max(), "roze_max")
+            .group_by(Column::UserId)
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?)
+    }
+
+    pub async fn sum_created_at_by_user_id(self) -> anyhow::Result<Vec<(i64, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::CreatedAt).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::CreatedAt).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::UserId)
+            .column_as(sum, "roze_sum")
+            .group_by(Column::UserId)
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn sum_created_at_by_user_id_having_at_least(
+        self,
+        minimum: i64,
+    ) -> anyhow::Result<Vec<(i64, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::CreatedAt).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::CreatedAt).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::UserId)
+            .column_as(sum.clone(), "roze_sum")
+            .group_by(Column::UserId)
+            .having(sum.gte(minimum))
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn sum_created_at_by_user_id_having_at_most(
+        self,
+        maximum: i64,
+    ) -> anyhow::Result<Vec<(i64, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::CreatedAt).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::CreatedAt).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::UserId)
+            .column_as(sum.clone(), "roze_sum")
+            .group_by(Column::UserId)
+            .having(sum.lte(maximum))
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn sum_created_at_by_user_id_having_between(
+        self,
+        minimum: i64,
+        maximum: i64,
+    ) -> anyhow::Result<Vec<(i64, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::CreatedAt).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::CreatedAt).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::UserId)
+            .column_as(sum.clone(), "roze_sum")
+            .group_by(Column::UserId)
+            .having(sum.clone().gte(minimum))
+            .having(sum.lte(maximum))
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn avg_created_at_by_user_id(self) -> anyhow::Result<Vec<(i64, Option<f64>)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        Ok(self
+            .build_filter_select()
+            .select_only()
+            .column(Column::UserId)
+            .column_as(
+                Into::<sea_orm::sea_query::SimpleExpr>::into(Func::avg(Expr::col(
+                    Column::CreatedAt,
+                ))),
+                "roze_avg",
+            )
+            .group_by(Column::UserId)
+            .into_tuple::<(i64, Option<f64>)>()
+            .all(&db)
+            .await?)
+    }
+
+    pub async fn min_created_at_by_user_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        Ok(self
+            .build_filter_select()
+            .select_only()
+            .column(Column::UserId)
+            .column_as(Expr::col(Column::CreatedAt).min(), "roze_min")
+            .group_by(Column::UserId)
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?)
+    }
+
+    pub async fn max_created_at_by_user_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        Ok(self
+            .build_filter_select()
+            .select_only()
+            .column(Column::UserId)
+            .column_as(Expr::col(Column::CreatedAt).max(), "roze_max")
             .group_by(Column::UserId)
             .into_tuple::<(i64, Option<i64>)>()
             .all(&db)
@@ -2355,11 +2230,11 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
 
     pub async fn all(mut self) -> anyhow::Result<Vec<Model>> {
         let interceptors = std::mem::take(&mut self.interceptors);
-        roze_orm::execute_chain(&MembershipQueryTerminal, &interceptors, self).await
+        roze_orm::execute_chain(&FriendshipQueryTerminal, &interceptors, self).await
     }
 
     async fn all_unintercepted(self) -> anyhow::Result<Vec<Model>> {
-        tracing::debug!(model = "Membership", backend = "sea_orm", source = self.read_source.label(), query_type = "all", predicate_count = self.predicates.len(), order_count = self.orders.len(), limit = ?self.limit, offset = ?self.offset, "model query executing");
+        tracing::debug!(model = "Friendship", backend = "sea_orm", source = self.read_source.label(), query_type = "all", predicate_count = self.predicates.len(), order_count = self.orders.len(), limit = ?self.limit, offset = ?self.offset, "model query executing");
         let db = self.repo.read_db_from(self.read_source)?;
         Ok(self.build_select().all(&db).await?)
     }
@@ -2385,8 +2260,8 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         let mut ids = self.ids().await?;
         match ids.len() {
             1 => Ok(ids.remove(0)),
-            0 => anyhow::bail!("expected exactly one Membership id, found none"),
-            _ => anyhow::bail!("expected exactly one Membership id, found multiple"),
+            0 => anyhow::bail!("expected exactly one Friendship id, found none"),
+            _ => anyhow::bail!("expected exactly one Friendship id, found multiple"),
         }
     }
 
@@ -2603,30 +2478,30 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         let mut values = self.pluck_user_id().await?;
         match values.len() {
             1 => Ok(values.remove(0)),
-            0 => anyhow::bail!("expected exactly one Membership.user_id value, found none"),
-            _ => anyhow::bail!("expected exactly one Membership.user_id value, found multiple"),
+            0 => anyhow::bail!("expected exactly one Friendship.user_id value, found none"),
+            _ => anyhow::bail!("expected exactly one Friendship.user_id value, found multiple"),
         }
     }
 
-    pub async fn pluck_group_id(self) -> anyhow::Result<Vec<i64>> {
+    pub async fn pluck_friend_id(self) -> anyhow::Result<Vec<i64>> {
         let db = self.repo.read_db_from(self.read_source)?;
         Ok(self
             .build_select()
             .select_only()
-            .column(Column::GroupId)
+            .column(Column::FriendId)
             .into_tuple::<i64>()
             .all(&db)
             .await?)
     }
 
-    pub async fn count_by_group_id(self) -> anyhow::Result<Vec<(i64, u64)>> {
+    pub async fn count_by_friend_id(self) -> anyhow::Result<Vec<(i64, u64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let rows = self
             .build_filter_select()
             .select_only()
-            .column(Column::GroupId)
-            .column_as(Column::GroupId.count(), "roze_count")
-            .group_by(Column::GroupId)
+            .column(Column::FriendId)
+            .column_as(Column::FriendId.count(), "roze_count")
+            .group_by(Column::FriendId)
             .into_tuple::<(i64, i64)>()
             .all(&db)
             .await?;
@@ -2636,7 +2511,7 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn count_by_group_id_having_at_least(
+    pub async fn count_by_friend_id_having_at_least(
         self,
         minimum: u64,
     ) -> anyhow::Result<Vec<(i64, u64)>> {
@@ -2644,10 +2519,10 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         let rows = self
             .build_filter_select()
             .select_only()
-            .column(Column::GroupId)
-            .column_as(Column::GroupId.count(), "roze_count")
-            .group_by(Column::GroupId)
-            .having(Column::GroupId.count().gte(minimum as i64))
+            .column(Column::FriendId)
+            .column_as(Column::FriendId.count(), "roze_count")
+            .group_by(Column::FriendId)
+            .having(Column::FriendId.count().gte(minimum as i64))
             .into_tuple::<(i64, i64)>()
             .all(&db)
             .await?;
@@ -2657,7 +2532,7 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn count_by_group_id_having_at_most(
+    pub async fn count_by_friend_id_having_at_most(
         self,
         maximum: u64,
     ) -> anyhow::Result<Vec<(i64, u64)>> {
@@ -2665,10 +2540,10 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         let rows = self
             .build_filter_select()
             .select_only()
-            .column(Column::GroupId)
-            .column_as(Column::GroupId.count(), "roze_count")
-            .group_by(Column::GroupId)
-            .having(Column::GroupId.count().lte(maximum as i64))
+            .column(Column::FriendId)
+            .column_as(Column::FriendId.count(), "roze_count")
+            .group_by(Column::FriendId)
+            .having(Column::FriendId.count().lte(maximum as i64))
             .into_tuple::<(i64, i64)>()
             .all(&db)
             .await?;
@@ -2678,19 +2553,19 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn count_by_group_id_having_between(
+    pub async fn count_by_friend_id_having_between(
         self,
         minimum: u64,
         maximum: u64,
     ) -> anyhow::Result<Vec<(i64, u64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
-        let count = Column::GroupId.count();
+        let count = Column::FriendId.count();
         let rows = self
             .build_filter_select()
             .select_only()
-            .column(Column::GroupId)
+            .column(Column::FriendId)
             .column_as(count.clone(), "roze_count")
-            .group_by(Column::GroupId)
+            .group_by(Column::FriendId)
             .having(count.clone().gte(minimum as i64))
             .having(count.lte(maximum as i64))
             .into_tuple::<(i64, i64)>()
@@ -2702,167 +2577,49 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn unique_group_id(self) -> anyhow::Result<Vec<i64>> {
+    pub async fn unique_friend_id(self) -> anyhow::Result<Vec<i64>> {
         let values = self
-            .pluck_group_id()
+            .pluck_friend_id()
             .await?
             .into_iter()
             .collect::<std::collections::BTreeSet<_>>();
         Ok(values.into_iter().collect())
     }
 
-    pub async fn first_group_id(mut self) -> anyhow::Result<Option<i64>> {
+    pub async fn first_friend_id(mut self) -> anyhow::Result<Option<i64>> {
         self.limit = Some(1);
-        Ok(self.pluck_group_id().await?.into_iter().next())
+        Ok(self.pluck_friend_id().await?.into_iter().next())
     }
 
-    pub async fn only_group_id(mut self) -> anyhow::Result<i64> {
+    pub async fn only_friend_id(mut self) -> anyhow::Result<i64> {
         self.limit = Some(2);
-        let mut values = self.pluck_group_id().await?;
+        let mut values = self.pluck_friend_id().await?;
         match values.len() {
             1 => Ok(values.remove(0)),
-            0 => anyhow::bail!("expected exactly one Membership.group_id value, found none"),
-            _ => anyhow::bail!("expected exactly one Membership.group_id value, found multiple"),
+            0 => anyhow::bail!("expected exactly one Friendship.friend_id value, found none"),
+            _ => anyhow::bail!("expected exactly one Friendship.friend_id value, found multiple"),
         }
     }
 
-    pub async fn pluck_role(self) -> anyhow::Result<Vec<String>> {
+    pub async fn pluck_created_at(self) -> anyhow::Result<Vec<i64>> {
         let db = self.repo.read_db_from(self.read_source)?;
         Ok(self
             .build_select()
             .select_only()
-            .column(Column::Role)
-            .into_tuple::<String>()
-            .all(&db)
-            .await?)
-    }
-
-    pub async fn count_by_role(self) -> anyhow::Result<Vec<(String, u64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Role)
-            .column_as(Column::Role.count(), "roze_count")
-            .group_by(Column::Role)
-            .into_tuple::<(String, i64)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(value, count)| (value, count as u64))
-            .collect())
-    }
-
-    pub async fn count_by_role_having_at_least(
-        self,
-        minimum: u64,
-    ) -> anyhow::Result<Vec<(String, u64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Role)
-            .column_as(Column::Role.count(), "roze_count")
-            .group_by(Column::Role)
-            .having(Column::Role.count().gte(minimum as i64))
-            .into_tuple::<(String, i64)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(value, count)| (value, count as u64))
-            .collect())
-    }
-
-    pub async fn count_by_role_having_at_most(
-        self,
-        maximum: u64,
-    ) -> anyhow::Result<Vec<(String, u64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Role)
-            .column_as(Column::Role.count(), "roze_count")
-            .group_by(Column::Role)
-            .having(Column::Role.count().lte(maximum as i64))
-            .into_tuple::<(String, i64)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(value, count)| (value, count as u64))
-            .collect())
-    }
-
-    pub async fn count_by_role_having_between(
-        self,
-        minimum: u64,
-        maximum: u64,
-    ) -> anyhow::Result<Vec<(String, u64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let count = Column::Role.count();
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Role)
-            .column_as(count.clone(), "roze_count")
-            .group_by(Column::Role)
-            .having(count.clone().gte(minimum as i64))
-            .having(count.lte(maximum as i64))
-            .into_tuple::<(String, i64)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(value, count)| (value, count as u64))
-            .collect())
-    }
-
-    pub async fn unique_role(self) -> anyhow::Result<Vec<String>> {
-        let values = self
-            .pluck_role()
-            .await?
-            .into_iter()
-            .collect::<std::collections::BTreeSet<_>>();
-        Ok(values.into_iter().collect())
-    }
-
-    pub async fn first_role(mut self) -> anyhow::Result<Option<String>> {
-        self.limit = Some(1);
-        Ok(self.pluck_role().await?.into_iter().next())
-    }
-
-    pub async fn only_role(mut self) -> anyhow::Result<String> {
-        self.limit = Some(2);
-        let mut values = self.pluck_role().await?;
-        match values.len() {
-            1 => Ok(values.remove(0)),
-            0 => anyhow::bail!("expected exactly one Membership.role value, found none"),
-            _ => anyhow::bail!("expected exactly one Membership.role value, found multiple"),
-        }
-    }
-
-    pub async fn pluck_joined_at(self) -> anyhow::Result<Vec<i64>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        Ok(self
-            .build_select()
-            .select_only()
-            .column(Column::JoinedAt)
+            .column(Column::CreatedAt)
             .into_tuple::<i64>()
             .all(&db)
             .await?)
     }
 
-    pub async fn count_by_joined_at(self) -> anyhow::Result<Vec<(i64, u64)>> {
+    pub async fn count_by_created_at(self) -> anyhow::Result<Vec<(i64, u64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let rows = self
             .build_filter_select()
             .select_only()
-            .column(Column::JoinedAt)
-            .column_as(Column::JoinedAt.count(), "roze_count")
-            .group_by(Column::JoinedAt)
+            .column(Column::CreatedAt)
+            .column_as(Column::CreatedAt.count(), "roze_count")
+            .group_by(Column::CreatedAt)
             .into_tuple::<(i64, i64)>()
             .all(&db)
             .await?;
@@ -2872,7 +2629,7 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn count_by_joined_at_having_at_least(
+    pub async fn count_by_created_at_having_at_least(
         self,
         minimum: u64,
     ) -> anyhow::Result<Vec<(i64, u64)>> {
@@ -2880,10 +2637,10 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         let rows = self
             .build_filter_select()
             .select_only()
-            .column(Column::JoinedAt)
-            .column_as(Column::JoinedAt.count(), "roze_count")
-            .group_by(Column::JoinedAt)
-            .having(Column::JoinedAt.count().gte(minimum as i64))
+            .column(Column::CreatedAt)
+            .column_as(Column::CreatedAt.count(), "roze_count")
+            .group_by(Column::CreatedAt)
+            .having(Column::CreatedAt.count().gte(minimum as i64))
             .into_tuple::<(i64, i64)>()
             .all(&db)
             .await?;
@@ -2893,7 +2650,7 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn count_by_joined_at_having_at_most(
+    pub async fn count_by_created_at_having_at_most(
         self,
         maximum: u64,
     ) -> anyhow::Result<Vec<(i64, u64)>> {
@@ -2901,10 +2658,10 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         let rows = self
             .build_filter_select()
             .select_only()
-            .column(Column::JoinedAt)
-            .column_as(Column::JoinedAt.count(), "roze_count")
-            .group_by(Column::JoinedAt)
-            .having(Column::JoinedAt.count().lte(maximum as i64))
+            .column(Column::CreatedAt)
+            .column_as(Column::CreatedAt.count(), "roze_count")
+            .group_by(Column::CreatedAt)
+            .having(Column::CreatedAt.count().lte(maximum as i64))
             .into_tuple::<(i64, i64)>()
             .all(&db)
             .await?;
@@ -2914,19 +2671,19 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn count_by_joined_at_having_between(
+    pub async fn count_by_created_at_having_between(
         self,
         minimum: u64,
         maximum: u64,
     ) -> anyhow::Result<Vec<(i64, u64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
-        let count = Column::JoinedAt.count();
+        let count = Column::CreatedAt.count();
         let rows = self
             .build_filter_select()
             .select_only()
-            .column(Column::JoinedAt)
+            .column(Column::CreatedAt)
             .column_as(count.clone(), "roze_count")
-            .group_by(Column::JoinedAt)
+            .group_by(Column::CreatedAt)
             .having(count.clone().gte(minimum as i64))
             .having(count.lte(maximum as i64))
             .into_tuple::<(i64, i64)>()
@@ -2938,27 +2695,27 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn unique_joined_at(self) -> anyhow::Result<Vec<i64>> {
+    pub async fn unique_created_at(self) -> anyhow::Result<Vec<i64>> {
         let values = self
-            .pluck_joined_at()
+            .pluck_created_at()
             .await?
             .into_iter()
             .collect::<std::collections::BTreeSet<_>>();
         Ok(values.into_iter().collect())
     }
 
-    pub async fn first_joined_at(mut self) -> anyhow::Result<Option<i64>> {
+    pub async fn first_created_at(mut self) -> anyhow::Result<Option<i64>> {
         self.limit = Some(1);
-        Ok(self.pluck_joined_at().await?.into_iter().next())
+        Ok(self.pluck_created_at().await?.into_iter().next())
     }
 
-    pub async fn only_joined_at(mut self) -> anyhow::Result<i64> {
+    pub async fn only_created_at(mut self) -> anyhow::Result<i64> {
         self.limit = Some(2);
-        let mut values = self.pluck_joined_at().await?;
+        let mut values = self.pluck_created_at().await?;
         match values.len() {
             1 => Ok(values.remove(0)),
-            0 => anyhow::bail!("expected exactly one Membership.joined_at value, found none"),
-            _ => anyhow::bail!("expected exactly one Membership.joined_at value, found multiple"),
+            0 => anyhow::bail!("expected exactly one Friendship.created_at value, found none"),
+            _ => anyhow::bail!("expected exactly one Friendship.created_at value, found multiple"),
         }
     }
 
@@ -2981,16 +2738,16 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn count_by_id_and_group_id(self) -> anyhow::Result<Vec<((i64, i64), u64)>> {
+    pub async fn count_by_id_and_friend_id(self) -> anyhow::Result<Vec<((i64, i64), u64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let rows = self
             .build_filter_select()
             .select_only()
             .column(Column::Id)
-            .column(Column::GroupId)
+            .column(Column::FriendId)
             .column_as(Column::Id.count(), "roze_count")
             .group_by(Column::Id)
-            .group_by(Column::GroupId)
+            .group_by(Column::FriendId)
             .into_tuple::<(i64, i64, i64)>()
             .all(&db)
             .await?;
@@ -3000,35 +2757,16 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn count_by_id_and_role(self) -> anyhow::Result<Vec<((i64, String), u64)>> {
+    pub async fn count_by_id_and_created_at(self) -> anyhow::Result<Vec<((i64, i64), u64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let rows = self
             .build_filter_select()
             .select_only()
             .column(Column::Id)
-            .column(Column::Role)
+            .column(Column::CreatedAt)
             .column_as(Column::Id.count(), "roze_count")
             .group_by(Column::Id)
-            .group_by(Column::Role)
-            .into_tuple::<(i64, String, i64)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(left, right, count)| ((left, right), count as u64))
-            .collect())
-    }
-
-    pub async fn count_by_id_and_joined_at(self) -> anyhow::Result<Vec<((i64, i64), u64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Id)
-            .column(Column::JoinedAt)
-            .column_as(Column::Id.count(), "roze_count")
-            .group_by(Column::Id)
-            .group_by(Column::JoinedAt)
+            .group_by(Column::CreatedAt)
             .into_tuple::<(i64, i64, i64)>()
             .all(&db)
             .await?;
@@ -3038,16 +2776,16 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn count_by_user_id_and_group_id(self) -> anyhow::Result<Vec<((i64, i64), u64)>> {
+    pub async fn count_by_user_id_and_friend_id(self) -> anyhow::Result<Vec<((i64, i64), u64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let rows = self
             .build_filter_select()
             .select_only()
             .column(Column::UserId)
-            .column(Column::GroupId)
+            .column(Column::FriendId)
             .column_as(Column::UserId.count(), "roze_count")
             .group_by(Column::UserId)
-            .group_by(Column::GroupId)
+            .group_by(Column::FriendId)
             .into_tuple::<(i64, i64, i64)>()
             .all(&db)
             .await?;
@@ -3057,35 +2795,16 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn count_by_user_id_and_role(self) -> anyhow::Result<Vec<((i64, String), u64)>> {
+    pub async fn count_by_user_id_and_created_at(self) -> anyhow::Result<Vec<((i64, i64), u64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let rows = self
             .build_filter_select()
             .select_only()
             .column(Column::UserId)
-            .column(Column::Role)
+            .column(Column::CreatedAt)
             .column_as(Column::UserId.count(), "roze_count")
             .group_by(Column::UserId)
-            .group_by(Column::Role)
-            .into_tuple::<(i64, String, i64)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(left, right, count)| ((left, right), count as u64))
-            .collect())
-    }
-
-    pub async fn count_by_user_id_and_joined_at(self) -> anyhow::Result<Vec<((i64, i64), u64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::UserId)
-            .column(Column::JoinedAt)
-            .column_as(Column::UserId.count(), "roze_count")
-            .group_by(Column::UserId)
-            .group_by(Column::JoinedAt)
+            .group_by(Column::CreatedAt)
             .into_tuple::<(i64, i64, i64)>()
             .all(&db)
             .await?;
@@ -3095,17 +2814,17 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn count_by_group_id_and_role(self) -> anyhow::Result<Vec<((i64, String), u64)>> {
+    pub async fn count_by_friend_id_and_created_at(self) -> anyhow::Result<Vec<((i64, i64), u64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let rows = self
             .build_filter_select()
             .select_only()
-            .column(Column::GroupId)
-            .column(Column::Role)
-            .column_as(Column::GroupId.count(), "roze_count")
-            .group_by(Column::GroupId)
-            .group_by(Column::Role)
-            .into_tuple::<(i64, String, i64)>()
+            .column(Column::FriendId)
+            .column(Column::CreatedAt)
+            .column_as(Column::FriendId.count(), "roze_count")
+            .group_by(Column::FriendId)
+            .group_by(Column::CreatedAt)
+            .into_tuple::<(i64, i64, i64)>()
             .all(&db)
             .await?;
         Ok(rows
@@ -3124,13 +2843,13 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         Ok(values.into_iter().sum())
     }
 
-    pub async fn sum_group_id(self) -> anyhow::Result<i64> {
-        let values = self.pluck_group_id().await?;
+    pub async fn sum_friend_id(self) -> anyhow::Result<i64> {
+        let values = self.pluck_friend_id().await?;
         Ok(values.into_iter().sum())
     }
 
-    pub async fn sum_joined_at(self) -> anyhow::Result<i64> {
-        let values = self.pluck_joined_at().await?;
+    pub async fn sum_created_at(self) -> anyhow::Result<i64> {
+        let values = self.pluck_created_at().await?;
         Ok(values.into_iter().sum())
     }
 
@@ -3164,8 +2883,8 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         }
     }
 
-    pub async fn avg_group_id(self) -> anyhow::Result<Option<f64>> {
-        let values = self.pluck_group_id().await?;
+    pub async fn avg_friend_id(self) -> anyhow::Result<Option<f64>> {
+        let values = self.pluck_friend_id().await?;
         let mut sum = 0.0_f64;
         let mut count = 0u64;
         for value in values.into_iter() {
@@ -3179,8 +2898,8 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         }
     }
 
-    pub async fn avg_joined_at(self) -> anyhow::Result<Option<f64>> {
-        let values = self.pluck_joined_at().await?;
+    pub async fn avg_created_at(self) -> anyhow::Result<Option<f64>> {
+        let values = self.pluck_created_at().await?;
         let mut sum = 0.0_f64;
         let mut count = 0u64;
         for value in values.into_iter() {
@@ -3222,29 +2941,29 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             .reduce(|left, right| if left >= right { left } else { right }))
     }
 
-    pub async fn min_group_id(self) -> anyhow::Result<Option<i64>> {
-        let values = self.pluck_group_id().await?;
+    pub async fn min_friend_id(self) -> anyhow::Result<Option<i64>> {
+        let values = self.pluck_friend_id().await?;
         Ok(values
             .into_iter()
             .reduce(|left, right| if left <= right { left } else { right }))
     }
 
-    pub async fn max_group_id(self) -> anyhow::Result<Option<i64>> {
-        let values = self.pluck_group_id().await?;
+    pub async fn max_friend_id(self) -> anyhow::Result<Option<i64>> {
+        let values = self.pluck_friend_id().await?;
         Ok(values
             .into_iter()
             .reduce(|left, right| if left >= right { left } else { right }))
     }
 
-    pub async fn min_joined_at(self) -> anyhow::Result<Option<i64>> {
-        let values = self.pluck_joined_at().await?;
+    pub async fn min_created_at(self) -> anyhow::Result<Option<i64>> {
+        let values = self.pluck_created_at().await?;
         Ok(values
             .into_iter()
             .reduce(|left, right| if left <= right { left } else { right }))
     }
 
-    pub async fn max_joined_at(self) -> anyhow::Result<Option<i64>> {
-        let values = self.pluck_joined_at().await?;
+    pub async fn max_created_at(self) -> anyhow::Result<Option<i64>> {
+        let values = self.pluck_created_at().await?;
         Ok(values
             .into_iter()
             .reduce(|left, right| if left >= right { left } else { right }))
@@ -3260,12 +2979,12 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         let mut items = self.all().await?;
         match items.len() {
             1 => Ok(items.remove(0)),
-            0 => anyhow::bail!("expected exactly one Membership row, found none"),
-            _ => anyhow::bail!("expected exactly one Membership row, found multiple"),
+            0 => anyhow::bail!("expected exactly one Friendship row, found none"),
+            _ => anyhow::bail!("expected exactly one Friendship row, found multiple"),
         }
     }
 
-    pub async fn page(self) -> anyhow::Result<MembershipPage> {
+    pub async fn page(self) -> anyhow::Result<FriendshipPage> {
         let db = self.repo.read_db_from(self.read_source)?;
         let (page, page_size) = self.page.unwrap_or((1, 20));
         let page = if page == 0 { 1 } else { page };
@@ -3275,7 +2994,7 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             page_size.min(500)
         };
         tracing::debug!(
-            model = "Membership",
+            model = "Friendship",
             backend = "sea_orm",
             source = self.read_source.label(),
             query_type = "page",
@@ -3288,7 +3007,7 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
         let total = self.build_filter_select().count(&db).await?;
         let paginator = self.build_select().paginate(&db, page_size);
         let items = paginator.fetch_page(page.saturating_sub(1)).await?;
-        Ok(MembershipPage {
+        Ok(FriendshipPage {
             items,
             total,
             page,
@@ -3297,16 +3016,16 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
     }
 }
 
-struct MembershipQueryTerminal;
-impl<'repo, 'ctx> roze_orm::Operation<MembershipQuery<'repo, 'ctx>, Vec<Model>, anyhow::Error>
-    for MembershipQueryTerminal
+struct FriendshipQueryTerminal;
+impl<'repo, 'ctx> roze_orm::Operation<FriendshipQuery<'repo, 'ctx>, Vec<Model>, anyhow::Error>
+    for FriendshipQueryTerminal
 {
     fn call<'a>(
         &'a self,
-        query: MembershipQuery<'repo, 'ctx>,
+        query: FriendshipQuery<'repo, 'ctx>,
     ) -> roze_orm::OperationFuture<'a, Vec<Model>, anyhow::Error>
     where
-        MembershipQuery<'repo, 'ctx>: 'a,
+        FriendshipQuery<'repo, 'ctx>: 'a,
         Vec<Model>: 'a,
         anyhow::Error: 'a,
     {
@@ -3314,25 +3033,23 @@ impl<'repo, 'ctx> roze_orm::Operation<MembershipQuery<'repo, 'ctx>, Vec<Model>, 
     }
 }
 
-pub struct MembershipCreate<'repo, 'ctx> {
-    repo: &'repo MembershipRepository<'ctx>,
+pub struct FriendshipCreate<'repo, 'ctx> {
+    repo: &'repo FriendshipRepository<'ctx>,
     hooks:
         Vec<std::sync::Arc<dyn roze_orm::OperationMiddleware<Self, Model, anyhow::Error> + 'repo>>,
     user_id: Option<i64>,
-    group_id: Option<i64>,
-    role: Option<String>,
-    joined_at: Option<i64>,
+    friend_id: Option<i64>,
+    created_at: Option<i64>,
 }
 
-impl<'repo, 'ctx> MembershipCreate<'repo, 'ctx> {
-    pub fn new(repo: &'repo MembershipRepository<'ctx>) -> Self {
+impl<'repo, 'ctx> FriendshipCreate<'repo, 'ctx> {
+    pub fn new(repo: &'repo FriendshipRepository<'ctx>) -> Self {
         Self {
             repo,
             hooks: Vec::new(),
             user_id: None,
-            group_id: None,
-            role: None,
-            joined_at: None,
+            friend_id: None,
+            created_at: None,
         }
     }
 
@@ -3341,18 +3058,13 @@ impl<'repo, 'ctx> MembershipCreate<'repo, 'ctx> {
         self
     }
 
-    pub fn set_group_id(mut self, value: i64) -> Self {
-        self.group_id = Some(value);
+    pub fn set_friend_id(mut self, value: i64) -> Self {
+        self.friend_id = Some(value);
         self
     }
 
-    pub fn set_role(mut self, value: String) -> Self {
-        self.role = Some(value);
-        self
-    }
-
-    pub fn set_joined_at(mut self, value: i64) -> Self {
-        self.joined_at = Some(value);
+    pub fn set_created_at(mut self, value: i64) -> Self {
+        self.created_at = Some(value);
         self
     }
 
@@ -3361,8 +3073,8 @@ impl<'repo, 'ctx> MembershipCreate<'repo, 'ctx> {
         self
     }
 
-    pub fn set_group(mut self, target: &crate::model::GroupModel) -> Self {
-        self.group_id = Some(target.id);
+    pub fn set_friend(mut self, target: &crate::model::UserModel) -> Self {
+        self.friend_id = Some(target.id);
         self
     }
 
@@ -3398,28 +3110,19 @@ impl<'repo, 'ctx> MembershipCreate<'repo, 'ctx> {
 
     pub async fn save(mut self) -> anyhow::Result<Model> {
         let hooks = std::mem::take(&mut self.hooks);
-        roze_orm::execute_chain(&MembershipCreateTerminal, &hooks, self).await
+        roze_orm::execute_chain(&FriendshipCreateTerminal, &hooks, self).await
     }
 
     async fn save_unhooked(self) -> anyhow::Result<Model> {
-        if let Some(value) = self.role.as_ref() {
-            if !matches!(value.as_str(), "member" | "admin") {
-                anyhow::bail!("role validation failed: value is not allowed");
-            }
-        }
         let db = self.repo.write_db()?;
         let active = ActiveModel {
             user_id: Set(self.user_id.ok_or_else(|| {
-                anyhow::anyhow!("missing required field `user_id` for Membership create")
+                anyhow::anyhow!("missing required field `user_id` for Friendship create")
             })?),
-            group_id: Set(self.group_id.ok_or_else(|| {
-                anyhow::anyhow!("missing required field `group_id` for Membership create")
+            friend_id: Set(self.friend_id.ok_or_else(|| {
+                anyhow::anyhow!("missing required field `friend_id` for Friendship create")
             })?),
-            role: self
-                .role
-                .map(Set)
-                .unwrap_or_else(|| Set("member".to_string())),
-            joined_at: self.joined_at.map(Set).unwrap_or_else(|| {
+            created_at: self.created_at.map(Set).unwrap_or_else(|| {
                 Set(std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .map(|duration| duration.as_millis() as i64)
@@ -3432,16 +3135,16 @@ impl<'repo, 'ctx> MembershipCreate<'repo, 'ctx> {
     }
 }
 
-struct MembershipCreateTerminal;
-impl<'repo, 'ctx> roze_orm::Operation<MembershipCreate<'repo, 'ctx>, Model, anyhow::Error>
-    for MembershipCreateTerminal
+struct FriendshipCreateTerminal;
+impl<'repo, 'ctx> roze_orm::Operation<FriendshipCreate<'repo, 'ctx>, Model, anyhow::Error>
+    for FriendshipCreateTerminal
 {
     fn call<'a>(
         &'a self,
-        mutation: MembershipCreate<'repo, 'ctx>,
+        mutation: FriendshipCreate<'repo, 'ctx>,
     ) -> roze_orm::OperationFuture<'a, Model, anyhow::Error>
     where
-        MembershipCreate<'repo, 'ctx>: 'a,
+        FriendshipCreate<'repo, 'ctx>: 'a,
         Model: 'a,
         anyhow::Error: 'a,
     {
@@ -3449,25 +3152,23 @@ impl<'repo, 'ctx> roze_orm::Operation<MembershipCreate<'repo, 'ctx>, Model, anyh
     }
 }
 
-pub struct MembershipUpdate<'repo, 'ctx> {
-    repo: &'repo MembershipRepository<'ctx>,
+pub struct FriendshipUpdate<'repo, 'ctx> {
+    repo: &'repo FriendshipRepository<'ctx>,
     hooks:
         Vec<std::sync::Arc<dyn roze_orm::OperationMiddleware<Self, Model, anyhow::Error> + 'repo>>,
     id: i64,
     user_id: Option<i64>,
-    group_id: Option<i64>,
-    role: Option<String>,
+    friend_id: Option<i64>,
 }
 
-impl<'repo, 'ctx> MembershipUpdate<'repo, 'ctx> {
-    pub fn new(repo: &'repo MembershipRepository<'ctx>, id: i64) -> Self {
+impl<'repo, 'ctx> FriendshipUpdate<'repo, 'ctx> {
+    pub fn new(repo: &'repo FriendshipRepository<'ctx>, id: i64) -> Self {
         Self {
             repo,
             hooks: Vec::new(),
             id,
             user_id: None,
-            group_id: None,
-            role: None,
+            friend_id: None,
         }
     }
 
@@ -3476,13 +3177,8 @@ impl<'repo, 'ctx> MembershipUpdate<'repo, 'ctx> {
         self
     }
 
-    pub fn set_group_id(mut self, value: i64) -> Self {
-        self.group_id = Some(value);
-        self
-    }
-
-    pub fn set_role(mut self, value: String) -> Self {
-        self.role = Some(value);
+    pub fn set_friend_id(mut self, value: i64) -> Self {
+        self.friend_id = Some(value);
         self
     }
 
@@ -3491,8 +3187,8 @@ impl<'repo, 'ctx> MembershipUpdate<'repo, 'ctx> {
         self
     }
 
-    pub fn set_group(mut self, target: &crate::model::GroupModel) -> Self {
-        self.group_id = Some(target.id);
+    pub fn set_friend(mut self, target: &crate::model::UserModel) -> Self {
+        self.friend_id = Some(target.id);
         self
     }
 
@@ -3531,15 +3227,15 @@ impl<'repo, 'ctx> MembershipUpdate<'repo, 'ctx> {
         struct AtomicTerminal {
             delta: i64,
         }
-        impl<'repo, 'ctx> roze_orm::Operation<MembershipUpdate<'repo, 'ctx>, Model, anyhow::Error>
+        impl<'repo, 'ctx> roze_orm::Operation<FriendshipUpdate<'repo, 'ctx>, Model, anyhow::Error>
             for AtomicTerminal
         {
             fn call<'call>(
                 &'call self,
-                mutation: MembershipUpdate<'repo, 'ctx>,
+                mutation: FriendshipUpdate<'repo, 'ctx>,
             ) -> roze_orm::OperationFuture<'call, Model, anyhow::Error>
             where
-                MembershipUpdate<'repo, 'ctx>: 'call,
+                FriendshipUpdate<'repo, 'ctx>: 'call,
                 Model: 'call,
                 anyhow::Error: 'call,
             {
@@ -3553,7 +3249,7 @@ impl<'repo, 'ctx> MembershipUpdate<'repo, 'ctx> {
 
     #[allow(clippy::clone_on_copy)]
     async fn add_user_id_unhooked(self, delta: i64) -> anyhow::Result<Model> {
-        if self.user_id.is_some() || self.group_id.is_some() || self.role.is_some() {
+        if self.user_id.is_some() || self.friend_id.is_some() {
             anyhow::bail!("cannot combine set/clear mutations with atomic add_user_id");
         }
         let key = self.id;
@@ -3564,12 +3260,12 @@ impl<'repo, 'ctx> MembershipUpdate<'repo, 'ctx> {
             .add_user_id(delta)
             .await?;
         if affected == 0 {
-            anyhow::bail!("Membership did not match the update key");
+            anyhow::bail!("Friendship did not match the update key");
         }
         self.repo
             .find_by_id(key)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("updated Membership could not be reloaded"))
+            .ok_or_else(|| anyhow::anyhow!("updated Friendship could not be reloaded"))
     }
 
     #[allow(clippy::clone_on_copy)]
@@ -3577,15 +3273,15 @@ impl<'repo, 'ctx> MembershipUpdate<'repo, 'ctx> {
         struct AtomicTerminal {
             delta: i64,
         }
-        impl<'repo, 'ctx> roze_orm::Operation<MembershipUpdate<'repo, 'ctx>, Model, anyhow::Error>
+        impl<'repo, 'ctx> roze_orm::Operation<FriendshipUpdate<'repo, 'ctx>, Model, anyhow::Error>
             for AtomicTerminal
         {
             fn call<'call>(
                 &'call self,
-                mutation: MembershipUpdate<'repo, 'ctx>,
+                mutation: FriendshipUpdate<'repo, 'ctx>,
             ) -> roze_orm::OperationFuture<'call, Model, anyhow::Error>
             where
-                MembershipUpdate<'repo, 'ctx>: 'call,
+                FriendshipUpdate<'repo, 'ctx>: 'call,
                 Model: 'call,
                 anyhow::Error: 'call,
             {
@@ -3599,7 +3295,7 @@ impl<'repo, 'ctx> MembershipUpdate<'repo, 'ctx> {
 
     #[allow(clippy::clone_on_copy)]
     async fn subtract_user_id_unhooked(self, delta: i64) -> anyhow::Result<Model> {
-        if self.user_id.is_some() || self.group_id.is_some() || self.role.is_some() {
+        if self.user_id.is_some() || self.friend_id.is_some() {
             anyhow::bail!("cannot combine set/clear mutations with atomic subtract_user_id");
         }
         let key = self.id;
@@ -3610,33 +3306,33 @@ impl<'repo, 'ctx> MembershipUpdate<'repo, 'ctx> {
             .subtract_user_id(delta)
             .await?;
         if affected == 0 {
-            anyhow::bail!("Membership did not match the update key");
+            anyhow::bail!("Friendship did not match the update key");
         }
         self.repo
             .find_by_id(key)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("updated Membership could not be reloaded"))
+            .ok_or_else(|| anyhow::anyhow!("updated Friendship could not be reloaded"))
     }
 
     #[allow(clippy::clone_on_copy)]
-    pub async fn add_group_id(mut self, delta: i64) -> anyhow::Result<Model> {
+    pub async fn add_friend_id(mut self, delta: i64) -> anyhow::Result<Model> {
         struct AtomicTerminal {
             delta: i64,
         }
-        impl<'repo, 'ctx> roze_orm::Operation<MembershipUpdate<'repo, 'ctx>, Model, anyhow::Error>
+        impl<'repo, 'ctx> roze_orm::Operation<FriendshipUpdate<'repo, 'ctx>, Model, anyhow::Error>
             for AtomicTerminal
         {
             fn call<'call>(
                 &'call self,
-                mutation: MembershipUpdate<'repo, 'ctx>,
+                mutation: FriendshipUpdate<'repo, 'ctx>,
             ) -> roze_orm::OperationFuture<'call, Model, anyhow::Error>
             where
-                MembershipUpdate<'repo, 'ctx>: 'call,
+                FriendshipUpdate<'repo, 'ctx>: 'call,
                 Model: 'call,
                 anyhow::Error: 'call,
             {
                 let delta = self.delta.clone();
-                Box::pin(mutation.add_group_id_unhooked(delta))
+                Box::pin(mutation.add_friend_id_unhooked(delta))
             }
         }
         let hooks = std::mem::take(&mut self.hooks);
@@ -3644,45 +3340,45 @@ impl<'repo, 'ctx> MembershipUpdate<'repo, 'ctx> {
     }
 
     #[allow(clippy::clone_on_copy)]
-    async fn add_group_id_unhooked(self, delta: i64) -> anyhow::Result<Model> {
-        if self.user_id.is_some() || self.group_id.is_some() || self.role.is_some() {
-            anyhow::bail!("cannot combine set/clear mutations with atomic add_group_id");
+    async fn add_friend_id_unhooked(self, delta: i64) -> anyhow::Result<Model> {
+        if self.user_id.is_some() || self.friend_id.is_some() {
+            anyhow::bail!("cannot combine set/clear mutations with atomic add_friend_id");
         }
         let key = self.id;
         let affected = self
             .repo
             .query()
             .where_(id_eq(key.clone()))
-            .add_group_id(delta)
+            .add_friend_id(delta)
             .await?;
         if affected == 0 {
-            anyhow::bail!("Membership did not match the update key");
+            anyhow::bail!("Friendship did not match the update key");
         }
         self.repo
             .find_by_id(key)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("updated Membership could not be reloaded"))
+            .ok_or_else(|| anyhow::anyhow!("updated Friendship could not be reloaded"))
     }
 
     #[allow(clippy::clone_on_copy)]
-    pub async fn subtract_group_id(mut self, delta: i64) -> anyhow::Result<Model> {
+    pub async fn subtract_friend_id(mut self, delta: i64) -> anyhow::Result<Model> {
         struct AtomicTerminal {
             delta: i64,
         }
-        impl<'repo, 'ctx> roze_orm::Operation<MembershipUpdate<'repo, 'ctx>, Model, anyhow::Error>
+        impl<'repo, 'ctx> roze_orm::Operation<FriendshipUpdate<'repo, 'ctx>, Model, anyhow::Error>
             for AtomicTerminal
         {
             fn call<'call>(
                 &'call self,
-                mutation: MembershipUpdate<'repo, 'ctx>,
+                mutation: FriendshipUpdate<'repo, 'ctx>,
             ) -> roze_orm::OperationFuture<'call, Model, anyhow::Error>
             where
-                MembershipUpdate<'repo, 'ctx>: 'call,
+                FriendshipUpdate<'repo, 'ctx>: 'call,
                 Model: 'call,
                 anyhow::Error: 'call,
             {
                 let delta = self.delta.clone();
-                Box::pin(mutation.subtract_group_id_unhooked(delta))
+                Box::pin(mutation.subtract_friend_id_unhooked(delta))
             }
         }
         let hooks = std::mem::take(&mut self.hooks);
@@ -3690,37 +3386,32 @@ impl<'repo, 'ctx> MembershipUpdate<'repo, 'ctx> {
     }
 
     #[allow(clippy::clone_on_copy)]
-    async fn subtract_group_id_unhooked(self, delta: i64) -> anyhow::Result<Model> {
-        if self.user_id.is_some() || self.group_id.is_some() || self.role.is_some() {
-            anyhow::bail!("cannot combine set/clear mutations with atomic subtract_group_id");
+    async fn subtract_friend_id_unhooked(self, delta: i64) -> anyhow::Result<Model> {
+        if self.user_id.is_some() || self.friend_id.is_some() {
+            anyhow::bail!("cannot combine set/clear mutations with atomic subtract_friend_id");
         }
         let key = self.id;
         let affected = self
             .repo
             .query()
             .where_(id_eq(key.clone()))
-            .subtract_group_id(delta)
+            .subtract_friend_id(delta)
             .await?;
         if affected == 0 {
-            anyhow::bail!("Membership did not match the update key");
+            anyhow::bail!("Friendship did not match the update key");
         }
         self.repo
             .find_by_id(key)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("updated Membership could not be reloaded"))
+            .ok_or_else(|| anyhow::anyhow!("updated Friendship could not be reloaded"))
     }
 
     pub async fn save(mut self) -> anyhow::Result<Model> {
         let hooks = std::mem::take(&mut self.hooks);
-        roze_orm::execute_chain(&MembershipUpdateTerminal, &hooks, self).await
+        roze_orm::execute_chain(&FriendshipUpdateTerminal, &hooks, self).await
     }
 
     async fn save_unhooked(self) -> anyhow::Result<Model> {
-        if let Some(value) = self.role.as_ref() {
-            if !matches!(value.as_str(), "member" | "admin") {
-                anyhow::bail!("role validation failed: value is not allowed");
-            }
-        }
         let db = self.repo.write_db()?;
         let mut active = ActiveModel {
             id: Set(self.id),
@@ -3729,27 +3420,24 @@ impl<'repo, 'ctx> MembershipUpdate<'repo, 'ctx> {
         if let Some(value) = self.user_id {
             active.user_id = Set(value);
         }
-        if let Some(value) = self.group_id {
-            active.group_id = Set(value);
-        }
-        if let Some(value) = self.role {
-            active.role = Set(value);
+        if let Some(value) = self.friend_id {
+            active.friend_id = Set(value);
         }
         let updated = active.update(&db).await?;
         Ok(updated)
     }
 }
 
-struct MembershipUpdateTerminal;
-impl<'repo, 'ctx> roze_orm::Operation<MembershipUpdate<'repo, 'ctx>, Model, anyhow::Error>
-    for MembershipUpdateTerminal
+struct FriendshipUpdateTerminal;
+impl<'repo, 'ctx> roze_orm::Operation<FriendshipUpdate<'repo, 'ctx>, Model, anyhow::Error>
+    for FriendshipUpdateTerminal
 {
     fn call<'a>(
         &'a self,
-        mutation: MembershipUpdate<'repo, 'ctx>,
+        mutation: FriendshipUpdate<'repo, 'ctx>,
     ) -> roze_orm::OperationFuture<'a, Model, anyhow::Error>
     where
-        MembershipUpdate<'repo, 'ctx>: 'a,
+        FriendshipUpdate<'repo, 'ctx>: 'a,
         Model: 'a,
         anyhow::Error: 'a,
     {
@@ -3757,8 +3445,8 @@ impl<'repo, 'ctx> roze_orm::Operation<MembershipUpdate<'repo, 'ctx>, Model, anyh
     }
 }
 
-pub struct MembershipDelete<'repo, 'ctx> {
-    repo: &'repo MembershipRepository<'ctx>,
+pub struct FriendshipDelete<'repo, 'ctx> {
+    repo: &'repo FriendshipRepository<'ctx>,
     hooks: Vec<
         std::sync::Arc<
             dyn roze_orm::OperationMiddleware<Self, DeleteResult, anyhow::Error> + 'repo,
@@ -3767,8 +3455,8 @@ pub struct MembershipDelete<'repo, 'ctx> {
     id: i64,
 }
 
-impl<'repo, 'ctx> MembershipDelete<'repo, 'ctx> {
-    pub fn new(repo: &'repo MembershipRepository<'ctx>, id: i64) -> Self {
+impl<'repo, 'ctx> FriendshipDelete<'repo, 'ctx> {
+    pub fn new(repo: &'repo FriendshipRepository<'ctx>, id: i64) -> Self {
         Self {
             repo,
             hooks: Vec::new(),
@@ -3808,7 +3496,7 @@ impl<'repo, 'ctx> MembershipDelete<'repo, 'ctx> {
 
     pub async fn exec(mut self) -> anyhow::Result<DeleteResult> {
         let hooks = std::mem::take(&mut self.hooks);
-        roze_orm::execute_chain(&MembershipDeleteTerminal, &hooks, self).await
+        roze_orm::execute_chain(&FriendshipDeleteTerminal, &hooks, self).await
     }
 
     async fn exec_unhooked(self) -> anyhow::Result<DeleteResult> {
@@ -3816,16 +3504,16 @@ impl<'repo, 'ctx> MembershipDelete<'repo, 'ctx> {
     }
 }
 
-struct MembershipDeleteTerminal;
-impl<'repo, 'ctx> roze_orm::Operation<MembershipDelete<'repo, 'ctx>, DeleteResult, anyhow::Error>
-    for MembershipDeleteTerminal
+struct FriendshipDeleteTerminal;
+impl<'repo, 'ctx> roze_orm::Operation<FriendshipDelete<'repo, 'ctx>, DeleteResult, anyhow::Error>
+    for FriendshipDeleteTerminal
 {
     fn call<'a>(
         &'a self,
-        mutation: MembershipDelete<'repo, 'ctx>,
+        mutation: FriendshipDelete<'repo, 'ctx>,
     ) -> roze_orm::OperationFuture<'a, DeleteResult, anyhow::Error>
     where
-        MembershipDelete<'repo, 'ctx>: 'a,
+        FriendshipDelete<'repo, 'ctx>: 'a,
         DeleteResult: 'a,
         anyhow::Error: 'a,
     {
@@ -3833,29 +3521,27 @@ impl<'repo, 'ctx> roze_orm::Operation<MembershipDelete<'repo, 'ctx>, DeleteResul
     }
 }
 
-pub struct MembershipUpdateMany<'repo, 'ctx> {
-    repo: &'repo MembershipRepository<'ctx>,
+pub struct FriendshipUpdateMany<'repo, 'ctx> {
+    repo: &'repo FriendshipRepository<'ctx>,
     hooks: Vec<
         std::sync::Arc<dyn roze_orm::OperationMiddleware<Self, Vec<Model>, anyhow::Error> + 'repo>,
     >,
     atomic_hooks:
         Vec<std::sync::Arc<dyn roze_orm::OperationMiddleware<Self, u64, anyhow::Error> + 'repo>>,
-    predicates: Vec<MembershipPredicate>,
+    predicates: Vec<FriendshipPredicate>,
     user_id: Option<i64>,
-    group_id: Option<i64>,
-    role: Option<String>,
+    friend_id: Option<i64>,
 }
 
-impl<'repo, 'ctx> MembershipUpdateMany<'repo, 'ctx> {
-    pub fn new(repo: &'repo MembershipRepository<'ctx>) -> Self {
+impl<'repo, 'ctx> FriendshipUpdateMany<'repo, 'ctx> {
+    pub fn new(repo: &'repo FriendshipRepository<'ctx>) -> Self {
         Self {
             repo,
             hooks: Vec::new(),
             atomic_hooks: Vec::new(),
             predicates: Vec::new(),
             user_id: None,
-            group_id: None,
-            role: None,
+            friend_id: None,
         }
     }
 
@@ -3886,14 +3572,14 @@ impl<'repo, 'ctx> MembershipUpdateMany<'repo, 'ctx> {
         mixin.apply(self)
     }
 
-    pub fn where_(mut self, predicate: MembershipPredicate) -> Self {
+    pub fn where_(mut self, predicate: FriendshipPredicate) -> Self {
         self.predicates.push(predicate);
         self
     }
 
     pub fn where_all<I>(mut self, predicates: I) -> Self
     where
-        I: IntoIterator<Item = MembershipPredicate>,
+        I: IntoIterator<Item = FriendshipPredicate>,
     {
         self.predicates.extend(predicates);
         self
@@ -3901,29 +3587,29 @@ impl<'repo, 'ctx> MembershipUpdateMany<'repo, 'ctx> {
 
     pub fn where_any<I>(mut self, predicates: I) -> Self
     where
-        I: IntoIterator<Item = MembershipPredicate>,
+        I: IntoIterator<Item = FriendshipPredicate>,
     {
         let predicates = predicates.into_iter().collect::<Vec<_>>();
         if !predicates.is_empty() {
-            self.predicates.push(MembershipPredicate::Or(predicates));
+            self.predicates.push(FriendshipPredicate::Or(predicates));
         }
         self
     }
 
-    pub fn where_not(mut self, predicate: MembershipPredicate) -> Self {
+    pub fn where_not(mut self, predicate: FriendshipPredicate) -> Self {
         self.predicates
-            .push(MembershipPredicate::Not(Box::new(predicate)));
+            .push(FriendshipPredicate::Not(Box::new(predicate)));
         self
     }
 
     pub fn where_none<I>(mut self, predicates: I) -> Self
     where
-        I: IntoIterator<Item = MembershipPredicate>,
+        I: IntoIterator<Item = FriendshipPredicate>,
     {
         let predicates = predicates.into_iter().collect::<Vec<_>>();
         if !predicates.is_empty() {
             self.predicates
-                .push(MembershipPredicate::Not(Box::new(MembershipPredicate::Or(
+                .push(FriendshipPredicate::Not(Box::new(FriendshipPredicate::Or(
                     predicates,
                 ))));
         }
@@ -3935,15 +3621,15 @@ impl<'repo, 'ctx> MembershipUpdateMany<'repo, 'ctx> {
         struct AtomicTerminal {
             delta: i64,
         }
-        impl<'repo, 'ctx> roze_orm::Operation<MembershipUpdateMany<'repo, 'ctx>, u64, anyhow::Error>
+        impl<'repo, 'ctx> roze_orm::Operation<FriendshipUpdateMany<'repo, 'ctx>, u64, anyhow::Error>
             for AtomicTerminal
         {
             fn call<'call>(
                 &'call self,
-                mutation: MembershipUpdateMany<'repo, 'ctx>,
+                mutation: FriendshipUpdateMany<'repo, 'ctx>,
             ) -> roze_orm::OperationFuture<'call, u64, anyhow::Error>
             where
-                MembershipUpdateMany<'repo, 'ctx>: 'call,
+                FriendshipUpdateMany<'repo, 'ctx>: 'call,
                 u64: 'call,
                 anyhow::Error: 'call,
             {
@@ -3969,15 +3655,15 @@ impl<'repo, 'ctx> MembershipUpdateMany<'repo, 'ctx> {
         struct AtomicTerminal {
             delta: i64,
         }
-        impl<'repo, 'ctx> roze_orm::Operation<MembershipUpdateMany<'repo, 'ctx>, u64, anyhow::Error>
+        impl<'repo, 'ctx> roze_orm::Operation<FriendshipUpdateMany<'repo, 'ctx>, u64, anyhow::Error>
             for AtomicTerminal
         {
             fn call<'call>(
                 &'call self,
-                mutation: MembershipUpdateMany<'repo, 'ctx>,
+                mutation: FriendshipUpdateMany<'repo, 'ctx>,
             ) -> roze_orm::OperationFuture<'call, u64, anyhow::Error>
             where
-                MembershipUpdateMany<'repo, 'ctx>: 'call,
+                FriendshipUpdateMany<'repo, 'ctx>: 'call,
                 u64: 'call,
                 anyhow::Error: 'call,
             {
@@ -3999,24 +3685,24 @@ impl<'repo, 'ctx> MembershipUpdateMany<'repo, 'ctx> {
     }
 
     #[allow(clippy::clone_on_copy)]
-    pub async fn add_group_id(mut self, delta: i64) -> anyhow::Result<u64> {
+    pub async fn add_friend_id(mut self, delta: i64) -> anyhow::Result<u64> {
         struct AtomicTerminal {
             delta: i64,
         }
-        impl<'repo, 'ctx> roze_orm::Operation<MembershipUpdateMany<'repo, 'ctx>, u64, anyhow::Error>
+        impl<'repo, 'ctx> roze_orm::Operation<FriendshipUpdateMany<'repo, 'ctx>, u64, anyhow::Error>
             for AtomicTerminal
         {
             fn call<'call>(
                 &'call self,
-                mutation: MembershipUpdateMany<'repo, 'ctx>,
+                mutation: FriendshipUpdateMany<'repo, 'ctx>,
             ) -> roze_orm::OperationFuture<'call, u64, anyhow::Error>
             where
-                MembershipUpdateMany<'repo, 'ctx>: 'call,
+                FriendshipUpdateMany<'repo, 'ctx>: 'call,
                 u64: 'call,
                 anyhow::Error: 'call,
             {
                 let delta = self.delta.clone();
-                Box::pin(mutation.add_group_id_unhooked(delta))
+                Box::pin(mutation.add_friend_id_unhooked(delta))
             }
         }
         let hooks = std::mem::take(&mut self.atomic_hooks);
@@ -4024,33 +3710,33 @@ impl<'repo, 'ctx> MembershipUpdateMany<'repo, 'ctx> {
     }
 
     #[allow(clippy::clone_on_copy)]
-    async fn add_group_id_unhooked(self, delta: i64) -> anyhow::Result<u64> {
+    async fn add_friend_id_unhooked(self, delta: i64) -> anyhow::Result<u64> {
         let mut query = self.repo.query();
         for predicate in self.predicates {
             query = query.where_(predicate);
         }
-        query.add_group_id(delta).await
+        query.add_friend_id(delta).await
     }
 
     #[allow(clippy::clone_on_copy)]
-    pub async fn subtract_group_id(mut self, delta: i64) -> anyhow::Result<u64> {
+    pub async fn subtract_friend_id(mut self, delta: i64) -> anyhow::Result<u64> {
         struct AtomicTerminal {
             delta: i64,
         }
-        impl<'repo, 'ctx> roze_orm::Operation<MembershipUpdateMany<'repo, 'ctx>, u64, anyhow::Error>
+        impl<'repo, 'ctx> roze_orm::Operation<FriendshipUpdateMany<'repo, 'ctx>, u64, anyhow::Error>
             for AtomicTerminal
         {
             fn call<'call>(
                 &'call self,
-                mutation: MembershipUpdateMany<'repo, 'ctx>,
+                mutation: FriendshipUpdateMany<'repo, 'ctx>,
             ) -> roze_orm::OperationFuture<'call, u64, anyhow::Error>
             where
-                MembershipUpdateMany<'repo, 'ctx>: 'call,
+                FriendshipUpdateMany<'repo, 'ctx>: 'call,
                 u64: 'call,
                 anyhow::Error: 'call,
             {
                 let delta = self.delta.clone();
-                Box::pin(mutation.subtract_group_id_unhooked(delta))
+                Box::pin(mutation.subtract_friend_id_unhooked(delta))
             }
         }
         let hooks = std::mem::take(&mut self.atomic_hooks);
@@ -4058,12 +3744,12 @@ impl<'repo, 'ctx> MembershipUpdateMany<'repo, 'ctx> {
     }
 
     #[allow(clippy::clone_on_copy)]
-    async fn subtract_group_id_unhooked(self, delta: i64) -> anyhow::Result<u64> {
+    async fn subtract_friend_id_unhooked(self, delta: i64) -> anyhow::Result<u64> {
         let mut query = self.repo.query();
         for predicate in self.predicates {
             query = query.where_(predicate);
         }
-        query.subtract_group_id(delta).await
+        query.subtract_friend_id(delta).await
     }
 
     pub fn set_user_id(mut self, value: i64) -> Self {
@@ -4071,13 +3757,8 @@ impl<'repo, 'ctx> MembershipUpdateMany<'repo, 'ctx> {
         self
     }
 
-    pub fn set_group_id(mut self, value: i64) -> Self {
-        self.group_id = Some(value);
-        self
-    }
-
-    pub fn set_role(mut self, value: String) -> Self {
-        self.role = Some(value);
+    pub fn set_friend_id(mut self, value: i64) -> Self {
+        self.friend_id = Some(value);
         self
     }
 
@@ -4100,15 +3781,15 @@ impl<'repo, 'ctx> MembershipUpdateMany<'repo, 'ctx> {
     /// Executes one conditional SQL UPDATE and returns its affected-row count.
     pub async fn execute(mut self) -> anyhow::Result<UpdateResult> {
         struct ConditionalUpdateTerminal;
-        impl<'repo, 'ctx> roze_orm::Operation<MembershipUpdateMany<'repo, 'ctx>, u64, anyhow::Error>
+        impl<'repo, 'ctx> roze_orm::Operation<FriendshipUpdateMany<'repo, 'ctx>, u64, anyhow::Error>
             for ConditionalUpdateTerminal
         {
             fn call<'call>(
                 &'call self,
-                mutation: MembershipUpdateMany<'repo, 'ctx>,
+                mutation: FriendshipUpdateMany<'repo, 'ctx>,
             ) -> roze_orm::OperationFuture<'call, u64, anyhow::Error>
             where
-                MembershipUpdateMany<'repo, 'ctx>: 'call,
+                FriendshipUpdateMany<'repo, 'ctx>: 'call,
                 u64: 'call,
                 anyhow::Error: 'call,
             {
@@ -4122,27 +3803,19 @@ impl<'repo, 'ctx> MembershipUpdateMany<'repo, 'ctx> {
     }
 
     async fn execute_unhooked(self) -> anyhow::Result<u64> {
-        if let Some(value) = self.role.as_ref() {
-            if !matches!(value.as_str(), "member" | "admin") {
-                anyhow::bail!("role validation failed: value is not allowed");
-            }
-        }
-        if !(self.user_id.is_some() || self.group_id.is_some() || self.role.is_some()) {
+        if !(self.user_id.is_some() || self.friend_id.is_some()) {
             anyhow::bail!("conditional update requires at least one field assignment");
         }
         let db = self.repo.write_db()?;
         let mut update = Entity::update_many();
         for predicate in &self.predicates {
-            update = update.filter(MembershipQuery::predicate_condition(predicate));
+            update = update.filter(FriendshipQuery::predicate_condition(predicate));
         }
         if let Some(value) = self.user_id.as_ref() {
             update = update.col_expr(Column::UserId, Expr::value(*value));
         }
-        if let Some(value) = self.group_id.as_ref() {
-            update = update.col_expr(Column::GroupId, Expr::value(*value));
-        }
-        if let Some(value) = self.role.as_ref() {
-            update = update.col_expr(Column::Role, Expr::value(value.clone()));
+        if let Some(value) = self.friend_id.as_ref() {
+            update = update.col_expr(Column::FriendId, Expr::value(*value));
         }
         let result = update.exec(&db).await?;
         Ok(result.rows_affected)
@@ -4150,15 +3823,10 @@ impl<'repo, 'ctx> MembershipUpdateMany<'repo, 'ctx> {
 
     pub async fn save(mut self) -> anyhow::Result<Vec<Model>> {
         let hooks = std::mem::take(&mut self.hooks);
-        roze_orm::execute_chain(&MembershipUpdateManyTerminal, &hooks, self).await
+        roze_orm::execute_chain(&FriendshipUpdateManyTerminal, &hooks, self).await
     }
 
     async fn save_unhooked(self) -> anyhow::Result<Vec<Model>> {
-        if let Some(value) = self.role.as_ref() {
-            if !matches!(value.as_str(), "member" | "admin") {
-                anyhow::bail!("role validation failed: value is not allowed");
-            }
-        }
         let mut query = self.repo.query();
         for predicate in &self.predicates {
             query = query.where_(predicate.clone());
@@ -4170,11 +3838,8 @@ impl<'repo, 'ctx> MembershipUpdateMany<'repo, 'ctx> {
             if let Some(value) = self.user_id.as_ref() {
                 update = update.set_user_id(*value);
             }
-            if let Some(value) = self.group_id.as_ref() {
-                update = update.set_group_id(*value);
-            }
-            if let Some(value) = self.role.as_ref() {
-                update = update.set_role(value.clone());
+            if let Some(value) = self.friend_id.as_ref() {
+                update = update.set_friend_id(*value);
             }
             updated.push(update.save().await?);
         }
@@ -4182,16 +3847,16 @@ impl<'repo, 'ctx> MembershipUpdateMany<'repo, 'ctx> {
     }
 }
 
-struct MembershipUpdateManyTerminal;
-impl<'repo, 'ctx> roze_orm::Operation<MembershipUpdateMany<'repo, 'ctx>, Vec<Model>, anyhow::Error>
-    for MembershipUpdateManyTerminal
+struct FriendshipUpdateManyTerminal;
+impl<'repo, 'ctx> roze_orm::Operation<FriendshipUpdateMany<'repo, 'ctx>, Vec<Model>, anyhow::Error>
+    for FriendshipUpdateManyTerminal
 {
     fn call<'a>(
         &'a self,
-        mutation: MembershipUpdateMany<'repo, 'ctx>,
+        mutation: FriendshipUpdateMany<'repo, 'ctx>,
     ) -> roze_orm::OperationFuture<'a, Vec<Model>, anyhow::Error>
     where
-        MembershipUpdateMany<'repo, 'ctx>: 'a,
+        FriendshipUpdateMany<'repo, 'ctx>: 'a,
         Vec<Model>: 'a,
         anyhow::Error: 'a,
     {
@@ -4199,14 +3864,14 @@ impl<'repo, 'ctx> roze_orm::Operation<MembershipUpdateMany<'repo, 'ctx>, Vec<Mod
     }
 }
 
-pub struct MembershipDeleteMany<'repo, 'ctx> {
-    repo: &'repo MembershipRepository<'ctx>,
+pub struct FriendshipDeleteMany<'repo, 'ctx> {
+    repo: &'repo FriendshipRepository<'ctx>,
     hooks: Vec<std::sync::Arc<dyn roze_orm::OperationMiddleware<Self, u64, anyhow::Error> + 'repo>>,
-    predicates: Vec<MembershipPredicate>,
+    predicates: Vec<FriendshipPredicate>,
 }
 
-impl<'repo, 'ctx> MembershipDeleteMany<'repo, 'ctx> {
-    pub fn new(repo: &'repo MembershipRepository<'ctx>) -> Self {
+impl<'repo, 'ctx> FriendshipDeleteMany<'repo, 'ctx> {
+    pub fn new(repo: &'repo FriendshipRepository<'ctx>) -> Self {
         Self {
             repo,
             hooks: Vec::new(),
@@ -4214,14 +3879,14 @@ impl<'repo, 'ctx> MembershipDeleteMany<'repo, 'ctx> {
         }
     }
 
-    pub fn where_(mut self, predicate: MembershipPredicate) -> Self {
+    pub fn where_(mut self, predicate: FriendshipPredicate) -> Self {
         self.predicates.push(predicate);
         self
     }
 
     pub fn where_all<I>(mut self, predicates: I) -> Self
     where
-        I: IntoIterator<Item = MembershipPredicate>,
+        I: IntoIterator<Item = FriendshipPredicate>,
     {
         self.predicates.extend(predicates);
         self
@@ -4229,29 +3894,29 @@ impl<'repo, 'ctx> MembershipDeleteMany<'repo, 'ctx> {
 
     pub fn where_any<I>(mut self, predicates: I) -> Self
     where
-        I: IntoIterator<Item = MembershipPredicate>,
+        I: IntoIterator<Item = FriendshipPredicate>,
     {
         let predicates = predicates.into_iter().collect::<Vec<_>>();
         if !predicates.is_empty() {
-            self.predicates.push(MembershipPredicate::Or(predicates));
+            self.predicates.push(FriendshipPredicate::Or(predicates));
         }
         self
     }
 
-    pub fn where_not(mut self, predicate: MembershipPredicate) -> Self {
+    pub fn where_not(mut self, predicate: FriendshipPredicate) -> Self {
         self.predicates
-            .push(MembershipPredicate::Not(Box::new(predicate)));
+            .push(FriendshipPredicate::Not(Box::new(predicate)));
         self
     }
 
     pub fn where_none<I>(mut self, predicates: I) -> Self
     where
-        I: IntoIterator<Item = MembershipPredicate>,
+        I: IntoIterator<Item = FriendshipPredicate>,
     {
         let predicates = predicates.into_iter().collect::<Vec<_>>();
         if !predicates.is_empty() {
             self.predicates
-                .push(MembershipPredicate::Not(Box::new(MembershipPredicate::Or(
+                .push(FriendshipPredicate::Not(Box::new(FriendshipPredicate::Or(
                     predicates,
                 ))));
         }
@@ -4290,7 +3955,7 @@ impl<'repo, 'ctx> MembershipDeleteMany<'repo, 'ctx> {
 
     pub async fn exec(mut self) -> anyhow::Result<u64> {
         let hooks = std::mem::take(&mut self.hooks);
-        roze_orm::execute_chain(&MembershipDeleteManyTerminal, &hooks, self).await
+        roze_orm::execute_chain(&FriendshipDeleteManyTerminal, &hooks, self).await
     }
 
     async fn exec_unhooked(self) -> anyhow::Result<u64> {
@@ -4308,16 +3973,16 @@ impl<'repo, 'ctx> MembershipDeleteMany<'repo, 'ctx> {
     }
 }
 
-struct MembershipDeleteManyTerminal;
-impl<'repo, 'ctx> roze_orm::Operation<MembershipDeleteMany<'repo, 'ctx>, u64, anyhow::Error>
-    for MembershipDeleteManyTerminal
+struct FriendshipDeleteManyTerminal;
+impl<'repo, 'ctx> roze_orm::Operation<FriendshipDeleteMany<'repo, 'ctx>, u64, anyhow::Error>
+    for FriendshipDeleteManyTerminal
 {
     fn call<'a>(
         &'a self,
-        mutation: MembershipDeleteMany<'repo, 'ctx>,
+        mutation: FriendshipDeleteMany<'repo, 'ctx>,
     ) -> roze_orm::OperationFuture<'a, u64, anyhow::Error>
     where
-        MembershipDeleteMany<'repo, 'ctx>: 'a,
+        FriendshipDeleteMany<'repo, 'ctx>: 'a,
         u64: 'a,
         anyhow::Error: 'a,
     {
@@ -4327,65 +3992,47 @@ impl<'repo, 'ctx> roze_orm::Operation<MembershipDeleteMany<'repo, 'ctx>, u64, an
 
 /// Reusable schema/client mutation hook provider.
 /// Providers are applied in registration order; hooks they add are outermost before hooks added directly to a builder.
-pub trait MembershipMutationHooks: Send + Sync {
+pub trait FriendshipMutationHooks: Send + Sync {
     fn create<'repo, 'ctx>(
         &self,
-        mutation: MembershipCreate<'repo, 'ctx>,
-    ) -> MembershipCreate<'repo, 'ctx> {
+        mutation: FriendshipCreate<'repo, 'ctx>,
+    ) -> FriendshipCreate<'repo, 'ctx> {
         mutation
     }
     fn update_one<'repo, 'ctx>(
         &self,
-        mutation: MembershipUpdate<'repo, 'ctx>,
-    ) -> MembershipUpdate<'repo, 'ctx> {
+        mutation: FriendshipUpdate<'repo, 'ctx>,
+    ) -> FriendshipUpdate<'repo, 'ctx> {
         mutation
     }
     fn delete_one<'repo, 'ctx>(
         &self,
-        mutation: MembershipDelete<'repo, 'ctx>,
-    ) -> MembershipDelete<'repo, 'ctx> {
+        mutation: FriendshipDelete<'repo, 'ctx>,
+    ) -> FriendshipDelete<'repo, 'ctx> {
         mutation
     }
     fn update_many<'repo, 'ctx>(
         &self,
-        mutation: MembershipUpdateMany<'repo, 'ctx>,
-    ) -> MembershipUpdateMany<'repo, 'ctx> {
+        mutation: FriendshipUpdateMany<'repo, 'ctx>,
+    ) -> FriendshipUpdateMany<'repo, 'ctx> {
         mutation
     }
     fn delete_many<'repo, 'ctx>(
         &self,
-        mutation: MembershipDeleteMany<'repo, 'ctx>,
-    ) -> MembershipDeleteMany<'repo, 'ctx> {
+        mutation: FriendshipDeleteMany<'repo, 'ctx>,
+    ) -> FriendshipDeleteMany<'repo, 'ctx> {
         mutation
     }
 }
 
-pub fn escape_like_pattern(value: &str) -> String {
-    let mut escaped = String::with_capacity(value.len());
-    for ch in value.chars() {
-        match ch {
-            '\\' | '%' | '_' => {
-                escaped.push('\\');
-                escaped.push(ch);
-            }
-            _ => escaped.push(ch),
-        }
-    }
-    escaped
-}
-
-pub fn contains_like_pattern(value: &str) -> String {
-    format!("%{}%", escape_like_pattern(value))
-}
-
-pub struct MembershipRepository<'a> {
+pub struct FriendshipRepository<'a> {
     ctx: &'a ServiceContext,
     transaction: Option<&'a DatabaseTransaction>,
     pending_invalidations: Option<&'a std::sync::Mutex<Vec<String>>>,
-    mutation_hooks: Vec<&'a dyn MembershipMutationHooks>,
+    mutation_hooks: Vec<&'a dyn FriendshipMutationHooks>,
 }
 
-impl<'a> MembershipRepository<'a> {
+impl<'a> FriendshipRepository<'a> {
     pub fn new(ctx: &'a ServiceContext) -> Self {
         Self {
             ctx,
@@ -4408,7 +4055,7 @@ impl<'a> MembershipRepository<'a> {
         }
     }
 
-    pub fn with_mutation_hooks(mut self, hooks: &'a dyn MembershipMutationHooks) -> Self {
+    pub fn with_mutation_hooks(mut self, hooks: &'a dyn FriendshipMutationHooks) -> Self {
         self.mutation_hooks.push(hooks);
         self
     }
@@ -4476,7 +4123,7 @@ impl<'a> MembershipRepository<'a> {
     }
 
     pub fn table_name() -> &'static str {
-        "memberships"
+        "friendships"
     }
 
     pub async fn seed_fixtures(&self, count: u64) -> anyhow::Result<Vec<Model>> {
@@ -4487,70 +4134,70 @@ impl<'a> MembershipRepository<'a> {
         Ok(seeded)
     }
 
-    pub fn create(&self) -> MembershipCreate<'_, 'a> {
+    pub fn create(&self) -> FriendshipCreate<'_, 'a> {
         self.mutation_hooks
             .iter()
-            .fold(MembershipCreate::new(self), |mutation, hooks| {
+            .fold(FriendshipCreate::new(self), |mutation, hooks| {
                 hooks.create(mutation)
             })
     }
 
-    pub fn update_one(&self, id: i64) -> MembershipUpdate<'_, 'a> {
+    pub fn update_one(&self, id: i64) -> FriendshipUpdate<'_, 'a> {
         self.mutation_hooks
             .iter()
-            .fold(MembershipUpdate::new(self, id), |mutation, hooks| {
+            .fold(FriendshipUpdate::new(self, id), |mutation, hooks| {
                 hooks.update_one(mutation)
             })
     }
 
-    pub fn delete_one(&self, id: i64) -> MembershipDelete<'_, 'a> {
+    pub fn delete_one(&self, id: i64) -> FriendshipDelete<'_, 'a> {
         self.mutation_hooks
             .iter()
-            .fold(MembershipDelete::new(self, id), |mutation, hooks| {
+            .fold(FriendshipDelete::new(self, id), |mutation, hooks| {
                 hooks.delete_one(mutation)
             })
     }
 
-    pub fn update_many(&self) -> MembershipUpdateMany<'_, 'a> {
+    pub fn update_many(&self) -> FriendshipUpdateMany<'_, 'a> {
         self.mutation_hooks
             .iter()
-            .fold(MembershipUpdateMany::new(self), |mutation, hooks| {
+            .fold(FriendshipUpdateMany::new(self), |mutation, hooks| {
                 hooks.update_many(mutation)
             })
     }
 
-    pub fn update_where(&self) -> MembershipUpdateMany<'_, 'a> {
+    pub fn update_where(&self) -> FriendshipUpdateMany<'_, 'a> {
         self.update_many()
     }
 
-    pub fn delete_many(&self) -> MembershipDeleteMany<'_, 'a> {
+    pub fn delete_many(&self) -> FriendshipDeleteMany<'_, 'a> {
         self.mutation_hooks
             .iter()
-            .fold(MembershipDeleteMany::new(self), |mutation, hooks| {
+            .fold(FriendshipDeleteMany::new(self), |mutation, hooks| {
                 hooks.delete_many(mutation)
             })
     }
 
-    pub fn query(&self) -> MembershipQuery<'_, 'a> {
-        MembershipQuery::new(self)
+    pub fn query(&self) -> FriendshipQuery<'_, 'a> {
+        FriendshipQuery::new(self)
     }
 
     pub async fn count(&self) -> anyhow::Result<u64> {
         self.query().count().await
     }
 
-    pub async fn list_page(&self, page: u64, page_size: u64) -> anyhow::Result<MembershipPage> {
+    pub async fn list_page(&self, page: u64, page_size: u64) -> anyhow::Result<FriendshipPage> {
         self.query().paginate(page, page_size).page().await
     }
 
-    pub async fn find_by_user_id_and_group_id(
+    pub async fn find_by_user_id_and_friend_id(
         &self,
         user_id: i64,
-        group_id: i64,
+        friend_id: i64,
     ) -> anyhow::Result<Option<Model>> {
         self.query()
             .where_(user_id_eq(user_id))
-            .where_(group_id_eq(group_id))
+            .where_(friend_id_eq(friend_id))
             .first()
             .await
     }
@@ -4584,7 +4231,7 @@ impl<'a> MembershipRepository<'a> {
         Entity::insert(active)
             .on_conflict(
                 OnConflict::columns([Column::Id])
-                    .update_columns([Column::UserId, Column::GroupId, Column::Role])
+                    .update_columns([Column::UserId, Column::FriendId])
                     .to_owned(),
             )
             .exec(&db)
@@ -4592,7 +4239,7 @@ impl<'a> MembershipRepository<'a> {
         let saved = Entity::find_by_id(upsert_key)
             .one(&db)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("upserted Membership could not be reloaded"))?;
+            .ok_or_else(|| anyhow::anyhow!("upserted Friendship could not be reloaded"))?;
         Ok(saved)
     }
 
@@ -4637,20 +4284,20 @@ impl<'a> MembershipRepository<'a> {
 }
 
 #[derive(Clone, Debug)]
-pub struct MembershipWithUserThenManager {
+pub struct FriendshipWithUserThenManager {
     pub node: Model,
     pub edge: Option<crate::model::user::UserWithManager>,
 }
 
-impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
+impl<'repo, 'ctx> FriendshipQuery<'repo, 'ctx> {
     pub async fn all_with_user_then_manager(
         self,
         target_repo: &crate::model::UserRepository<'_>,
         nested_repo: &crate::model::UserRepository<'_>,
-    ) -> anyhow::Result<Vec<MembershipWithUserThenManager>> {
+    ) -> anyhow::Result<Vec<FriendshipWithUserThenManager>> {
         let nodes = self.all().await?;
         tracing::debug!(
-            model = "Membership",
+            model = "Friendship",
             backend = "sea_orm",
             edge_path = "user.manager",
             node_count = nodes.len(),
@@ -4668,27 +4315,27 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
                 .iter()
                 .find(|target| target.node.id == node.user_id)
                 .cloned();
-            loaded.push(MembershipWithUserThenManager { node, edge });
+            loaded.push(FriendshipWithUserThenManager { node, edge });
         }
         Ok(loaded)
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct MembershipWithUserThenReports {
+pub struct FriendshipWithUserThenReports {
     pub node: Model,
     pub edge: Option<crate::model::user::UserWithReports>,
 }
 
-impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
+impl<'repo, 'ctx> FriendshipQuery<'repo, 'ctx> {
     pub async fn all_with_user_then_reports(
         self,
         target_repo: &crate::model::UserRepository<'_>,
         nested_repo: &crate::model::UserRepository<'_>,
-    ) -> anyhow::Result<Vec<MembershipWithUserThenReports>> {
+    ) -> anyhow::Result<Vec<FriendshipWithUserThenReports>> {
         let nodes = self.all().await?;
         tracing::debug!(
-            model = "Membership",
+            model = "Friendship",
             backend = "sea_orm",
             edge_path = "user.reports",
             node_count = nodes.len(),
@@ -4706,7 +4353,83 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
                 .iter()
                 .find(|target| target.node.id == node.user_id)
                 .cloned();
-            loaded.push(MembershipWithUserThenReports { node, edge });
+            loaded.push(FriendshipWithUserThenReports { node, edge });
+        }
+        Ok(loaded)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct FriendshipWithFriendThenManager {
+    pub node: Model,
+    pub edge: Option<crate::model::user::UserWithManager>,
+}
+
+impl<'repo, 'ctx> FriendshipQuery<'repo, 'ctx> {
+    pub async fn all_with_friend_then_manager(
+        self,
+        target_repo: &crate::model::UserRepository<'_>,
+        nested_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<FriendshipWithFriendThenManager>> {
+        let nodes = self.all().await?;
+        tracing::debug!(
+            model = "Friendship",
+            backend = "sea_orm",
+            edge_path = "friend.manager",
+            node_count = nodes.len(),
+            "model eager edge loading"
+        );
+        let values = nodes.iter().map(|node| node.friend_id).collect::<Vec<_>>();
+        let targets = target_repo
+            .query()
+            .where_(crate::model::user::id_in(values))
+            .all_with_manager(nested_repo)
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let edge = targets
+                .iter()
+                .find(|target| target.node.id == node.friend_id)
+                .cloned();
+            loaded.push(FriendshipWithFriendThenManager { node, edge });
+        }
+        Ok(loaded)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct FriendshipWithFriendThenReports {
+    pub node: Model,
+    pub edge: Option<crate::model::user::UserWithReports>,
+}
+
+impl<'repo, 'ctx> FriendshipQuery<'repo, 'ctx> {
+    pub async fn all_with_friend_then_reports(
+        self,
+        target_repo: &crate::model::UserRepository<'_>,
+        nested_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<FriendshipWithFriendThenReports>> {
+        let nodes = self.all().await?;
+        tracing::debug!(
+            model = "Friendship",
+            backend = "sea_orm",
+            edge_path = "friend.reports",
+            node_count = nodes.len(),
+            "model eager edge loading"
+        );
+        let values = nodes.iter().map(|node| node.friend_id).collect::<Vec<_>>();
+        let targets = target_repo
+            .query()
+            .where_(crate::model::user::id_in(values))
+            .all_with_reports(nested_repo)
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let edge = targets
+                .iter()
+                .find(|target| target.node.id == node.friend_id)
+                .cloned();
+            loaded.push(FriendshipWithFriendThenReports { node, edge });
         }
         Ok(loaded)
     }

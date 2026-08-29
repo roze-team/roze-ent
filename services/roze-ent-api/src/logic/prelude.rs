@@ -72,6 +72,7 @@ mod tests {
             name: "Alice".to_string(),
             active: true,
             created_at: 42,
+            manager_id: None,
         });
 
         assert_eq!(response.id, 7);

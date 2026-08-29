@@ -26,6 +26,7 @@ pub struct Model {
     pub active: bool,
     /// default: now_millis
     pub created_at: i64,
+    pub manager_id: Option<i64>,
 }
 
 impl Model {
@@ -36,6 +37,7 @@ impl Model {
             name: format!("fixture-user-name-{index}"),
             active: index.is_multiple_of(2),
             created_at: index.saturating_add(1) as i64,
+            manager_id: Some(index.saturating_add(1) as i64),
         }
     }
 }
@@ -102,6 +104,171 @@ impl Model {
             .exec()
             .await
     }
+
+    pub async fn traverse_manager<'repo, 'ctx>(
+        &self,
+        repo: &'repo crate::model::UserRepository<'ctx>,
+    ) -> anyhow::Result<Option<crate::model::user::UserQuery<'repo, 'ctx>>> {
+        let Some(value) = self.manager_id.as_ref() else {
+            return Ok(None);
+        };
+        let value = *value;
+        Ok(Some(repo.query().where_(crate::model::user::id_eq(value))))
+    }
+
+    pub async fn query_manager(
+        &self,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<crate::model::UserModel>> {
+        let Some(query) = self.traverse_manager(repo).await? else {
+            return Ok(None);
+        };
+        query.first().await
+    }
+
+    pub async fn traverse_reports<'repo, 'ctx>(
+        &self,
+        repo: &'repo crate::model::UserRepository<'ctx>,
+    ) -> anyhow::Result<crate::model::user::UserQuery<'repo, 'ctx>> {
+        let value = self.id;
+        Ok(repo
+            .query()
+            .where_(crate::model::user::manager_id_eq(value)))
+    }
+
+    pub async fn query_reports(
+        &self,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<crate::model::UserModel>> {
+        self.traverse_reports(repo).await?.all().await
+    }
+
+    pub async fn traverse_friends<'repo, 'ctx>(
+        &self,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+        repo: &'repo crate::model::UserRepository<'ctx>,
+    ) -> anyhow::Result<crate::model::user::UserQuery<'repo, 'ctx>> {
+        let value = self.id;
+        let values = through_repo
+            .query()
+            .where_(crate::model::friendship::user_id_eq(value))
+            .pluck_friend_id()
+            .await?;
+        Ok(repo.query().where_(crate::model::user::id_in(values)))
+    }
+
+    pub async fn query_friends(
+        &self,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<crate::model::UserModel>> {
+        self.traverse_friends(through_repo, repo).await?.all().await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn add_friends(
+        &self,
+        target: &crate::model::UserModel,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+    ) -> anyhow::Result<crate::model::FriendshipModel> {
+        through_repo
+            .create()
+            .set_user_id(self.id.clone())
+            .set_friend_id(target.id.clone())
+            .save()
+            .await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn remove_friends(
+        &self,
+        target: &crate::model::UserModel,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+    ) -> anyhow::Result<u64> {
+        through_repo
+            .delete_many()
+            .where_(crate::model::friendship::user_id_eq(self.id.clone()))
+            .where_(crate::model::friendship::friend_id_eq(target.id.clone()))
+            .exec()
+            .await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn clear_friends(
+        &self,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+    ) -> anyhow::Result<u64> {
+        through_repo
+            .delete_many()
+            .where_(crate::model::friendship::user_id_eq(self.id.clone()))
+            .exec()
+            .await
+    }
+
+    pub async fn traverse_friended_by<'repo, 'ctx>(
+        &self,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+        repo: &'repo crate::model::UserRepository<'ctx>,
+    ) -> anyhow::Result<crate::model::user::UserQuery<'repo, 'ctx>> {
+        let value = self.id;
+        let values = through_repo
+            .query()
+            .where_(crate::model::friendship::friend_id_eq(value))
+            .pluck_user_id()
+            .await?;
+        Ok(repo.query().where_(crate::model::user::id_in(values)))
+    }
+
+    pub async fn query_friended_by(
+        &self,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<crate::model::UserModel>> {
+        self.traverse_friended_by(through_repo, repo)
+            .await?
+            .all()
+            .await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn add_friended_by(
+        &self,
+        target: &crate::model::UserModel,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+    ) -> anyhow::Result<crate::model::FriendshipModel> {
+        through_repo
+            .create()
+            .set_friend_id(self.id.clone())
+            .set_user_id(target.id.clone())
+            .save()
+            .await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn remove_friended_by(
+        &self,
+        target: &crate::model::UserModel,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+    ) -> anyhow::Result<u64> {
+        through_repo
+            .delete_many()
+            .where_(crate::model::friendship::friend_id_eq(self.id.clone()))
+            .where_(crate::model::friendship::user_id_eq(target.id.clone()))
+            .exec()
+            .await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn clear_friended_by(
+        &self,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+    ) -> anyhow::Result<u64> {
+        through_repo
+            .delete_many()
+            .where_(crate::model::friendship::friend_id_eq(self.id.clone()))
+            .exec()
+            .await
+    }
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -121,6 +288,8 @@ pub enum UserOrder {
     ActiveDesc,
     CreatedAtAsc,
     CreatedAtDesc,
+    ManagerIdAsc,
+    ManagerIdDesc,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -175,6 +344,17 @@ pub enum UserPredicate {
     CreatedAtLt(i64),
     CreatedAtLte(i64),
     CreatedAtBetween(i64, i64),
+    ManagerIdEq(i64),
+    ManagerIdNe(i64),
+    ManagerIdIsNull,
+    ManagerIdIsNotNull,
+    ManagerIdIn(Vec<i64>),
+    ManagerIdNotIn(Vec<i64>),
+    ManagerIdGt(i64),
+    ManagerIdGte(i64),
+    ManagerIdLt(i64),
+    ManagerIdLte(i64),
+    ManagerIdBetween(i64, i64),
     And(Vec<UserPredicate>),
     Or(Vec<UserPredicate>),
     Not(Box<UserPredicate>),
@@ -330,6 +510,39 @@ pub fn created_at_lte(value: i64) -> UserPredicate {
 pub fn created_at_between(start: i64, end: i64) -> UserPredicate {
     UserPredicate::CreatedAtBetween(start, end)
 }
+pub fn manager_id_eq(value: i64) -> UserPredicate {
+    UserPredicate::ManagerIdEq(value)
+}
+pub fn manager_id_ne(value: i64) -> UserPredicate {
+    UserPredicate::ManagerIdNe(value)
+}
+pub fn manager_id_is_null() -> UserPredicate {
+    UserPredicate::ManagerIdIsNull
+}
+pub fn manager_id_is_not_null() -> UserPredicate {
+    UserPredicate::ManagerIdIsNotNull
+}
+pub fn manager_id_in(values: Vec<i64>) -> UserPredicate {
+    UserPredicate::ManagerIdIn(values)
+}
+pub fn manager_id_not_in(values: Vec<i64>) -> UserPredicate {
+    UserPredicate::ManagerIdNotIn(values)
+}
+pub fn manager_id_gt(value: i64) -> UserPredicate {
+    UserPredicate::ManagerIdGt(value)
+}
+pub fn manager_id_gte(value: i64) -> UserPredicate {
+    UserPredicate::ManagerIdGte(value)
+}
+pub fn manager_id_lt(value: i64) -> UserPredicate {
+    UserPredicate::ManagerIdLt(value)
+}
+pub fn manager_id_lte(value: i64) -> UserPredicate {
+    UserPredicate::ManagerIdLte(value)
+}
+pub fn manager_id_between(start: i64, end: i64) -> UserPredicate {
+    UserPredicate::ManagerIdBetween(start, end)
+}
 pub fn and(predicates: Vec<UserPredicate>) -> UserPredicate {
     UserPredicate::And(predicates)
 }
@@ -338,6 +551,12 @@ pub fn or(predicates: Vec<UserPredicate>) -> UserPredicate {
 }
 pub fn not(predicate: UserPredicate) -> UserPredicate {
     UserPredicate::Not(Box::new(predicate))
+}
+pub fn has_manager() -> UserPredicate {
+    manager_id_is_not_null()
+}
+pub fn not_has_manager() -> UserPredicate {
+    manager_id_is_null()
 }
 pub fn id_asc() -> UserOrder {
     UserOrder::IdAsc
@@ -368,6 +587,12 @@ pub fn created_at_asc() -> UserOrder {
 }
 pub fn created_at_desc() -> UserOrder {
     UserOrder::CreatedAtDesc
+}
+pub fn manager_id_asc() -> UserOrder {
+    UserOrder::ManagerIdAsc
+}
+pub fn manager_id_desc() -> UserOrder {
+    UserOrder::ManagerIdDesc
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -402,6 +627,144 @@ impl<T> UserLoadedNode for UserWithGroupsNested<T> {
     fn loaded_node(&self) -> &Model {
         &self.node
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithManager {
+    pub node: Model,
+    pub edge: Option<crate::model::UserModel>,
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithManagerNested<T> {
+    pub node: Model,
+    pub edge: Option<T>,
+}
+impl<T> UserLoadedNode for UserWithManagerNested<T> {
+    fn loaded_node(&self) -> &Model {
+        &self.node
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithReports {
+    pub node: Model,
+    pub edge: Vec<crate::model::UserModel>,
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithReportsNested<T> {
+    pub node: Model,
+    pub edge: Vec<T>,
+}
+impl<T> UserLoadedNode for UserWithReportsNested<T> {
+    fn loaded_node(&self) -> &Model {
+        &self.node
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithFriends {
+    pub node: Model,
+    pub edge: Vec<crate::model::UserModel>,
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithFriendsNested<T> {
+    pub node: Model,
+    pub edge: Vec<T>,
+}
+impl<T> UserLoadedNode for UserWithFriendsNested<T> {
+    fn loaded_node(&self) -> &Model {
+        &self.node
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithFriendedBy {
+    pub node: Model,
+    pub edge: Vec<crate::model::UserModel>,
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithFriendedByNested<T> {
+    pub node: Model,
+    pub edge: Vec<T>,
+}
+impl<T> UserLoadedNode for UserWithFriendedByNested<T> {
+    fn loaded_node(&self) -> &Model {
+        &self.node
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithGroupsAndManager {
+    pub node: Model,
+    pub groups: Vec<crate::model::GroupModel>,
+    pub manager: Option<crate::model::UserModel>,
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithGroupsAndReports {
+    pub node: Model,
+    pub groups: Vec<crate::model::GroupModel>,
+    pub reports: Vec<crate::model::UserModel>,
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithGroupsAndFriends {
+    pub node: Model,
+    pub groups: Vec<crate::model::GroupModel>,
+    pub friends: Vec<crate::model::UserModel>,
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithGroupsAndFriendedBy {
+    pub node: Model,
+    pub groups: Vec<crate::model::GroupModel>,
+    pub friended_by: Vec<crate::model::UserModel>,
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithManagerAndReports {
+    pub node: Model,
+    pub manager: Option<crate::model::UserModel>,
+    pub reports: Vec<crate::model::UserModel>,
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithManagerAndFriends {
+    pub node: Model,
+    pub manager: Option<crate::model::UserModel>,
+    pub friends: Vec<crate::model::UserModel>,
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithManagerAndFriendedBy {
+    pub node: Model,
+    pub manager: Option<crate::model::UserModel>,
+    pub friended_by: Vec<crate::model::UserModel>,
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithReportsAndFriends {
+    pub node: Model,
+    pub reports: Vec<crate::model::UserModel>,
+    pub friends: Vec<crate::model::UserModel>,
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithReportsAndFriendedBy {
+    pub node: Model,
+    pub reports: Vec<crate::model::UserModel>,
+    pub friended_by: Vec<crate::model::UserModel>,
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithFriendsAndFriendedBy {
+    pub node: Model,
+    pub friends: Vec<crate::model::UserModel>,
+    pub friended_by: Vec<crate::model::UserModel>,
 }
 
 pub struct UserQuery<'repo, 'ctx> {
@@ -595,6 +958,220 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
         Ok(self.where_not(id_in(values)))
     }
 
+    pub async fn has_manager(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Self> {
+        self.where_manager_with(repo, std::iter::empty::<crate::model::UserPredicate>())
+            .await
+    }
+
+    pub async fn where_manager_with<I>(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+        predicates: I,
+    ) -> anyhow::Result<Self>
+    where
+        I: IntoIterator<Item = crate::model::UserPredicate>,
+    {
+        let values = repo.query().where_all(predicates).pluck_id().await?;
+        Ok(self.where_(manager_id_in(values)))
+    }
+
+    pub async fn not_has_manager(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Self> {
+        self.where_manager_without(repo, std::iter::empty::<crate::model::UserPredicate>())
+            .await
+    }
+
+    pub async fn where_manager_without<I>(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+        predicates: I,
+    ) -> anyhow::Result<Self>
+    where
+        I: IntoIterator<Item = crate::model::UserPredicate>,
+    {
+        let values = repo.query().where_all(predicates).pluck_id().await?;
+        Ok(self.where_any([not(manager_id_in(values)), manager_id_is_null()]))
+    }
+
+    pub async fn has_reports(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Self> {
+        self.where_reports_with(repo, std::iter::empty::<crate::model::UserPredicate>())
+            .await
+    }
+
+    pub async fn where_reports_with<I>(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+        predicates: I,
+    ) -> anyhow::Result<Self>
+    where
+        I: IntoIterator<Item = crate::model::UserPredicate>,
+    {
+        let values = repo
+            .query()
+            .where_all(predicates)
+            .pluck_manager_id()
+            .await?;
+        let values = values.into_iter().flatten().collect::<Vec<_>>();
+        Ok(self.where_(id_in(values)))
+    }
+
+    pub async fn not_has_reports(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Self> {
+        self.where_reports_without(repo, std::iter::empty::<crate::model::UserPredicate>())
+            .await
+    }
+
+    pub async fn where_reports_without<I>(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+        predicates: I,
+    ) -> anyhow::Result<Self>
+    where
+        I: IntoIterator<Item = crate::model::UserPredicate>,
+    {
+        let values = repo
+            .query()
+            .where_all(predicates)
+            .pluck_manager_id()
+            .await?;
+        let values = values.into_iter().flatten().collect::<Vec<_>>();
+        Ok(self.where_not(id_in(values)))
+    }
+
+    pub async fn has_friends(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+    ) -> anyhow::Result<Self> {
+        self.where_friends_with(
+            repo,
+            through_repo,
+            std::iter::empty::<crate::model::UserPredicate>(),
+        )
+        .await
+    }
+
+    pub async fn where_friends_with<I>(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+        predicates: I,
+    ) -> anyhow::Result<Self>
+    where
+        I: IntoIterator<Item = crate::model::UserPredicate>,
+    {
+        let target_values = repo.query().where_all(predicates).pluck_id().await?;
+        let values = through_repo
+            .query()
+            .where_(crate::model::friendship::friend_id_in(target_values))
+            .pluck_user_id()
+            .await?;
+        Ok(self.where_(id_in(values)))
+    }
+
+    pub async fn not_has_friends(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+    ) -> anyhow::Result<Self> {
+        self.where_friends_without(
+            repo,
+            through_repo,
+            std::iter::empty::<crate::model::UserPredicate>(),
+        )
+        .await
+    }
+
+    pub async fn where_friends_without<I>(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+        predicates: I,
+    ) -> anyhow::Result<Self>
+    where
+        I: IntoIterator<Item = crate::model::UserPredicate>,
+    {
+        let target_values = repo.query().where_all(predicates).pluck_id().await?;
+        let values = through_repo
+            .query()
+            .where_(crate::model::friendship::friend_id_in(target_values))
+            .pluck_user_id()
+            .await?;
+        Ok(self.where_not(id_in(values)))
+    }
+
+    pub async fn has_friended_by(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+    ) -> anyhow::Result<Self> {
+        self.where_friended_by_with(
+            repo,
+            through_repo,
+            std::iter::empty::<crate::model::UserPredicate>(),
+        )
+        .await
+    }
+
+    pub async fn where_friended_by_with<I>(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+        predicates: I,
+    ) -> anyhow::Result<Self>
+    where
+        I: IntoIterator<Item = crate::model::UserPredicate>,
+    {
+        let target_values = repo.query().where_all(predicates).pluck_id().await?;
+        let values = through_repo
+            .query()
+            .where_(crate::model::friendship::user_id_in(target_values))
+            .pluck_friend_id()
+            .await?;
+        Ok(self.where_(id_in(values)))
+    }
+
+    pub async fn not_has_friended_by(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+    ) -> anyhow::Result<Self> {
+        self.where_friended_by_without(
+            repo,
+            through_repo,
+            std::iter::empty::<crate::model::UserPredicate>(),
+        )
+        .await
+    }
+
+    pub async fn where_friended_by_without<I>(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+        predicates: I,
+    ) -> anyhow::Result<Self>
+    where
+        I: IntoIterator<Item = crate::model::UserPredicate>,
+    {
+        let target_values = repo.query().where_all(predicates).pluck_id().await?;
+        let values = through_repo
+            .query()
+            .where_(crate::model::friendship::user_id_in(target_values))
+            .pluck_friend_id()
+            .await?;
+        Ok(self.where_not(id_in(values)))
+    }
+
     pub fn order(mut self, order: UserOrder) -> Self {
         self.orders.push(order);
         self
@@ -655,6 +1232,16 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
 
     pub fn order_by_created_at_desc(mut self) -> Self {
         self.orders.push(UserOrder::CreatedAtDesc);
+        self
+    }
+
+    pub fn order_by_manager_id_asc(mut self) -> Self {
+        self.orders.push(UserOrder::ManagerIdAsc);
+        self
+    }
+
+    pub fn order_by_manager_id_desc(mut self) -> Self {
+        self.orders.push(UserOrder::ManagerIdDesc);
         self
     }
 
@@ -807,6 +1394,39 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
             UserPredicate::CreatedAtBetween(start, end) => {
                 Condition::all().add(Column::CreatedAt.between(*start, *end))
             }
+            UserPredicate::ManagerIdEq(value) => {
+                Condition::all().add(Column::ManagerId.eq(Some(*value)))
+            }
+            UserPredicate::ManagerIdNe(value) => {
+                Condition::all().add(Column::ManagerId.ne(Some(*value)))
+            }
+            UserPredicate::ManagerIdIsNull => Condition::all().add(Column::ManagerId.is_null()),
+            UserPredicate::ManagerIdIsNotNull => {
+                Condition::all().add(Column::ManagerId.is_not_null())
+            }
+            UserPredicate::ManagerIdIn(values) => Condition::all().add(
+                Column::ManagerId
+                    .is_in(values.iter().map(|value| Some(*value)).collect::<Vec<_>>()),
+            ),
+            UserPredicate::ManagerIdNotIn(values) => Condition::all().add(
+                Column::ManagerId
+                    .is_not_in(values.iter().map(|value| Some(*value)).collect::<Vec<_>>()),
+            ),
+            UserPredicate::ManagerIdGt(value) => {
+                Condition::all().add(Column::ManagerId.gt(Some(*value)))
+            }
+            UserPredicate::ManagerIdGte(value) => {
+                Condition::all().add(Column::ManagerId.gte(Some(*value)))
+            }
+            UserPredicate::ManagerIdLt(value) => {
+                Condition::all().add(Column::ManagerId.lt(Some(*value)))
+            }
+            UserPredicate::ManagerIdLte(value) => {
+                Condition::all().add(Column::ManagerId.lte(Some(*value)))
+            }
+            UserPredicate::ManagerIdBetween(start, end) => {
+                Condition::all().add(Column::ManagerId.between(Some(*start), Some(*end)))
+            }
             UserPredicate::And(predicates) => predicates
                 .iter()
                 .fold(Condition::all(), |condition, predicate| {
@@ -844,6 +1464,8 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
                 UserOrder::ActiveDesc => select = select.order_by_desc(Column::Active),
                 UserOrder::CreatedAtAsc => select = select.order_by_asc(Column::CreatedAt),
                 UserOrder::CreatedAtDesc => select = select.order_by_desc(Column::CreatedAt),
+                UserOrder::ManagerIdAsc => select = select.order_by_asc(Column::ManagerId),
+                UserOrder::ManagerIdDesc => select = select.order_by_desc(Column::ManagerId),
             }
         }
         select
@@ -961,6 +1583,1167 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
             loaded.push(UserWithGroupsNested { node, edge });
         }
         Ok(loaded)
+    }
+
+    pub async fn all_with_manager(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithManager>> {
+        let nodes = self.all().await?;
+        let values = nodes
+            .iter()
+            .filter_map(|node| node.manager_id)
+            .collect::<Vec<_>>();
+        let targets = repo
+            .query()
+            .where_(crate::model::user::id_in(values))
+            .all()
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let edge = node
+                .manager_id
+                .as_ref()
+                .and_then(|value| targets.iter().find(|target| &target.id == value).cloned());
+            loaded.push(UserWithManager { node, edge });
+        }
+        Ok(loaded)
+    }
+
+    pub async fn first_with_manager(
+        mut self,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<UserWithManager>> {
+        self.limit = Some(1);
+        Ok(self.all_with_manager(repo).await?.into_iter().next())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_manager_nested<'target_repo, 'target_ctx, T, F, Fut>(
+        self,
+        repo: &'target_repo crate::model::UserRepository<'target_ctx>,
+        load: F,
+    ) -> anyhow::Result<Vec<UserWithManagerNested<T>>>
+    where
+        T: crate::model::user::UserLoadedNode + Clone,
+        F: FnOnce(crate::model::user::UserQuery<'target_repo, 'target_ctx>) -> Fut,
+        Fut: std::future::Future<Output = anyhow::Result<Vec<T>>>,
+    {
+        let nodes = self.all().await?;
+        let values = nodes
+            .iter()
+            .filter_map(|node| node.manager_id)
+            .collect::<Vec<_>>();
+        let targets = load(repo.query().where_(crate::model::user::id_in(values))).await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let edge = if let Some(value) = node.manager_id.as_ref() {
+                targets
+                    .iter()
+                    .find(|target| &target.loaded_node().id == value)
+                    .cloned()
+            } else {
+                None
+            };
+            loaded.push(UserWithManagerNested { node, edge });
+        }
+        Ok(loaded)
+    }
+
+    pub async fn all_with_reports(
+        self,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithReports>> {
+        let nodes = self.all().await?;
+        let values = nodes.iter().map(|node| node.id).collect::<Vec<_>>();
+        let targets = repo
+            .query()
+            .where_(crate::model::user::manager_id_in(values))
+            .all()
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let edge = targets
+                .iter()
+                .filter(|target| target.manager_id.as_ref() == Some(&node.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithReports { node, edge });
+        }
+        Ok(loaded)
+    }
+
+    pub async fn first_with_reports(
+        mut self,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<UserWithReports>> {
+        self.limit = Some(1);
+        Ok(self.all_with_reports(repo).await?.into_iter().next())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_reports_nested<'target_repo, 'target_ctx, T, F, Fut>(
+        self,
+        repo: &'target_repo crate::model::UserRepository<'target_ctx>,
+        load: F,
+    ) -> anyhow::Result<Vec<UserWithReportsNested<T>>>
+    where
+        T: crate::model::user::UserLoadedNode + Clone,
+        F: FnOnce(crate::model::user::UserQuery<'target_repo, 'target_ctx>) -> Fut,
+        Fut: std::future::Future<Output = anyhow::Result<Vec<T>>>,
+    {
+        let nodes = self.all().await?;
+        let values = nodes.iter().map(|node| node.id).collect::<Vec<_>>();
+        let targets = load(
+            repo.query()
+                .where_(crate::model::user::manager_id_in(values)),
+        )
+        .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let edge = targets
+                .iter()
+                .filter(|target| target.loaded_node().manager_id.as_ref() == Some(&node.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithReportsNested { node, edge });
+        }
+        Ok(loaded)
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_friends(
+        self,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithFriends>> {
+        let nodes = self.all().await?;
+        let values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let joins = through_repo
+            .query()
+            .where_(crate::model::friendship::user_id_in(values))
+            .all()
+            .await?;
+        let target_values = joins
+            .iter()
+            .map(|join| join.friend_id.clone())
+            .collect::<Vec<_>>();
+        let targets = repo
+            .query()
+            .where_(crate::model::user::id_in(target_values))
+            .all()
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let target_values = joins
+                .iter()
+                .filter(|join| join.user_id == node.id)
+                .map(|join| &join.friend_id)
+                .collect::<Vec<_>>();
+            let edge = targets
+                .iter()
+                .filter(|target| target_values.contains(&&target.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithFriends { node, edge });
+        }
+        Ok(loaded)
+    }
+
+    pub async fn first_with_friends(
+        mut self,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<UserWithFriends>> {
+        self.limit = Some(1);
+        Ok(self
+            .all_with_friends(through_repo, repo)
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_friends_nested<'target_repo, 'target_ctx, T, F, Fut>(
+        self,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+        repo: &'target_repo crate::model::UserRepository<'target_ctx>,
+        load: F,
+    ) -> anyhow::Result<Vec<UserWithFriendsNested<T>>>
+    where
+        T: crate::model::user::UserLoadedNode + Clone,
+        F: FnOnce(crate::model::user::UserQuery<'target_repo, 'target_ctx>) -> Fut,
+        Fut: std::future::Future<Output = anyhow::Result<Vec<T>>>,
+    {
+        let nodes = self.all().await?;
+        let values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let joins = through_repo
+            .query()
+            .where_(crate::model::friendship::user_id_in(values))
+            .all()
+            .await?;
+        let target_values = joins
+            .iter()
+            .map(|join| join.friend_id.clone())
+            .collect::<Vec<_>>();
+        let targets = load(
+            repo.query()
+                .where_(crate::model::user::id_in(target_values)),
+        )
+        .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let target_values = joins
+                .iter()
+                .filter(|join| join.user_id == node.id)
+                .map(|join| &join.friend_id)
+                .collect::<Vec<_>>();
+            let edge = targets
+                .iter()
+                .filter(|target| target_values.contains(&&target.loaded_node().id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithFriendsNested { node, edge });
+        }
+        Ok(loaded)
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_friended_by(
+        self,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithFriendedBy>> {
+        let nodes = self.all().await?;
+        let values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let joins = through_repo
+            .query()
+            .where_(crate::model::friendship::friend_id_in(values))
+            .all()
+            .await?;
+        let target_values = joins
+            .iter()
+            .map(|join| join.user_id.clone())
+            .collect::<Vec<_>>();
+        let targets = repo
+            .query()
+            .where_(crate::model::user::id_in(target_values))
+            .all()
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let target_values = joins
+                .iter()
+                .filter(|join| join.friend_id == node.id)
+                .map(|join| &join.user_id)
+                .collect::<Vec<_>>();
+            let edge = targets
+                .iter()
+                .filter(|target| target_values.contains(&&target.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithFriendedBy { node, edge });
+        }
+        Ok(loaded)
+    }
+
+    pub async fn first_with_friended_by(
+        mut self,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+        repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<UserWithFriendedBy>> {
+        self.limit = Some(1);
+        Ok(self
+            .all_with_friended_by(through_repo, repo)
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_friended_by_nested<'target_repo, 'target_ctx, T, F, Fut>(
+        self,
+        through_repo: &crate::model::FriendshipRepository<'_>,
+        repo: &'target_repo crate::model::UserRepository<'target_ctx>,
+        load: F,
+    ) -> anyhow::Result<Vec<UserWithFriendedByNested<T>>>
+    where
+        T: crate::model::user::UserLoadedNode + Clone,
+        F: FnOnce(crate::model::user::UserQuery<'target_repo, 'target_ctx>) -> Fut,
+        Fut: std::future::Future<Output = anyhow::Result<Vec<T>>>,
+    {
+        let nodes = self.all().await?;
+        let values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let joins = through_repo
+            .query()
+            .where_(crate::model::friendship::friend_id_in(values))
+            .all()
+            .await?;
+        let target_values = joins
+            .iter()
+            .map(|join| join.user_id.clone())
+            .collect::<Vec<_>>();
+        let targets = load(
+            repo.query()
+                .where_(crate::model::user::id_in(target_values)),
+        )
+        .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let target_values = joins
+                .iter()
+                .filter(|join| join.friend_id == node.id)
+                .map(|join| &join.user_id)
+                .collect::<Vec<_>>();
+            let edge = targets
+                .iter()
+                .filter(|target| target_values.contains(&&target.loaded_node().id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithFriendedByNested { node, edge });
+        }
+        Ok(loaded)
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_groups_and_manager(
+        self,
+        first_through_repo: &crate::model::MembershipRepository<'_>,
+        first_repo: &crate::model::GroupRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithGroupsAndManager>> {
+        let nodes = self.all().await?;
+        let first_values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let first_joins = first_through_repo
+            .query()
+            .where_(crate::model::membership::user_id_in(first_values))
+            .all()
+            .await?;
+        let first_target_values = first_joins
+            .iter()
+            .map(|join| join.group_id.clone())
+            .collect::<Vec<_>>();
+        let first_targets = first_repo
+            .query()
+            .where_(crate::model::group::id_in(first_target_values))
+            .all()
+            .await?;
+        let second_values = nodes
+            .iter()
+            .filter_map(|node| node.manager_id)
+            .collect::<Vec<_>>();
+        let second_targets = second_repo
+            .query()
+            .where_(crate::model::user::id_in(second_values))
+            .all()
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let first_target_values = first_joins
+                .iter()
+                .filter(|join| join.user_id == node.id)
+                .map(|join| &join.group_id)
+                .collect::<Vec<_>>();
+            let groups = first_targets
+                .iter()
+                .filter(|target| first_target_values.contains(&&target.id))
+                .cloned()
+                .collect();
+            let manager = node.manager_id.as_ref().and_then(|value| {
+                second_targets
+                    .iter()
+                    .find(|target| &target.id == value)
+                    .cloned()
+            });
+            loaded.push(UserWithGroupsAndManager {
+                node,
+                groups,
+                manager,
+            });
+        }
+        Ok(loaded)
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn first_with_groups_and_manager(
+        mut self,
+        first_through_repo: &crate::model::MembershipRepository<'_>,
+        first_repo: &crate::model::GroupRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<UserWithGroupsAndManager>> {
+        self.limit = Some(1);
+        Ok(self
+            .all_with_groups_and_manager(first_through_repo, first_repo, second_repo)
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_groups_and_reports(
+        self,
+        first_through_repo: &crate::model::MembershipRepository<'_>,
+        first_repo: &crate::model::GroupRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithGroupsAndReports>> {
+        let nodes = self.all().await?;
+        let first_values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let first_joins = first_through_repo
+            .query()
+            .where_(crate::model::membership::user_id_in(first_values))
+            .all()
+            .await?;
+        let first_target_values = first_joins
+            .iter()
+            .map(|join| join.group_id.clone())
+            .collect::<Vec<_>>();
+        let first_targets = first_repo
+            .query()
+            .where_(crate::model::group::id_in(first_target_values))
+            .all()
+            .await?;
+        let second_values = nodes.iter().map(|node| node.id).collect::<Vec<_>>();
+        let second_targets = second_repo
+            .query()
+            .where_(crate::model::user::manager_id_in(second_values))
+            .all()
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let first_target_values = first_joins
+                .iter()
+                .filter(|join| join.user_id == node.id)
+                .map(|join| &join.group_id)
+                .collect::<Vec<_>>();
+            let groups = first_targets
+                .iter()
+                .filter(|target| first_target_values.contains(&&target.id))
+                .cloned()
+                .collect();
+            let reports = second_targets
+                .iter()
+                .filter(|target| target.manager_id.as_ref() == Some(&node.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithGroupsAndReports {
+                node,
+                groups,
+                reports,
+            });
+        }
+        Ok(loaded)
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn first_with_groups_and_reports(
+        mut self,
+        first_through_repo: &crate::model::MembershipRepository<'_>,
+        first_repo: &crate::model::GroupRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<UserWithGroupsAndReports>> {
+        self.limit = Some(1);
+        Ok(self
+            .all_with_groups_and_reports(first_through_repo, first_repo, second_repo)
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_groups_and_friends(
+        self,
+        first_through_repo: &crate::model::MembershipRepository<'_>,
+        first_repo: &crate::model::GroupRepository<'_>,
+        second_through_repo: &crate::model::FriendshipRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithGroupsAndFriends>> {
+        let nodes = self.all().await?;
+        let first_values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let first_joins = first_through_repo
+            .query()
+            .where_(crate::model::membership::user_id_in(first_values))
+            .all()
+            .await?;
+        let first_target_values = first_joins
+            .iter()
+            .map(|join| join.group_id.clone())
+            .collect::<Vec<_>>();
+        let first_targets = first_repo
+            .query()
+            .where_(crate::model::group::id_in(first_target_values))
+            .all()
+            .await?;
+        let second_values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let second_joins = second_through_repo
+            .query()
+            .where_(crate::model::friendship::user_id_in(second_values))
+            .all()
+            .await?;
+        let second_target_values = second_joins
+            .iter()
+            .map(|join| join.friend_id.clone())
+            .collect::<Vec<_>>();
+        let second_targets = second_repo
+            .query()
+            .where_(crate::model::user::id_in(second_target_values))
+            .all()
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let first_target_values = first_joins
+                .iter()
+                .filter(|join| join.user_id == node.id)
+                .map(|join| &join.group_id)
+                .collect::<Vec<_>>();
+            let groups = first_targets
+                .iter()
+                .filter(|target| first_target_values.contains(&&target.id))
+                .cloned()
+                .collect();
+            let second_target_values = second_joins
+                .iter()
+                .filter(|join| join.user_id == node.id)
+                .map(|join| &join.friend_id)
+                .collect::<Vec<_>>();
+            let friends = second_targets
+                .iter()
+                .filter(|target| second_target_values.contains(&&target.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithGroupsAndFriends {
+                node,
+                groups,
+                friends,
+            });
+        }
+        Ok(loaded)
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn first_with_groups_and_friends(
+        mut self,
+        first_through_repo: &crate::model::MembershipRepository<'_>,
+        first_repo: &crate::model::GroupRepository<'_>,
+        second_through_repo: &crate::model::FriendshipRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<UserWithGroupsAndFriends>> {
+        self.limit = Some(1);
+        Ok(self
+            .all_with_groups_and_friends(
+                first_through_repo,
+                first_repo,
+                second_through_repo,
+                second_repo,
+            )
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_groups_and_friended_by(
+        self,
+        first_through_repo: &crate::model::MembershipRepository<'_>,
+        first_repo: &crate::model::GroupRepository<'_>,
+        second_through_repo: &crate::model::FriendshipRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithGroupsAndFriendedBy>> {
+        let nodes = self.all().await?;
+        let first_values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let first_joins = first_through_repo
+            .query()
+            .where_(crate::model::membership::user_id_in(first_values))
+            .all()
+            .await?;
+        let first_target_values = first_joins
+            .iter()
+            .map(|join| join.group_id.clone())
+            .collect::<Vec<_>>();
+        let first_targets = first_repo
+            .query()
+            .where_(crate::model::group::id_in(first_target_values))
+            .all()
+            .await?;
+        let second_values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let second_joins = second_through_repo
+            .query()
+            .where_(crate::model::friendship::friend_id_in(second_values))
+            .all()
+            .await?;
+        let second_target_values = second_joins
+            .iter()
+            .map(|join| join.user_id.clone())
+            .collect::<Vec<_>>();
+        let second_targets = second_repo
+            .query()
+            .where_(crate::model::user::id_in(second_target_values))
+            .all()
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let first_target_values = first_joins
+                .iter()
+                .filter(|join| join.user_id == node.id)
+                .map(|join| &join.group_id)
+                .collect::<Vec<_>>();
+            let groups = first_targets
+                .iter()
+                .filter(|target| first_target_values.contains(&&target.id))
+                .cloned()
+                .collect();
+            let second_target_values = second_joins
+                .iter()
+                .filter(|join| join.friend_id == node.id)
+                .map(|join| &join.user_id)
+                .collect::<Vec<_>>();
+            let friended_by = second_targets
+                .iter()
+                .filter(|target| second_target_values.contains(&&target.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithGroupsAndFriendedBy {
+                node,
+                groups,
+                friended_by,
+            });
+        }
+        Ok(loaded)
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn first_with_groups_and_friended_by(
+        mut self,
+        first_through_repo: &crate::model::MembershipRepository<'_>,
+        first_repo: &crate::model::GroupRepository<'_>,
+        second_through_repo: &crate::model::FriendshipRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<UserWithGroupsAndFriendedBy>> {
+        self.limit = Some(1);
+        Ok(self
+            .all_with_groups_and_friended_by(
+                first_through_repo,
+                first_repo,
+                second_through_repo,
+                second_repo,
+            )
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_manager_and_reports(
+        self,
+        first_repo: &crate::model::UserRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithManagerAndReports>> {
+        let nodes = self.all().await?;
+        let first_values = nodes
+            .iter()
+            .filter_map(|node| node.manager_id)
+            .collect::<Vec<_>>();
+        let first_targets = first_repo
+            .query()
+            .where_(crate::model::user::id_in(first_values))
+            .all()
+            .await?;
+        let second_values = nodes.iter().map(|node| node.id).collect::<Vec<_>>();
+        let second_targets = second_repo
+            .query()
+            .where_(crate::model::user::manager_id_in(second_values))
+            .all()
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let manager = node.manager_id.as_ref().and_then(|value| {
+                first_targets
+                    .iter()
+                    .find(|target| &target.id == value)
+                    .cloned()
+            });
+            let reports = second_targets
+                .iter()
+                .filter(|target| target.manager_id.as_ref() == Some(&node.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithManagerAndReports {
+                node,
+                manager,
+                reports,
+            });
+        }
+        Ok(loaded)
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn first_with_manager_and_reports(
+        mut self,
+        first_repo: &crate::model::UserRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<UserWithManagerAndReports>> {
+        self.limit = Some(1);
+        Ok(self
+            .all_with_manager_and_reports(first_repo, second_repo)
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_manager_and_friends(
+        self,
+        first_repo: &crate::model::UserRepository<'_>,
+        second_through_repo: &crate::model::FriendshipRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithManagerAndFriends>> {
+        let nodes = self.all().await?;
+        let first_values = nodes
+            .iter()
+            .filter_map(|node| node.manager_id)
+            .collect::<Vec<_>>();
+        let first_targets = first_repo
+            .query()
+            .where_(crate::model::user::id_in(first_values))
+            .all()
+            .await?;
+        let second_values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let second_joins = second_through_repo
+            .query()
+            .where_(crate::model::friendship::user_id_in(second_values))
+            .all()
+            .await?;
+        let second_target_values = second_joins
+            .iter()
+            .map(|join| join.friend_id.clone())
+            .collect::<Vec<_>>();
+        let second_targets = second_repo
+            .query()
+            .where_(crate::model::user::id_in(second_target_values))
+            .all()
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let manager = node.manager_id.as_ref().and_then(|value| {
+                first_targets
+                    .iter()
+                    .find(|target| &target.id == value)
+                    .cloned()
+            });
+            let second_target_values = second_joins
+                .iter()
+                .filter(|join| join.user_id == node.id)
+                .map(|join| &join.friend_id)
+                .collect::<Vec<_>>();
+            let friends = second_targets
+                .iter()
+                .filter(|target| second_target_values.contains(&&target.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithManagerAndFriends {
+                node,
+                manager,
+                friends,
+            });
+        }
+        Ok(loaded)
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn first_with_manager_and_friends(
+        mut self,
+        first_repo: &crate::model::UserRepository<'_>,
+        second_through_repo: &crate::model::FriendshipRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<UserWithManagerAndFriends>> {
+        self.limit = Some(1);
+        Ok(self
+            .all_with_manager_and_friends(first_repo, second_through_repo, second_repo)
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_manager_and_friended_by(
+        self,
+        first_repo: &crate::model::UserRepository<'_>,
+        second_through_repo: &crate::model::FriendshipRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithManagerAndFriendedBy>> {
+        let nodes = self.all().await?;
+        let first_values = nodes
+            .iter()
+            .filter_map(|node| node.manager_id)
+            .collect::<Vec<_>>();
+        let first_targets = first_repo
+            .query()
+            .where_(crate::model::user::id_in(first_values))
+            .all()
+            .await?;
+        let second_values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let second_joins = second_through_repo
+            .query()
+            .where_(crate::model::friendship::friend_id_in(second_values))
+            .all()
+            .await?;
+        let second_target_values = second_joins
+            .iter()
+            .map(|join| join.user_id.clone())
+            .collect::<Vec<_>>();
+        let second_targets = second_repo
+            .query()
+            .where_(crate::model::user::id_in(second_target_values))
+            .all()
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let manager = node.manager_id.as_ref().and_then(|value| {
+                first_targets
+                    .iter()
+                    .find(|target| &target.id == value)
+                    .cloned()
+            });
+            let second_target_values = second_joins
+                .iter()
+                .filter(|join| join.friend_id == node.id)
+                .map(|join| &join.user_id)
+                .collect::<Vec<_>>();
+            let friended_by = second_targets
+                .iter()
+                .filter(|target| second_target_values.contains(&&target.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithManagerAndFriendedBy {
+                node,
+                manager,
+                friended_by,
+            });
+        }
+        Ok(loaded)
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn first_with_manager_and_friended_by(
+        mut self,
+        first_repo: &crate::model::UserRepository<'_>,
+        second_through_repo: &crate::model::FriendshipRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<UserWithManagerAndFriendedBy>> {
+        self.limit = Some(1);
+        Ok(self
+            .all_with_manager_and_friended_by(first_repo, second_through_repo, second_repo)
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_reports_and_friends(
+        self,
+        first_repo: &crate::model::UserRepository<'_>,
+        second_through_repo: &crate::model::FriendshipRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithReportsAndFriends>> {
+        let nodes = self.all().await?;
+        let first_values = nodes.iter().map(|node| node.id).collect::<Vec<_>>();
+        let first_targets = first_repo
+            .query()
+            .where_(crate::model::user::manager_id_in(first_values))
+            .all()
+            .await?;
+        let second_values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let second_joins = second_through_repo
+            .query()
+            .where_(crate::model::friendship::user_id_in(second_values))
+            .all()
+            .await?;
+        let second_target_values = second_joins
+            .iter()
+            .map(|join| join.friend_id.clone())
+            .collect::<Vec<_>>();
+        let second_targets = second_repo
+            .query()
+            .where_(crate::model::user::id_in(second_target_values))
+            .all()
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let reports = first_targets
+                .iter()
+                .filter(|target| target.manager_id.as_ref() == Some(&node.id))
+                .cloned()
+                .collect();
+            let second_target_values = second_joins
+                .iter()
+                .filter(|join| join.user_id == node.id)
+                .map(|join| &join.friend_id)
+                .collect::<Vec<_>>();
+            let friends = second_targets
+                .iter()
+                .filter(|target| second_target_values.contains(&&target.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithReportsAndFriends {
+                node,
+                reports,
+                friends,
+            });
+        }
+        Ok(loaded)
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn first_with_reports_and_friends(
+        mut self,
+        first_repo: &crate::model::UserRepository<'_>,
+        second_through_repo: &crate::model::FriendshipRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<UserWithReportsAndFriends>> {
+        self.limit = Some(1);
+        Ok(self
+            .all_with_reports_and_friends(first_repo, second_through_repo, second_repo)
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_reports_and_friended_by(
+        self,
+        first_repo: &crate::model::UserRepository<'_>,
+        second_through_repo: &crate::model::FriendshipRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithReportsAndFriendedBy>> {
+        let nodes = self.all().await?;
+        let first_values = nodes.iter().map(|node| node.id).collect::<Vec<_>>();
+        let first_targets = first_repo
+            .query()
+            .where_(crate::model::user::manager_id_in(first_values))
+            .all()
+            .await?;
+        let second_values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let second_joins = second_through_repo
+            .query()
+            .where_(crate::model::friendship::friend_id_in(second_values))
+            .all()
+            .await?;
+        let second_target_values = second_joins
+            .iter()
+            .map(|join| join.user_id.clone())
+            .collect::<Vec<_>>();
+        let second_targets = second_repo
+            .query()
+            .where_(crate::model::user::id_in(second_target_values))
+            .all()
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let reports = first_targets
+                .iter()
+                .filter(|target| target.manager_id.as_ref() == Some(&node.id))
+                .cloned()
+                .collect();
+            let second_target_values = second_joins
+                .iter()
+                .filter(|join| join.friend_id == node.id)
+                .map(|join| &join.user_id)
+                .collect::<Vec<_>>();
+            let friended_by = second_targets
+                .iter()
+                .filter(|target| second_target_values.contains(&&target.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithReportsAndFriendedBy {
+                node,
+                reports,
+                friended_by,
+            });
+        }
+        Ok(loaded)
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn first_with_reports_and_friended_by(
+        mut self,
+        first_repo: &crate::model::UserRepository<'_>,
+        second_through_repo: &crate::model::FriendshipRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<UserWithReportsAndFriendedBy>> {
+        self.limit = Some(1);
+        Ok(self
+            .all_with_reports_and_friended_by(first_repo, second_through_repo, second_repo)
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn all_with_friends_and_friended_by(
+        self,
+        first_through_repo: &crate::model::FriendshipRepository<'_>,
+        first_repo: &crate::model::UserRepository<'_>,
+        second_through_repo: &crate::model::FriendshipRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithFriendsAndFriendedBy>> {
+        let nodes = self.all().await?;
+        let first_values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let first_joins = first_through_repo
+            .query()
+            .where_(crate::model::friendship::user_id_in(first_values))
+            .all()
+            .await?;
+        let first_target_values = first_joins
+            .iter()
+            .map(|join| join.friend_id.clone())
+            .collect::<Vec<_>>();
+        let first_targets = first_repo
+            .query()
+            .where_(crate::model::user::id_in(first_target_values))
+            .all()
+            .await?;
+        let second_values = nodes.iter().map(|node| node.id.clone()).collect::<Vec<_>>();
+        let second_joins = second_through_repo
+            .query()
+            .where_(crate::model::friendship::friend_id_in(second_values))
+            .all()
+            .await?;
+        let second_target_values = second_joins
+            .iter()
+            .map(|join| join.user_id.clone())
+            .collect::<Vec<_>>();
+        let second_targets = second_repo
+            .query()
+            .where_(crate::model::user::id_in(second_target_values))
+            .all()
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let first_target_values = first_joins
+                .iter()
+                .filter(|join| join.user_id == node.id)
+                .map(|join| &join.friend_id)
+                .collect::<Vec<_>>();
+            let friends = first_targets
+                .iter()
+                .filter(|target| first_target_values.contains(&&target.id))
+                .cloned()
+                .collect();
+            let second_target_values = second_joins
+                .iter()
+                .filter(|join| join.friend_id == node.id)
+                .map(|join| &join.user_id)
+                .collect::<Vec<_>>();
+            let friended_by = second_targets
+                .iter()
+                .filter(|target| second_target_values.contains(&&target.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithFriendsAndFriendedBy {
+                node,
+                friends,
+                friended_by,
+            });
+        }
+        Ok(loaded)
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn first_with_friends_and_friended_by(
+        mut self,
+        first_through_repo: &crate::model::FriendshipRepository<'_>,
+        first_repo: &crate::model::UserRepository<'_>,
+        second_through_repo: &crate::model::FriendshipRepository<'_>,
+        second_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Option<UserWithFriendsAndFriendedBy>> {
+        self.limit = Some(1);
+        Ok(self
+            .all_with_friends_and_friended_by(
+                first_through_repo,
+                first_repo,
+                second_through_repo,
+                second_repo,
+            )
+            .await?
+            .into_iter()
+            .next())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn add_manager_id(mut self, delta: i64) -> anyhow::Result<u64> {
+        struct AtomicTerminal {
+            delta: i64,
+        }
+        impl<'repo, 'ctx> roze_orm::Operation<UserQuery<'repo, 'ctx>, u64, anyhow::Error>
+            for AtomicTerminal
+        {
+            fn call<'call>(
+                &'call self,
+                query: UserQuery<'repo, 'ctx>,
+            ) -> roze_orm::OperationFuture<'call, u64, anyhow::Error>
+            where
+                UserQuery<'repo, 'ctx>: 'call,
+                u64: 'call,
+                anyhow::Error: 'call,
+            {
+                let delta = self.delta.clone();
+                Box::pin(query.add_manager_id_unintercepted(delta))
+            }
+        }
+        let interceptors = std::mem::take(&mut self.atomic_interceptors);
+        roze_orm::execute_chain(&AtomicTerminal { delta }, &interceptors, self).await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    async fn add_manager_id_unintercepted(self, delta: i64) -> anyhow::Result<u64> {
+        let db = self.repo.write_db()?;
+        let mut update = Entity::update_many().col_expr(
+            Column::ManagerId,
+            Expr::col(Column::ManagerId).add(delta.clone()),
+        );
+        for predicate in &self.predicates {
+            update = update.filter(Self::predicate_condition(predicate));
+        }
+        let result = update.exec(&db).await?;
+        Ok(result.rows_affected)
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn subtract_manager_id(mut self, delta: i64) -> anyhow::Result<u64> {
+        struct AtomicTerminal {
+            delta: i64,
+        }
+        impl<'repo, 'ctx> roze_orm::Operation<UserQuery<'repo, 'ctx>, u64, anyhow::Error>
+            for AtomicTerminal
+        {
+            fn call<'call>(
+                &'call self,
+                query: UserQuery<'repo, 'ctx>,
+            ) -> roze_orm::OperationFuture<'call, u64, anyhow::Error>
+            where
+                UserQuery<'repo, 'ctx>: 'call,
+                u64: 'call,
+                anyhow::Error: 'call,
+            {
+                let delta = self.delta.clone();
+                Box::pin(query.subtract_manager_id_unintercepted(delta))
+            }
+        }
+        let interceptors = std::mem::take(&mut self.atomic_interceptors);
+        roze_orm::execute_chain(&AtomicTerminal { delta }, &interceptors, self).await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    async fn subtract_manager_id_unintercepted(self, delta: i64) -> anyhow::Result<u64> {
+        let db = self.repo.write_db()?;
+        let mut update = Entity::update_many().col_expr(
+            Column::ManagerId,
+            Expr::col(Column::ManagerId).sub(delta.clone()),
+        );
+        for predicate in &self.predicates {
+            update = update.filter(Self::predicate_condition(predicate));
+        }
+        let result = update.exec(&db).await?;
+        Ok(result.rows_affected)
     }
 
     pub async fn sum_id_by_id(self) -> anyhow::Result<Vec<(i64, i64)>> {
@@ -1247,6 +3030,152 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
             .select_only()
             .column(Column::Id)
             .column_as(Expr::col(Column::CreatedAt).max(), "roze_max")
+            .group_by(Column::Id)
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?)
+    }
+
+    pub async fn sum_manager_id_by_id(self) -> anyhow::Result<Vec<(i64, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::ManagerId).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::ManagerId).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Id)
+            .column_as(sum, "roze_sum")
+            .group_by(Column::Id)
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn sum_manager_id_by_id_having_at_least(
+        self,
+        minimum: i64,
+    ) -> anyhow::Result<Vec<(i64, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::ManagerId).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::ManagerId).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Id)
+            .column_as(sum.clone(), "roze_sum")
+            .group_by(Column::Id)
+            .having(sum.gte(minimum))
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn sum_manager_id_by_id_having_at_most(
+        self,
+        maximum: i64,
+    ) -> anyhow::Result<Vec<(i64, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::ManagerId).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::ManagerId).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Id)
+            .column_as(sum.clone(), "roze_sum")
+            .group_by(Column::Id)
+            .having(sum.lte(maximum))
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn sum_manager_id_by_id_having_between(
+        self,
+        minimum: i64,
+        maximum: i64,
+    ) -> anyhow::Result<Vec<(i64, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::ManagerId).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::ManagerId).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Id)
+            .column_as(sum.clone(), "roze_sum")
+            .group_by(Column::Id)
+            .having(sum.clone().gte(minimum))
+            .having(sum.lte(maximum))
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn avg_manager_id_by_id(self) -> anyhow::Result<Vec<(i64, Option<f64>)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        Ok(self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Id)
+            .column_as(
+                Into::<sea_orm::sea_query::SimpleExpr>::into(Func::avg(Expr::col(
+                    Column::ManagerId,
+                ))),
+                "roze_avg",
+            )
+            .group_by(Column::Id)
+            .into_tuple::<(i64, Option<f64>)>()
+            .all(&db)
+            .await?)
+    }
+
+    pub async fn min_manager_id_by_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        Ok(self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Id)
+            .column_as(Expr::col(Column::ManagerId).min(), "roze_min")
+            .group_by(Column::Id)
+            .into_tuple::<(i64, Option<i64>)>()
+            .all(&db)
+            .await?)
+    }
+
+    pub async fn max_manager_id_by_id(self) -> anyhow::Result<Vec<(i64, Option<i64>)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        Ok(self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Id)
+            .column_as(Expr::col(Column::ManagerId).max(), "roze_max")
             .group_by(Column::Id)
             .into_tuple::<(i64, Option<i64>)>()
             .all(&db)
@@ -1543,6 +3472,152 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
             .await?)
     }
 
+    pub async fn sum_manager_id_by_email(self) -> anyhow::Result<Vec<(String, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::ManagerId).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::ManagerId).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Email)
+            .column_as(sum, "roze_sum")
+            .group_by(Column::Email)
+            .into_tuple::<(String, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn sum_manager_id_by_email_having_at_least(
+        self,
+        minimum: i64,
+    ) -> anyhow::Result<Vec<(String, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::ManagerId).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::ManagerId).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Email)
+            .column_as(sum.clone(), "roze_sum")
+            .group_by(Column::Email)
+            .having(sum.gte(minimum))
+            .into_tuple::<(String, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn sum_manager_id_by_email_having_at_most(
+        self,
+        maximum: i64,
+    ) -> anyhow::Result<Vec<(String, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::ManagerId).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::ManagerId).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Email)
+            .column_as(sum.clone(), "roze_sum")
+            .group_by(Column::Email)
+            .having(sum.lte(maximum))
+            .into_tuple::<(String, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn sum_manager_id_by_email_having_between(
+        self,
+        minimum: i64,
+        maximum: i64,
+    ) -> anyhow::Result<Vec<(String, i64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
+            Expr::col(Column::ManagerId).sum().cast_as("BIGINT")
+        } else {
+            Expr::col(Column::ManagerId).sum()
+        };
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Email)
+            .column_as(sum.clone(), "roze_sum")
+            .group_by(Column::Email)
+            .having(sum.clone().gte(minimum))
+            .having(sum.lte(maximum))
+            .into_tuple::<(String, Option<i64>)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(group, value)| (group, value.unwrap_or_default()))
+            .collect())
+    }
+
+    pub async fn avg_manager_id_by_email(self) -> anyhow::Result<Vec<(String, Option<f64>)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        Ok(self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Email)
+            .column_as(
+                Into::<sea_orm::sea_query::SimpleExpr>::into(Func::avg(Expr::col(
+                    Column::ManagerId,
+                ))),
+                "roze_avg",
+            )
+            .group_by(Column::Email)
+            .into_tuple::<(String, Option<f64>)>()
+            .all(&db)
+            .await?)
+    }
+
+    pub async fn min_manager_id_by_email(self) -> anyhow::Result<Vec<(String, Option<i64>)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        Ok(self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Email)
+            .column_as(Expr::col(Column::ManagerId).min(), "roze_min")
+            .group_by(Column::Email)
+            .into_tuple::<(String, Option<i64>)>()
+            .all(&db)
+            .await?)
+    }
+
+    pub async fn max_manager_id_by_email(self) -> anyhow::Result<Vec<(String, Option<i64>)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        Ok(self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Email)
+            .column_as(Expr::col(Column::ManagerId).max(), "roze_max")
+            .group_by(Column::Email)
+            .into_tuple::<(String, Option<i64>)>()
+            .all(&db)
+            .await?)
+    }
+
     pub async fn sum_id_by_name(self) -> anyhow::Result<Vec<(String, i64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
@@ -1829,296 +3904,6 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
             .column_as(Expr::col(Column::CreatedAt).max(), "roze_max")
             .group_by(Column::Name)
             .into_tuple::<(String, Option<i64>)>()
-            .all(&db)
-            .await?)
-    }
-
-    pub async fn sum_id_by_active(self) -> anyhow::Result<Vec<(bool, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::Id).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::Id).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Active)
-            .column_as(sum, "roze_sum")
-            .group_by(Column::Active)
-            .into_tuple::<(bool, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn sum_id_by_active_having_at_least(
-        self,
-        minimum: i64,
-    ) -> anyhow::Result<Vec<(bool, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::Id).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::Id).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Active)
-            .column_as(sum.clone(), "roze_sum")
-            .group_by(Column::Active)
-            .having(sum.gte(minimum))
-            .into_tuple::<(bool, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn sum_id_by_active_having_at_most(
-        self,
-        maximum: i64,
-    ) -> anyhow::Result<Vec<(bool, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::Id).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::Id).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Active)
-            .column_as(sum.clone(), "roze_sum")
-            .group_by(Column::Active)
-            .having(sum.lte(maximum))
-            .into_tuple::<(bool, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn sum_id_by_active_having_between(
-        self,
-        minimum: i64,
-        maximum: i64,
-    ) -> anyhow::Result<Vec<(bool, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::Id).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::Id).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Active)
-            .column_as(sum.clone(), "roze_sum")
-            .group_by(Column::Active)
-            .having(sum.clone().gte(minimum))
-            .having(sum.lte(maximum))
-            .into_tuple::<(bool, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn avg_id_by_active(self) -> anyhow::Result<Vec<(bool, Option<f64>)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        Ok(self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Active)
-            .column_as(
-                Into::<sea_orm::sea_query::SimpleExpr>::into(Func::avg(Expr::col(Column::Id))),
-                "roze_avg",
-            )
-            .group_by(Column::Active)
-            .into_tuple::<(bool, Option<f64>)>()
-            .all(&db)
-            .await?)
-    }
-
-    pub async fn min_id_by_active(self) -> anyhow::Result<Vec<(bool, Option<i64>)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        Ok(self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Active)
-            .column_as(Expr::col(Column::Id).min(), "roze_min")
-            .group_by(Column::Active)
-            .into_tuple::<(bool, Option<i64>)>()
-            .all(&db)
-            .await?)
-    }
-
-    pub async fn max_id_by_active(self) -> anyhow::Result<Vec<(bool, Option<i64>)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        Ok(self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Active)
-            .column_as(Expr::col(Column::Id).max(), "roze_max")
-            .group_by(Column::Active)
-            .into_tuple::<(bool, Option<i64>)>()
-            .all(&db)
-            .await?)
-    }
-
-    pub async fn sum_created_at_by_active(self) -> anyhow::Result<Vec<(bool, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::CreatedAt).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::CreatedAt).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Active)
-            .column_as(sum, "roze_sum")
-            .group_by(Column::Active)
-            .into_tuple::<(bool, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn sum_created_at_by_active_having_at_least(
-        self,
-        minimum: i64,
-    ) -> anyhow::Result<Vec<(bool, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::CreatedAt).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::CreatedAt).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Active)
-            .column_as(sum.clone(), "roze_sum")
-            .group_by(Column::Active)
-            .having(sum.gte(minimum))
-            .into_tuple::<(bool, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn sum_created_at_by_active_having_at_most(
-        self,
-        maximum: i64,
-    ) -> anyhow::Result<Vec<(bool, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::CreatedAt).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::CreatedAt).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Active)
-            .column_as(sum.clone(), "roze_sum")
-            .group_by(Column::Active)
-            .having(sum.lte(maximum))
-            .into_tuple::<(bool, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn sum_created_at_by_active_having_between(
-        self,
-        minimum: i64,
-        maximum: i64,
-    ) -> anyhow::Result<Vec<(bool, i64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let sum = if db.get_database_backend() == DatabaseBackend::Postgres {
-            Expr::col(Column::CreatedAt).sum().cast_as("BIGINT")
-        } else {
-            Expr::col(Column::CreatedAt).sum()
-        };
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Active)
-            .column_as(sum.clone(), "roze_sum")
-            .group_by(Column::Active)
-            .having(sum.clone().gte(minimum))
-            .having(sum.lte(maximum))
-            .into_tuple::<(bool, Option<i64>)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(group, value)| (group, value.unwrap_or_default()))
-            .collect())
-    }
-
-    pub async fn avg_created_at_by_active(self) -> anyhow::Result<Vec<(bool, Option<f64>)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        Ok(self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Active)
-            .column_as(
-                Into::<sea_orm::sea_query::SimpleExpr>::into(Func::avg(Expr::col(
-                    Column::CreatedAt,
-                ))),
-                "roze_avg",
-            )
-            .group_by(Column::Active)
-            .into_tuple::<(bool, Option<f64>)>()
-            .all(&db)
-            .await?)
-    }
-
-    pub async fn min_created_at_by_active(self) -> anyhow::Result<Vec<(bool, Option<i64>)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        Ok(self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Active)
-            .column_as(Expr::col(Column::CreatedAt).min(), "roze_min")
-            .group_by(Column::Active)
-            .into_tuple::<(bool, Option<i64>)>()
-            .all(&db)
-            .await?)
-    }
-
-    pub async fn max_created_at_by_active(self) -> anyhow::Result<Vec<(bool, Option<i64>)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        Ok(self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Active)
-            .column_as(Expr::col(Column::CreatedAt).max(), "roze_max")
-            .group_by(Column::Active)
-            .into_tuple::<(bool, Option<i64>)>()
             .all(&db)
             .await?)
     }
@@ -2741,6 +4526,124 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
         }
     }
 
+    pub async fn pluck_manager_id(self) -> anyhow::Result<Vec<Option<i64>>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        Ok(self
+            .build_select()
+            .select_only()
+            .column(Column::ManagerId)
+            .into_tuple::<Option<i64>>()
+            .all(&db)
+            .await?)
+    }
+
+    pub async fn count_by_manager_id(self) -> anyhow::Result<Vec<(Option<i64>, u64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::ManagerId)
+            .column_as(Column::ManagerId.count(), "roze_count")
+            .group_by(Column::ManagerId)
+            .into_tuple::<(Option<i64>, i64)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(value, count)| (value, count as u64))
+            .collect())
+    }
+
+    pub async fn count_by_manager_id_having_at_least(
+        self,
+        minimum: u64,
+    ) -> anyhow::Result<Vec<(Option<i64>, u64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::ManagerId)
+            .column_as(Column::ManagerId.count(), "roze_count")
+            .group_by(Column::ManagerId)
+            .having(Column::ManagerId.count().gte(minimum as i64))
+            .into_tuple::<(Option<i64>, i64)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(value, count)| (value, count as u64))
+            .collect())
+    }
+
+    pub async fn count_by_manager_id_having_at_most(
+        self,
+        maximum: u64,
+    ) -> anyhow::Result<Vec<(Option<i64>, u64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::ManagerId)
+            .column_as(Column::ManagerId.count(), "roze_count")
+            .group_by(Column::ManagerId)
+            .having(Column::ManagerId.count().lte(maximum as i64))
+            .into_tuple::<(Option<i64>, i64)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(value, count)| (value, count as u64))
+            .collect())
+    }
+
+    pub async fn count_by_manager_id_having_between(
+        self,
+        minimum: u64,
+        maximum: u64,
+    ) -> anyhow::Result<Vec<(Option<i64>, u64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let count = Column::ManagerId.count();
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::ManagerId)
+            .column_as(count.clone(), "roze_count")
+            .group_by(Column::ManagerId)
+            .having(count.clone().gte(minimum as i64))
+            .having(count.lte(maximum as i64))
+            .into_tuple::<(Option<i64>, i64)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(value, count)| (value, count as u64))
+            .collect())
+    }
+
+    pub async fn unique_manager_id(self) -> anyhow::Result<Vec<Option<i64>>> {
+        let values = self
+            .pluck_manager_id()
+            .await?
+            .into_iter()
+            .collect::<std::collections::BTreeSet<_>>();
+        Ok(values.into_iter().collect())
+    }
+
+    pub async fn first_manager_id(mut self) -> anyhow::Result<Option<Option<i64>>> {
+        self.limit = Some(1);
+        Ok(self.pluck_manager_id().await?.into_iter().next())
+    }
+
+    pub async fn only_manager_id(mut self) -> anyhow::Result<Option<i64>> {
+        self.limit = Some(2);
+        let mut values = self.pluck_manager_id().await?;
+        match values.len() {
+            1 => Ok(values.remove(0)),
+            0 => anyhow::bail!("expected exactly one User.manager_id value, found none"),
+            _ => anyhow::bail!("expected exactly one User.manager_id value, found multiple"),
+        }
+    }
+
     pub async fn count_by_id_and_email(self) -> anyhow::Result<Vec<((i64, String), u64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let rows = self
@@ -2817,6 +4720,27 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
             .collect())
     }
 
+    pub async fn count_by_id_and_manager_id(
+        self,
+    ) -> anyhow::Result<Vec<((i64, Option<i64>), u64)>> {
+        let db = self.repo.read_db_from(self.read_source)?;
+        let rows = self
+            .build_filter_select()
+            .select_only()
+            .column(Column::Id)
+            .column(Column::ManagerId)
+            .column_as(Column::Id.count(), "roze_count")
+            .group_by(Column::Id)
+            .group_by(Column::ManagerId)
+            .into_tuple::<(i64, Option<i64>, i64)>()
+            .all(&db)
+            .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(left, right, count)| ((left, right), count as u64))
+            .collect())
+    }
+
     pub async fn count_by_email_and_name(self) -> anyhow::Result<Vec<((String, String), u64)>> {
         let db = self.repo.read_db_from(self.read_source)?;
         let rows = self
@@ -2874,25 +4798,6 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
             .collect())
     }
 
-    pub async fn count_by_name_and_active(self) -> anyhow::Result<Vec<((String, bool), u64)>> {
-        let db = self.repo.read_db_from(self.read_source)?;
-        let rows = self
-            .build_filter_select()
-            .select_only()
-            .column(Column::Name)
-            .column(Column::Active)
-            .column_as(Column::Name.count(), "roze_count")
-            .group_by(Column::Name)
-            .group_by(Column::Active)
-            .into_tuple::<(String, bool, i64)>()
-            .all(&db)
-            .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(left, right, count)| ((left, right), count as u64))
-            .collect())
-    }
-
     pub async fn sum_id(self) -> anyhow::Result<i64> {
         let values = self.pluck_id().await?;
         Ok(values.into_iter().sum())
@@ -2901,6 +4806,11 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
     pub async fn sum_created_at(self) -> anyhow::Result<i64> {
         let values = self.pluck_created_at().await?;
         Ok(values.into_iter().sum())
+    }
+
+    pub async fn sum_manager_id(self) -> anyhow::Result<i64> {
+        let values = self.pluck_manager_id().await?;
+        Ok(values.into_iter().flatten().sum())
     }
 
     pub async fn avg_id(self) -> anyhow::Result<Option<f64>> {
@@ -2923,6 +4833,21 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
         let mut sum = 0.0_f64;
         let mut count = 0u64;
         for value in values.into_iter() {
+            sum += value as f64;
+            count += 1;
+        }
+        if count == 0 {
+            Ok(None)
+        } else {
+            Ok(Some(sum / count as f64))
+        }
+    }
+
+    pub async fn avg_manager_id(self) -> anyhow::Result<Option<f64>> {
+        let values = self.pluck_manager_id().await?;
+        let mut sum = 0.0_f64;
+        let mut count = 0u64;
+        for value in values.into_iter().flatten() {
             sum += value as f64;
             count += 1;
         }
@@ -2958,6 +4883,22 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
         let values = self.pluck_created_at().await?;
         Ok(values
             .into_iter()
+            .reduce(|left, right| if left >= right { left } else { right }))
+    }
+
+    pub async fn min_manager_id(self) -> anyhow::Result<Option<i64>> {
+        let values = self.pluck_manager_id().await?;
+        Ok(values
+            .into_iter()
+            .flatten()
+            .reduce(|left, right| if left <= right { left } else { right }))
+    }
+
+    pub async fn max_manager_id(self) -> anyhow::Result<Option<i64>> {
+        let values = self.pluck_manager_id().await?;
+        Ok(values
+            .into_iter()
+            .flatten()
             .reduce(|left, right| if left >= right { left } else { right }))
     }
 
@@ -3033,6 +4974,7 @@ pub struct UserCreate<'repo, 'ctx> {
     name: Option<String>,
     active: Option<bool>,
     created_at: Option<i64>,
+    manager_id: Option<Option<i64>>,
 }
 
 impl<'repo, 'ctx> UserCreate<'repo, 'ctx> {
@@ -3044,6 +4986,7 @@ impl<'repo, 'ctx> UserCreate<'repo, 'ctx> {
             name: None,
             active: None,
             created_at: None,
+            manager_id: None,
         }
     }
 
@@ -3064,6 +5007,26 @@ impl<'repo, 'ctx> UserCreate<'repo, 'ctx> {
 
     pub fn set_created_at(mut self, value: i64) -> Self {
         self.created_at = Some(value);
+        self
+    }
+
+    pub fn set_manager_id(mut self, value: Option<i64>) -> Self {
+        self.manager_id = Some(value);
+        self
+    }
+
+    pub fn clear_manager_id(mut self) -> Self {
+        self.manager_id = Some(None);
+        self
+    }
+
+    pub fn set_manager(mut self, target: &crate::model::UserModel) -> Self {
+        self.manager_id = Some(Some(target.id));
+        self
+    }
+
+    pub fn clear_manager(mut self) -> Self {
+        self.manager_id = Some(None);
         self
     }
 
@@ -3134,6 +5097,7 @@ impl<'repo, 'ctx> UserCreate<'repo, 'ctx> {
                     .map(|duration| duration.as_millis() as i64)
                     .unwrap_or_default())
             }),
+            manager_id: Set(self.manager_id.unwrap_or(None)),
             ..std::default::Default::default()
         };
         let inserted = active.insert(&db).await?;
@@ -3166,6 +5130,7 @@ pub struct UserUpdate<'repo, 'ctx> {
     email: Option<String>,
     name: Option<String>,
     active: Option<bool>,
+    manager_id: Option<Option<i64>>,
 }
 
 impl<'repo, 'ctx> UserUpdate<'repo, 'ctx> {
@@ -3177,6 +5142,7 @@ impl<'repo, 'ctx> UserUpdate<'repo, 'ctx> {
             email: None,
             name: None,
             active: None,
+            manager_id: None,
         }
     }
 
@@ -3192,6 +5158,26 @@ impl<'repo, 'ctx> UserUpdate<'repo, 'ctx> {
 
     pub fn set_active(mut self, value: bool) -> Self {
         self.active = Some(value);
+        self
+    }
+
+    pub fn set_manager_id(mut self, value: Option<i64>) -> Self {
+        self.manager_id = Some(value);
+        self
+    }
+
+    pub fn clear_manager_id(mut self) -> Self {
+        self.manager_id = Some(None);
+        self
+    }
+
+    pub fn set_manager(mut self, target: &crate::model::UserModel) -> Self {
+        self.manager_id = Some(Some(target.id));
+        self
+    }
+
+    pub fn clear_manager(mut self) -> Self {
+        self.manager_id = Some(None);
         self
     }
 
@@ -3223,6 +5209,106 @@ impl<'repo, 'ctx> UserUpdate<'repo, 'ctx> {
         M: roze_orm::OperationMixin<Self>,
     {
         mixin.apply(self)
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn add_manager_id(mut self, delta: i64) -> anyhow::Result<Model> {
+        struct AtomicTerminal {
+            delta: i64,
+        }
+        impl<'repo, 'ctx> roze_orm::Operation<UserUpdate<'repo, 'ctx>, Model, anyhow::Error>
+            for AtomicTerminal
+        {
+            fn call<'call>(
+                &'call self,
+                mutation: UserUpdate<'repo, 'ctx>,
+            ) -> roze_orm::OperationFuture<'call, Model, anyhow::Error>
+            where
+                UserUpdate<'repo, 'ctx>: 'call,
+                Model: 'call,
+                anyhow::Error: 'call,
+            {
+                let delta = self.delta.clone();
+                Box::pin(mutation.add_manager_id_unhooked(delta))
+            }
+        }
+        let hooks = std::mem::take(&mut self.hooks);
+        roze_orm::execute_chain(&AtomicTerminal { delta }, &hooks, self).await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    async fn add_manager_id_unhooked(self, delta: i64) -> anyhow::Result<Model> {
+        if self.email.is_some()
+            || self.name.is_some()
+            || self.active.is_some()
+            || self.manager_id.is_some()
+        {
+            anyhow::bail!("cannot combine set/clear mutations with atomic add_manager_id");
+        }
+        let key = self.id;
+        let affected = self
+            .repo
+            .query()
+            .where_(id_eq(key.clone()))
+            .add_manager_id(delta)
+            .await?;
+        if affected == 0 {
+            anyhow::bail!("User did not match the update key");
+        }
+        self.repo
+            .find_by_id(key)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("updated User could not be reloaded"))
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn subtract_manager_id(mut self, delta: i64) -> anyhow::Result<Model> {
+        struct AtomicTerminal {
+            delta: i64,
+        }
+        impl<'repo, 'ctx> roze_orm::Operation<UserUpdate<'repo, 'ctx>, Model, anyhow::Error>
+            for AtomicTerminal
+        {
+            fn call<'call>(
+                &'call self,
+                mutation: UserUpdate<'repo, 'ctx>,
+            ) -> roze_orm::OperationFuture<'call, Model, anyhow::Error>
+            where
+                UserUpdate<'repo, 'ctx>: 'call,
+                Model: 'call,
+                anyhow::Error: 'call,
+            {
+                let delta = self.delta.clone();
+                Box::pin(mutation.subtract_manager_id_unhooked(delta))
+            }
+        }
+        let hooks = std::mem::take(&mut self.hooks);
+        roze_orm::execute_chain(&AtomicTerminal { delta }, &hooks, self).await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    async fn subtract_manager_id_unhooked(self, delta: i64) -> anyhow::Result<Model> {
+        if self.email.is_some()
+            || self.name.is_some()
+            || self.active.is_some()
+            || self.manager_id.is_some()
+        {
+            anyhow::bail!("cannot combine set/clear mutations with atomic subtract_manager_id");
+        }
+        let key = self.id;
+        let affected = self
+            .repo
+            .query()
+            .where_(id_eq(key.clone()))
+            .subtract_manager_id(delta)
+            .await?;
+        if affected == 0 {
+            anyhow::bail!("User did not match the update key");
+        }
+        self.repo
+            .find_by_id(key)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("updated User could not be reloaded"))
     }
 
     pub async fn save(mut self) -> anyhow::Result<Model> {
@@ -3260,6 +5346,9 @@ impl<'repo, 'ctx> UserUpdate<'repo, 'ctx> {
         }
         if let Some(value) = self.active {
             active.active = Set(value);
+        }
+        if let Some(value) = self.manager_id {
+            active.manager_id = Set(value);
         }
         let updated = active.update(&db).await?;
         Ok(updated)
@@ -3370,6 +5459,7 @@ pub struct UserUpdateMany<'repo, 'ctx> {
     email: Option<String>,
     name: Option<String>,
     active: Option<bool>,
+    manager_id: Option<Option<i64>>,
 }
 
 impl<'repo, 'ctx> UserUpdateMany<'repo, 'ctx> {
@@ -3382,6 +5472,7 @@ impl<'repo, 'ctx> UserUpdateMany<'repo, 'ctx> {
             email: None,
             name: None,
             active: None,
+            manager_id: None,
         }
     }
 
@@ -3454,6 +5545,74 @@ impl<'repo, 'ctx> UserUpdateMany<'repo, 'ctx> {
         self
     }
 
+    #[allow(clippy::clone_on_copy)]
+    pub async fn add_manager_id(mut self, delta: i64) -> anyhow::Result<u64> {
+        struct AtomicTerminal {
+            delta: i64,
+        }
+        impl<'repo, 'ctx> roze_orm::Operation<UserUpdateMany<'repo, 'ctx>, u64, anyhow::Error>
+            for AtomicTerminal
+        {
+            fn call<'call>(
+                &'call self,
+                mutation: UserUpdateMany<'repo, 'ctx>,
+            ) -> roze_orm::OperationFuture<'call, u64, anyhow::Error>
+            where
+                UserUpdateMany<'repo, 'ctx>: 'call,
+                u64: 'call,
+                anyhow::Error: 'call,
+            {
+                let delta = self.delta.clone();
+                Box::pin(mutation.add_manager_id_unhooked(delta))
+            }
+        }
+        let hooks = std::mem::take(&mut self.atomic_hooks);
+        roze_orm::execute_chain(&AtomicTerminal { delta }, &hooks, self).await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    async fn add_manager_id_unhooked(self, delta: i64) -> anyhow::Result<u64> {
+        let mut query = self.repo.query();
+        for predicate in self.predicates {
+            query = query.where_(predicate);
+        }
+        query.add_manager_id(delta).await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    pub async fn subtract_manager_id(mut self, delta: i64) -> anyhow::Result<u64> {
+        struct AtomicTerminal {
+            delta: i64,
+        }
+        impl<'repo, 'ctx> roze_orm::Operation<UserUpdateMany<'repo, 'ctx>, u64, anyhow::Error>
+            for AtomicTerminal
+        {
+            fn call<'call>(
+                &'call self,
+                mutation: UserUpdateMany<'repo, 'ctx>,
+            ) -> roze_orm::OperationFuture<'call, u64, anyhow::Error>
+            where
+                UserUpdateMany<'repo, 'ctx>: 'call,
+                u64: 'call,
+                anyhow::Error: 'call,
+            {
+                let delta = self.delta.clone();
+                Box::pin(mutation.subtract_manager_id_unhooked(delta))
+            }
+        }
+        let hooks = std::mem::take(&mut self.atomic_hooks);
+        roze_orm::execute_chain(&AtomicTerminal { delta }, &hooks, self).await
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    async fn subtract_manager_id_unhooked(self, delta: i64) -> anyhow::Result<u64> {
+        let mut query = self.repo.query();
+        for predicate in self.predicates {
+            query = query.where_(predicate);
+        }
+        query.subtract_manager_id(delta).await
+    }
+
     pub fn set_email(mut self, value: String) -> Self {
         self.email = Some(value);
         self
@@ -3466,6 +5625,16 @@ impl<'repo, 'ctx> UserUpdateMany<'repo, 'ctx> {
 
     pub fn set_active(mut self, value: bool) -> Self {
         self.active = Some(value);
+        self
+    }
+
+    pub fn set_manager_id(mut self, value: Option<i64>) -> Self {
+        self.manager_id = Some(value);
+        self
+    }
+
+    pub fn clear_manager_id(mut self) -> Self {
+        self.manager_id = Some(None);
         self
     }
 
@@ -3526,7 +5695,11 @@ impl<'repo, 'ctx> UserUpdateMany<'repo, 'ctx> {
                 anyhow::bail!("name validation failed: length must be at most 120");
             }
         }
-        if !(self.email.is_some() || self.name.is_some() || self.active.is_some()) {
+        if !(self.email.is_some()
+            || self.name.is_some()
+            || self.active.is_some()
+            || self.manager_id.is_some())
+        {
             anyhow::bail!("conditional update requires at least one field assignment");
         }
         let db = self.repo.write_db()?;
@@ -3542,6 +5715,9 @@ impl<'repo, 'ctx> UserUpdateMany<'repo, 'ctx> {
         }
         if let Some(value) = self.active.as_ref() {
             update = update.col_expr(Column::Active, Expr::value(*value));
+        }
+        if let Some(value) = self.manager_id.as_ref() {
+            update = update.col_expr(Column::ManagerId, Expr::value(*value));
         }
         let result = update.exec(&db).await?;
         Ok(result.rows_affected)
@@ -3585,6 +5761,9 @@ impl<'repo, 'ctx> UserUpdateMany<'repo, 'ctx> {
             }
             if let Some(value) = self.active.as_ref() {
                 update = update.set_active(*value);
+            }
+            if let Some(value) = self.manager_id.as_ref() {
+                update = update.set_manager_id(*value);
             }
             updated.push(update.save().await?);
         }
@@ -3978,7 +6157,12 @@ impl<'a> UserRepository<'a> {
         Entity::insert(active)
             .on_conflict(
                 OnConflict::columns([Column::Id])
-                    .update_columns([Column::Email, Column::Name, Column::Active])
+                    .update_columns([
+                        Column::Email,
+                        Column::Name,
+                        Column::Active,
+                        Column::ManagerId,
+                    ])
                     .to_owned(),
             )
             .exec(&db)
@@ -4027,5 +6211,173 @@ impl<'a> UserRepository<'a> {
         let delete_key = id;
         let result = Entity::delete_by_id(delete_key).exec(&db).await?;
         Ok(result)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithManagerThenManager {
+    pub node: Model,
+    pub edge: Option<crate::model::user::UserWithManager>,
+}
+
+impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
+    pub async fn all_with_manager_then_manager(
+        self,
+        target_repo: &crate::model::UserRepository<'_>,
+        nested_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithManagerThenManager>> {
+        let nodes = self.all().await?;
+        tracing::debug!(
+            model = "User",
+            backend = "sea_orm",
+            edge_path = "manager.manager",
+            node_count = nodes.len(),
+            "model eager edge loading"
+        );
+        let values = nodes
+            .iter()
+            .filter_map(|node| node.manager_id)
+            .collect::<Vec<_>>();
+        let targets = target_repo
+            .query()
+            .where_(crate::model::user::id_in(values))
+            .all_with_manager(nested_repo)
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let edge = if let Some(value) = node.manager_id.as_ref() {
+                targets
+                    .iter()
+                    .find(|target| &target.node.id == value)
+                    .cloned()
+            } else {
+                None
+            };
+            loaded.push(UserWithManagerThenManager { node, edge });
+        }
+        Ok(loaded)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithManagerThenReports {
+    pub node: Model,
+    pub edge: Option<crate::model::user::UserWithReports>,
+}
+
+impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
+    pub async fn all_with_manager_then_reports(
+        self,
+        target_repo: &crate::model::UserRepository<'_>,
+        nested_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithManagerThenReports>> {
+        let nodes = self.all().await?;
+        tracing::debug!(
+            model = "User",
+            backend = "sea_orm",
+            edge_path = "manager.reports",
+            node_count = nodes.len(),
+            "model eager edge loading"
+        );
+        let values = nodes
+            .iter()
+            .filter_map(|node| node.manager_id)
+            .collect::<Vec<_>>();
+        let targets = target_repo
+            .query()
+            .where_(crate::model::user::id_in(values))
+            .all_with_reports(nested_repo)
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let edge = if let Some(value) = node.manager_id.as_ref() {
+                targets
+                    .iter()
+                    .find(|target| &target.node.id == value)
+                    .cloned()
+            } else {
+                None
+            };
+            loaded.push(UserWithManagerThenReports { node, edge });
+        }
+        Ok(loaded)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithReportsThenManager {
+    pub node: Model,
+    pub edge: Vec<crate::model::user::UserWithManager>,
+}
+
+impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
+    pub async fn all_with_reports_then_manager(
+        self,
+        target_repo: &crate::model::UserRepository<'_>,
+        nested_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithReportsThenManager>> {
+        let nodes = self.all().await?;
+        tracing::debug!(
+            model = "User",
+            backend = "sea_orm",
+            edge_path = "reports.manager",
+            node_count = nodes.len(),
+            "model eager edge loading"
+        );
+        let values = nodes.iter().map(|node| node.id).collect::<Vec<_>>();
+        let targets = target_repo
+            .query()
+            .where_(crate::model::user::manager_id_in(values))
+            .all_with_manager(nested_repo)
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let edge = targets
+                .iter()
+                .filter(|target| target.node.manager_id.as_ref() == Some(&node.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithReportsThenManager { node, edge });
+        }
+        Ok(loaded)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct UserWithReportsThenReports {
+    pub node: Model,
+    pub edge: Vec<crate::model::user::UserWithReports>,
+}
+
+impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
+    pub async fn all_with_reports_then_reports(
+        self,
+        target_repo: &crate::model::UserRepository<'_>,
+        nested_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<UserWithReportsThenReports>> {
+        let nodes = self.all().await?;
+        tracing::debug!(
+            model = "User",
+            backend = "sea_orm",
+            edge_path = "reports.reports",
+            node_count = nodes.len(),
+            "model eager edge loading"
+        );
+        let values = nodes.iter().map(|node| node.id).collect::<Vec<_>>();
+        let targets = target_repo
+            .query()
+            .where_(crate::model::user::manager_id_in(values))
+            .all_with_reports(nested_repo)
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let edge = targets
+                .iter()
+                .filter(|target| target.node.manager_id.as_ref() == Some(&node.id))
+                .cloned()
+                .collect();
+            loaded.push(UserWithReportsThenReports { node, edge });
+        }
+        Ok(loaded)
     }
 }

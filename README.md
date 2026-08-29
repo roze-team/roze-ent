@@ -21,7 +21,7 @@ as code、静态类型查询、关系遍历和代码生成——映射到 Roze �
 
 - Rust 1.98 Cargo workspace；
 - Roze 1.0 生成的 REST、DTO、校验、OpenAPI 与运行时边界；
-- `.ent` 驱动的 User/Pet 与 User/Group/Membership 图模型；
+- `.ent` 驱动的 User/Pet、User/Group/Membership，以及 User 自引用与 Friendship 命名边图模型；
 - tenant-scoped、soft-delete、optimistic-lock Project 模型；
 - bytes/JSON/Decimal/time/float 标量、自定义字符串 ID 与复合 ID 验收模型；
 - 生成的 typed predicate/query/create/update/delete、边遍历、事务与缓存接线；

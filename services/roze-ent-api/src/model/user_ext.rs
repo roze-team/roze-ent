@@ -36,7 +36,8 @@ mod tests {
                 email TEXT NOT NULL UNIQUE, \
                 name TEXT NOT NULL, \
                 active BOOLEAN NOT NULL DEFAULT TRUE, \
-                created_at INTEGER NOT NULL\
+                created_at INTEGER NOT NULL, \
+                manager_id INTEGER NULL REFERENCES users(id) ON DELETE SET NULL\
             )",
             "CREATE TABLE groups (\
                 id INTEGER PRIMARY KEY AUTOINCREMENT, \
@@ -51,6 +52,14 @@ mod tests {
                 role TEXT NOT NULL DEFAULT 'member', \
                 joined_at INTEGER NOT NULL, \
                 UNIQUE (user_id, group_id)\
+            )",
+            "CREATE TABLE friendships (\
+                id INTEGER PRIMARY KEY AUTOINCREMENT, \
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, \
+                friend_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, \
+                created_at INTEGER NOT NULL, \
+                UNIQUE (user_id, friend_id), \
+                CHECK (user_id <> friend_id)\
             )",
         ] {
             db.execute_unprepared(statement).await?;
@@ -339,6 +348,7 @@ mod tests {
                     name: "Batch 100".to_string(),
                     active: true,
                     created_at: 300,
+                    manager_id: None,
                 },
                 user::Model {
                     id: 101,
@@ -346,6 +356,7 @@ mod tests {
                     name: "Batch 101".to_string(),
                     active: true,
                     created_at: 400,
+                    manager_id: None,
                 },
             ])
             .await?;
@@ -358,6 +369,7 @@ mod tests {
                 name: "Batch 102 Upserted".to_string(),
                 active: false,
                 created_at: 450,
+                manager_id: None,
             })
             .await?;
         assert_eq!(upserted.id, 102);
@@ -371,6 +383,7 @@ mod tests {
                 name: "Batch 102 Conflict Updated".to_string(),
                 active: true,
                 created_at: 999,
+                manager_id: None,
             })
             .await?;
         assert_eq!(conflict_upserted.id, 102);
@@ -402,6 +415,7 @@ mod tests {
                     name: "Bulk 200".to_string(),
                     active: true,
                     created_at: 500,
+                    manager_id: None,
                 },
                 user::Model {
                     id: 201,
@@ -409,12 +423,118 @@ mod tests {
                     name: "Bulk 201".to_string(),
                     active: true,
                     created_at: 600,
+                    manager_id: None,
                 },
             ])
             .await?;
         let deleted_many = users.delete_many_by_ids(vec![200, 201]).await?;
         assert_eq!(deleted_many.rows_affected, 2);
         assert_eq!(users.query().only_id().await?, alice.id);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn self_bidirectional_and_named_edges_have_real_sqlite_evidence() -> anyhow::Result<()> {
+        use crate::model::user;
+
+        let ctx = sqlite_context().await?;
+        let models = ctx.model();
+        let users = models.user();
+        let friendships = models.friendship();
+
+        let manager = users
+            .create()
+            .set_email("manager@example.com".to_string())
+            .set_name("Manager".to_string())
+            .set_created_at(100)
+            .save()
+            .await?;
+        let alice = users
+            .create()
+            .set_email("alice@example.com".to_string())
+            .set_name("Alice".to_string())
+            .set_created_at(200)
+            .set_manager(&manager)
+            .save()
+            .await?;
+        let bob = users
+            .create()
+            .set_email("bob@example.com".to_string())
+            .set_name("Bob".to_string())
+            .set_created_at(300)
+            .set_manager(&manager)
+            .save()
+            .await?;
+        let carol = users
+            .create()
+            .set_email("carol@example.com".to_string())
+            .set_name("Carol".to_string())
+            .set_created_at(400)
+            .save()
+            .await?;
+
+        assert_eq!(alice.query_manager(&users).await?.unwrap().id, manager.id);
+        assert_eq!(
+            manager
+                .traverse_reports(&users)
+                .await?
+                .order_by_name_asc()
+                .pluck_name()
+                .await?,
+            vec!["Alice", "Bob"]
+        );
+
+        let nested = users
+            .query()
+            .where_(user::id_eq(alice.id))
+            .all_with_manager_then_reports(&users, &users)
+            .await?;
+        let manager_with_reports = nested[0].edge.as_ref().unwrap();
+        assert_eq!(manager_with_reports.node.id, manager.id);
+        assert_eq!(manager_with_reports.edge.len(), 2);
+
+        alice.add_friends(&bob, &friendships).await?;
+        alice.add_friends(&carol, &friendships).await?;
+        assert!(alice.add_friends(&alice, &friendships).await.is_err());
+        assert_eq!(
+            alice
+                .traverse_friends(&friendships, &users)
+                .await?
+                .order_by_name_asc()
+                .pluck_name()
+                .await?,
+            vec!["Bob", "Carol"]
+        );
+        assert_eq!(
+            bob.query_friended_by(&friendships, &users).await?[0].id,
+            alice.id
+        );
+        assert_eq!(
+            users
+                .query()
+                .where_friends_with(&users, &friendships, [user::name_eq("Carol".to_string())],)
+                .await?
+                .only_id()
+                .await?,
+            alice.id
+        );
+
+        let named = friendships
+            .query()
+            .order_by_friend_id_asc()
+            .all_with_user_and_friend(&users, &users)
+            .await?;
+        assert_eq!(named.len(), 2);
+        assert_eq!(named[0].user.as_ref().unwrap().id, alice.id);
+        assert_eq!(named[0].friend.as_ref().unwrap().id, bob.id);
+
+        assert_eq!(alice.remove_friends(&bob, &friendships).await?, 1);
+        assert_eq!(alice.clear_friends(&friendships).await?, 1);
+        assert!(alice.query_friends(&friendships, &users).await?.is_empty());
+
+        let alice = users.update_one(alice.id).clear_manager().save().await?;
+        assert_eq!(alice.manager_id, None);
+        assert!(alice.query_manager(&users).await?.is_none());
         Ok(())
     }
 }

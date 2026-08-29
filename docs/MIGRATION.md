@@ -79,6 +79,7 @@ upsert 运行证据。本项目的 patched-rozectl 生成链已应用该补丁�
 | create/update/delete one/many 与 batch/upsert | 生成的 mutation builder 与 repository batch API | SQLite 真实语义矩阵已覆盖必填/字段校验、唯一约束、one/many、原子条件更新、批量插入/删除，以及 upsert 插入和冲突更新返回语义；补丁 0002 待合入 Roze 上游 |
 | predicates/order/pagination/projection/aggregate | 生成的 ent-style query API | 已落地；SQLite 真实语义矩阵覆盖复合/IN/range/contains/IContains/EqualFold predicate、typed order、offset/limit/page、nullable projection、grouped count 与数值聚合；补丁 0001 待合入 Roze 上游 |
 | edge traversal | `.ent` edge 与生成的 relation query | 已落地；SQLite 真实语义矩阵覆盖 User/Group/Membership Through M2M、`HasXWith`、双向 traversal 与 eager loading，User/Pet 保留 ordinary edge 示例 |
+| self/bidirectional/named edges | User manager/reports、friends/friended_by 与 Friendship user/friend | 已落地；SQLite 覆盖嵌套 eager load、同目标命名槽位、关系过滤及 add/remove/clear，三方言 migration 由 CI 固化 |
 | optimistic update | `update_where().execute()` + `FailedPrecondition` | 已落地：Membership role |
 | tenant scope / soft delete | tenant predicate、live scope、`soft_delete_by_id` | 已落地：Project |
 | PostgreSQL smoke | migration + HTTP tenant/version/delete 流程 | 已接入 CI；本地需要 Docker |

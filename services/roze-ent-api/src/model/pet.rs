@@ -3917,3 +3917,79 @@ impl<'a> PetRepository<'a> {
         Ok(result)
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct PetWithOwnerThenManager {
+    pub node: Model,
+    pub edge: Option<crate::model::user::UserWithManager>,
+}
+
+impl<'repo, 'ctx> PetQuery<'repo, 'ctx> {
+    pub async fn all_with_owner_then_manager(
+        self,
+        target_repo: &crate::model::UserRepository<'_>,
+        nested_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<PetWithOwnerThenManager>> {
+        let nodes = self.all().await?;
+        tracing::debug!(
+            model = "Pet",
+            backend = "sea_orm",
+            edge_path = "owner.manager",
+            node_count = nodes.len(),
+            "model eager edge loading"
+        );
+        let values = nodes.iter().map(|node| node.owner_id).collect::<Vec<_>>();
+        let targets = target_repo
+            .query()
+            .where_(crate::model::user::id_in(values))
+            .all_with_manager(nested_repo)
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let edge = targets
+                .iter()
+                .find(|target| target.node.id == node.owner_id)
+                .cloned();
+            loaded.push(PetWithOwnerThenManager { node, edge });
+        }
+        Ok(loaded)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct PetWithOwnerThenReports {
+    pub node: Model,
+    pub edge: Option<crate::model::user::UserWithReports>,
+}
+
+impl<'repo, 'ctx> PetQuery<'repo, 'ctx> {
+    pub async fn all_with_owner_then_reports(
+        self,
+        target_repo: &crate::model::UserRepository<'_>,
+        nested_repo: &crate::model::UserRepository<'_>,
+    ) -> anyhow::Result<Vec<PetWithOwnerThenReports>> {
+        let nodes = self.all().await?;
+        tracing::debug!(
+            model = "Pet",
+            backend = "sea_orm",
+            edge_path = "owner.reports",
+            node_count = nodes.len(),
+            "model eager edge loading"
+        );
+        let values = nodes.iter().map(|node| node.owner_id).collect::<Vec<_>>();
+        let targets = target_repo
+            .query()
+            .where_(crate::model::user::id_in(values))
+            .all_with_reports(nested_repo)
+            .await?;
+        let mut loaded = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            let edge = targets
+                .iter()
+                .find(|target| target.node.id == node.owner_id)
+                .cloned();
+            loaded.push(PetWithOwnerThenReports { node, edge });
+        }
+        Ok(loaded)
+    }
+}

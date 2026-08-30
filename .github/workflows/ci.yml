@@ -38,6 +38,30 @@ jobs:
       - run: cargo test --workspace
       - run: cargo clippy --workspace --all-targets -- -D warnings
 
+  production-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.0
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Verify generated production gates
+        working-directory: services/roze-ent-api
+        run: bash ops/production-verify.sh
+      - name: Upload production verification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: roze-ent-production-verify
+          retention-days: 30
+          if-no-files-found: error
+          path: services/roze-ent-api/ops/production-verify-report.json
+
   postgres-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 15

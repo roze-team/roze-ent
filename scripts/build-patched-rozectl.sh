@@ -23,4 +23,8 @@ git -C "${source_dir}" apply "${workspace_dir}/patches/roze/0003-fix-sea-orm-cus
 git -C "${source_dir}" apply "${workspace_dir}/patches/roze/0004-fix-sea-orm-scalar-clippy-output.patch"
 git -C "${source_dir}" apply "${workspace_dir}/patches/roze/0005-fix-sea-orm-like-escape.patch"
 git -C "${source_dir}" apply "${workspace_dir}/patches/roze/0006-add-sea-orm-pessimistic-locks.patch"
-cargo build --locked --manifest-path "${source_dir}/Cargo.toml" --target-dir "${source_dir}/target" -p rozectl
+mkdir -p "${source_dir}/apps/rozectl/src/bin"
+cp "${workspace_dir}/extensions/roze-ent-codegen.rs" \
+  "${source_dir}/apps/rozectl/src/bin/roze-ent-codegen.rs"
+cargo build --locked --manifest-path "${source_dir}/Cargo.toml" --target-dir "${source_dir}/target" \
+  -p rozectl --bin rozectl --bin roze-ent-codegen

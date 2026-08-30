@@ -48,6 +48,8 @@ done
 
 export ROZE_ENT_TEST_DATABASE_URL="postgres://roze:roze@127.0.0.1:${ROZE_ENT_POSTGRES_PORT:-5432}/roze_ent"
 cargo test -p roze-ent-api \
+  application::user_activity_view::tests::generated_view_is_query_only_and_has_real_sql_evidence -- --ignored --exact
+cargo test -p roze-ent-api \
   model::user_ext::tests::generated_creates_use_ent_compatible_global_id_ranges -- --ignored --exact
 cargo test -p roze-ent-api \
   model::user_ext::tests::string_predicates_have_real_external_sql_evidence -- --ignored --exact

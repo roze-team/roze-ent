@@ -20,6 +20,10 @@ git -C $SourceDir apply (Join-Path $WorkspaceDir "patches/roze/0003-fix-sea-orm-
 git -C $SourceDir apply (Join-Path $WorkspaceDir "patches/roze/0004-fix-sea-orm-scalar-clippy-output.patch")
 git -C $SourceDir apply (Join-Path $WorkspaceDir "patches/roze/0005-fix-sea-orm-like-escape.patch")
 git -C $SourceDir apply (Join-Path $WorkspaceDir "patches/roze/0006-add-sea-orm-pessimistic-locks.patch")
-cargo build --locked --manifest-path (Join-Path $SourceDir "Cargo.toml") --target-dir (Join-Path $SourceDir "target") -p rozectl
+$BinDir = Join-Path $SourceDir "apps/rozectl/src/bin"
+New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
+Copy-Item -LiteralPath (Join-Path $WorkspaceDir "extensions/roze-ent-codegen.rs") `
+    -Destination (Join-Path $BinDir "roze-ent-codegen.rs")
+cargo build --locked --manifest-path (Join-Path $SourceDir "Cargo.toml") --target-dir (Join-Path $SourceDir "target") -p rozectl --bin rozectl --bin roze-ent-codegen
 
 Write-Output (Join-Path $SourceDir "target/debug/rozectl.exe")

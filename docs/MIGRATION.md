@@ -96,11 +96,11 @@ SeaORM 生成代码统一使用 `LikeExpr::escape('\\')`，使 contains、starts
 | PostgreSQL smoke | migration + HTTP tenant/version/delete 流程 | 已接入 CI；本地需要 Docker |
 | MySQL smoke | migration + HTTP tenant/version/delete 流程 | 已接入 CI；本地需要 Docker |
 | transaction/hooks/privacy/mixins | `ModelClient::transaction`、operation chain 与 `*_ext.rs` | SQLite 真实事务提交/回滚及 Project hook/policy/mixin 已覆盖 |
-| SQL migrations | `roze-migration` + `migrations/` | 当前 7 个版本均覆盖三方言 apply/full rollback；SQLite 另有 partial rollback/drift/atomicity 证据 |
+| SQL migrations | `roze-migration` + `migrations/` | 当前 8 个版本均覆盖三方言 apply/full rollback；SQLite 另有 partial rollback/drift/atomicity 证据 |
 | SQL dialects | SeaORM/Roze DB（PostgreSQL/MySQL/SQLite） | PostgreSQL、MySQL 均有真实 migration lifecycle 与同一套 HTTP 服务行为验证 |
 | Gremlin/GraphSON | 独立图后端适配 | 未迁移 |
 | Atlas 深度集成 | Roze migration/gate 对接 | 未迁移 |
-| entc 自定义 Go template | Roze generator extension API | 未迁移具体扩展 |
+| entc 自定义 Go template | Roze generator extension API | 已落地独立只读 View 扩展宿主；通用动态插件分发待扩展 |
 | entql | typed predicate 与应用组合层 | 基础查询已覆盖，高级表达式待补 |
 
 ## 所有权边界
@@ -133,7 +133,7 @@ Project 的 SQLite 证据使用真实 SQL 连接验证提交和强制回滚，�
 SQLite 方言迁移位于 `migrations/sqlite/`，版本和名称与 PostgreSQL 迁移保持一致。
 集成测试直接通过固定 revision 的 `roze-migration` 加载这些项目文件，验证确定性 dry-run、
 apply、回滚到版本边界、全量回滚、名称漂移拒绝和失败批次原子回滚。PostgreSQL 与 MySQL
-分别由独立 CI smoke 在真实容器中执行全部 7 个版本的 apply、账本幂等检查和全量 rollback，
+分别由独立 CI smoke 在真实容器中执行全部 8 个版本的 apply、账本幂等检查和全量 rollback，
 随后运行共享的鉴权、tenant 隔离、乐观锁和 soft-delete HTTP 行为套件；MySQL 迁移对
 保留关键字标识符使用方言引用。多语句项目迁移会先确定性拆分为单语句 ledger step，以满足
 SQLx prepared-statement 边界。PostgreSQL ledger lifecycle 使用同一容器内的专用临时数据库，
@@ -150,3 +150,13 @@ PostgreSQL sequence、MySQL `AUTO_INCREMENT` 与 SQLite `sqlite_sequence`。新�
 到配置末尾，不能重排或复用已发布区间。迁移不会改写已有主键；若历史环境已经存在跨表重复
 ID，必须先进行显式 backfill/外键重映射，再启用全局 ID。回滚只取消区间起点，保留已经分配
 的高位 ID，避免破坏引用完整性。
+
+外部生成扩展源码位于 `extensions/roze-ent-codegen.rs`。构建脚本把它作为附加 binary 编译，
+但实现只依赖 `rozectl` 公开的 `MODEL_GENERATOR_EXTENSION_API_VERSION`、模型图和扩展文件类型。
+宿主在隔离临时项目中运行内建生成器，只将固定允许路径
+`src/model/user_activity_view.rs` 同步到目标服务；核心模型文件不会被扩展覆盖。再生成脚本要求该
+宿主存在，因此 CI 的 generated-code drift gate 同时覆盖外部扩展输出。
+
+0008 创建 `user_activity_view`，按用户聚合宠物数和群组数。生成模块只暴露 `all` 与
+`find_by_user_id`，没有 create/update/delete 类型或方法。SQLite migration 测试验证 View 查询
+和回滚；PostgreSQL/MySQL smoke 使用生成 repository 验证真实数据库结果。

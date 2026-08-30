@@ -22,7 +22,8 @@
 | 字段 validator、unique、sensitive、comment | 生成 mutation 校验与元数据 | 部分兼容 | 已覆盖必填/唯一/部分 validator；补齐 sensitive redaction、comment/DDL 和所有类型 validator 证据 |
 | 单字段、自定义及复合 ID | 生成主键类型和查询 API | 部分兼容 | patched-rozectl + SQLite 已覆盖自定义字符串 ID 插入/查改与复合键创建/查改删；补齐 edge、upsert 和 PostgreSQL/MySQL 证据 |
 | indexes、复合唯一、部分索引、前缀/类型/包含列 | schema index + migration | 部分兼容 | 基础索引已生成；补齐方言专属索引选项及 schema diff 证据 |
-| annotations、mixins、views | generator extension / model extension | 部分兼容 | mixin 已有运行证据；补齐 annotation 消费和只读 view 的生成/查询测试 |
+| annotations、mixins | generator extension / model extension | 部分兼容 | mixin 已有运行证据；补齐通用 annotation 消费和冲突诊断 |
+| read-only views | 外部 `ModelGeneratorExtension` + migration view | 已兼容 | `UserActivityView` 仅暴露 all/find 查询；三方言 apply/query/rollback 与 PostgreSQL/MySQL 生成 repository 证据 |
 
 ## 关系与图遍历
 
@@ -64,10 +65,10 @@
 
 | ent 能力 | Roze/Rust 落点 | 状态 | 完成条件/证据 |
 | --- | --- | --- | --- |
-| create/drop/change schema、ledger、apply/rollback | `roze-migration` | 已兼容 | 当前 7 个迁移版本具备 SQLite/PostgreSQL/MySQL 全量 lifecycle CI，且跨方言版本、名称和 up/down 配对自动校验 |
+| create/drop/change schema、ledger、apply/rollback | `roze-migration` | 已兼容 | 当前 8 个迁移版本具备 SQLite/PostgreSQL/MySQL 全量 lifecycle CI，且跨方言版本、名称和 up/down 配对自动校验 |
 | schema diff、offline plan、versioned migration | migration plan | 部分兼容 | 当前项目迁移可重复；补齐从模型自动 diff、危险变更分类和版本升级 fixture |
 | data migration | 版本化 Rust/SQL migration | 部分兼容 | 增加 expand/backfill/contract、失败恢复和幂等证据 |
-| external objects (trigger/view/function) | migration project objects | 待实现 | diff 忽略/管理策略、三方言 apply/rollback 证据 |
+| external objects (trigger/view/function) | migration project objects | 部分兼容 | View 已覆盖三方言生命周期；trigger/function 与 schema diff 管理策略待补 |
 | multi-schema / schema config | `.ent schema` + SeaORM schema name | 已兼容 | `AuditEvent` 的独立 PostgreSQL schema、跨 schema FK、生成式 repository/predicate/edge traversal 由 PostgreSQL CI 覆盖；MySQL 覆盖同名 database namespace |
 | global unique ID | `model/globalid.toml` + dialect sequence migration | 已兼容 | 与 ent `globalid` 一致的静态 `2^32` 类型区间；生成式并发 create、三方言 apply/rollback 与区间不重叠证据 |
 | PostgreSQL、MySQL/MariaDB、SQLite | SeaORM/Roze DB | 部分兼容 | PostgreSQL/MySQL migration 与共享 HTTP tenant/version/delete 流程已覆盖；全部 query/mutation/transaction 矩阵仍需三方言一致 |
@@ -80,7 +81,7 @@
 | ent 能力 | Roze/Rust 落点 | 状态 | 完成条件/证据 |
 | --- | --- | --- | --- |
 | codegen snapshot / deterministic generation | `rozectl --update` | 已兼容 | `generated-code` CI 使用固定 revision 再生成并要求 `git diff --exit-code` |
-| external templates / generator extensions | rozectl extension API | 待实现 | 稳定扩展协议、版本约束、示例插件、冲突诊断和 golden tests |
+| external templates / generator extensions | versioned rozectl model extension API | 已兼容 | 独立 `roze-ent-codegen` 宿主锁定 API v1、验证模型图、隔离生成并只同步允许文件；generated-code CI 拒绝漂移 |
 | GraphQL (entgql relay、filter、mutation) | 独立 GraphQL adapter crate | 框架外适配 | schema/relay node/cursor pagination/filter/order/mutation/transaction/eager load 兼容套件 |
 | OpenAPI/REST | Roze `.api` + `rozectl openapi` | 已兼容 | `docs/openapi.json` 与服务 smoke |
 | existing `sql.DB` / driver integration | Roze DB connection injection | 部分兼容 | 补齐外部 pool、事务连接和生命周期/关闭所有权测试 |

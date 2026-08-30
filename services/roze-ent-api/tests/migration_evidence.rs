@@ -68,6 +68,14 @@ fn project_migrations() -> Vec<SqlMigration> {
                 "../../../migrations/sqlite/down/0007_global_unique_ids.sql"
             )),
         ),
+        SqlMigration::new(
+            8,
+            "user_activity_view",
+            include_str!("../../../migrations/sqlite/0008_user_activity_view.sql"),
+            Some(include_str!(
+                "../../../migrations/sqlite/down/0008_user_activity_view.sql"
+            )),
+        ),
     ]
 }
 
@@ -114,6 +122,12 @@ fn postgres_migrations() -> Vec<SqlMigration> {
             "global_unique_ids",
             include_str!("../../../migrations/0007_global_unique_ids.sql"),
             include_str!("../../../migrations/down/0007_global_unique_ids.sql"),
+        ),
+        statement_migrations(
+            8,
+            "user_activity_view",
+            include_str!("../../../migrations/0008_user_activity_view.sql"),
+            include_str!("../../../migrations/down/0008_user_activity_view.sql"),
         ),
     ]
     .into_iter()
@@ -164,6 +178,12 @@ fn mysql_migrations() -> Vec<SqlMigration> {
             "global_unique_ids",
             include_str!("../../../migrations/mysql/0007_global_unique_ids.sql"),
             include_str!("../../../migrations/mysql/down/0007_global_unique_ids.sql"),
+        ),
+        statement_migrations(
+            8,
+            "user_activity_view",
+            include_str!("../../../migrations/mysql/0008_user_activity_view.sql"),
+            include_str!("../../../migrations/mysql/down/0008_user_activity_view.sql"),
         ),
     ]
     .into_iter()
@@ -364,6 +384,7 @@ async fn project_sqlite_migrations_plan_apply_rollback_and_reject_drift() -> any
             (5, MigrationDirection::Up),
             (6, MigrationDirection::Up),
             (7, MigrationDirection::Up),
+            (8, MigrationDirection::Up),
         ]
     );
 
@@ -408,6 +429,19 @@ async fn project_sqlite_migrations_plan_apply_rollback_and_reject_drift() -> any
         std::collections::HashSet::from([user_id, pet_id, group_id]).len(),
         3
     );
+    sqlx::query(
+        "INSERT INTO memberships (user_id, group_id, role, joined_at) VALUES (?, ?, 'member', 1)",
+    )
+    .bind(user_id)
+    .bind(group_id)
+    .execute(&pool)
+    .await?;
+    let activity: (i64, i64) =
+        sqlx::query_as("SELECT pet_count, group_count FROM user_activity_view WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_one(&pool)
+            .await?;
+    assert_eq!(activity, (1, 1));
     assert!(plan_apply(&sqlite_migration_records(&pool).await?, &migrations)?.is_empty());
 
     let partial = rollback_sqlite(&pool, &migrations, 1).await?;
@@ -418,6 +452,7 @@ async fn project_sqlite_migrations_plan_apply_rollback_and_reject_drift() -> any
             .map(|step| (step.version, step.direction))
             .collect::<Vec<_>>(),
         vec![
+            (8, MigrationDirection::Down),
             (7, MigrationDirection::Down),
             (6, MigrationDirection::Down),
             (5, MigrationDirection::Down),
@@ -459,13 +494,13 @@ async fn project_sqlite_migration_execution_is_atomic() -> anyhow::Result<()> {
     let pool = sqlite_pool().await?;
     let mut migrations = project_migrations();
     migrations.push(SqlMigration::new(
-        8,
+        9,
         "transient_table",
         "CREATE TABLE transient_table (id INTEGER PRIMARY KEY)",
         Some("DROP TABLE transient_table"),
     ));
     migrations.push(SqlMigration::new(
-        9,
+        10,
         "invalid_sql",
         "THIS IS NOT VALID SQL",
         Some("SELECT 1"),
@@ -504,7 +539,7 @@ async fn project_postgres_migrations_apply_and_rollback() -> anyhow::Result<()> 
     let migrations = postgres_migrations();
 
     let dry_run = plan_apply(&postgres_migration_records(&pool).await?, &migrations)?;
-    assert_eq!(dry_run.steps.len(), 24);
+    assert_eq!(dry_run.steps.len(), 25);
     assert_eq!(migrate_postgres(&pool, &migrations).await?, dry_run);
     assert_eq!(postgres_table_count(&pool).await?, 8);
     assert_eq!(postgres_audit_table_count(&pool).await?, 1);
@@ -524,6 +559,27 @@ async fn project_postgres_migrations_apply_and_rollback() -> anyhow::Result<()> 
     .fetch_one(&pool)
     .await?;
     assert_eq!(group_id, 2_i64 << 32);
+    sqlx::query("INSERT INTO public.pets (owner_id, name, species) VALUES ($1, $2, $3)")
+        .bind(user_id)
+        .bind("view postgres pet")
+        .bind("other")
+        .execute(&pool)
+        .await?;
+    sqlx::query(
+        "INSERT INTO public.memberships (user_id, group_id, role, joined_at) \
+         VALUES ($1, $2, 'member', 1)",
+    )
+    .bind(user_id)
+    .bind(group_id)
+    .execute(&pool)
+    .await?;
+    let activity: (i64, i64) = sqlx::query_as(
+        "SELECT pet_count, group_count FROM public.user_activity_view WHERE user_id = $1",
+    )
+    .bind(user_id)
+    .fetch_one(&pool)
+    .await?;
+    assert_eq!(activity, (1, 1));
     sqlx::query(
         "INSERT INTO roze_ent.audit_events (user_id, action, created_at) VALUES ($1, $2, 1)",
     )
@@ -542,7 +598,7 @@ async fn project_postgres_migrations_apply_and_rollback() -> anyhow::Result<()> 
     assert!(plan_apply(&postgres_migration_records(&pool).await?, &migrations)?.is_empty());
 
     let rollback = rollback_postgres(&pool, &migrations, 0).await?;
-    assert_eq!(rollback.steps.len(), 24);
+    assert_eq!(rollback.steps.len(), 25);
     assert_eq!(postgres_table_count(&pool).await?, 0);
     assert_eq!(postgres_audit_table_count(&pool).await?, 0);
     assert!(postgres_migration_records(&pool).await?.is_empty());
@@ -560,7 +616,7 @@ async fn project_mysql_migrations_apply_and_rollback() -> anyhow::Result<()> {
     let migrations = mysql_migrations();
 
     let dry_run = plan_apply(&mysql_migration_records(&pool).await?, &migrations)?;
-    assert_eq!(dry_run.steps.len(), 23);
+    assert_eq!(dry_run.steps.len(), 24);
     assert_eq!(migrate_mysql(&pool, &migrations).await?, dry_run);
     assert_eq!(mysql_table_count(&pool).await?, 9);
     let inserted =
@@ -577,6 +633,26 @@ async fn project_mysql_migrations_apply_and_rollback() -> anyhow::Result<()> {
         .await?
         .last_insert_id();
     assert_eq!(group_id, 2_u64 << 32);
+    sqlx::query("INSERT INTO pets (owner_id, name, species) VALUES (?, ?, ?)")
+        .bind(user_id)
+        .bind("view mysql pet")
+        .bind("other")
+        .execute(&pool)
+        .await?;
+    sqlx::query(
+        "INSERT INTO memberships (user_id, group_id, role, joined_at) \
+         VALUES (?, ?, 'member', 1)",
+    )
+    .bind(user_id)
+    .bind(group_id)
+    .execute(&pool)
+    .await?;
+    let activity: (i64, i64) =
+        sqlx::query_as("SELECT pet_count, group_count FROM user_activity_view WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_one(&pool)
+            .await?;
+    assert_eq!(activity, (1, 1));
     sqlx::query("INSERT INTO roze_ent.audit_events (user_id, action, created_at) VALUES (?, ?, 1)")
         .bind(user_id)
         .bind("created")
@@ -593,7 +669,7 @@ async fn project_mysql_migrations_apply_and_rollback() -> anyhow::Result<()> {
     assert!(plan_apply(&mysql_migration_records(&pool).await?, &migrations)?.is_empty());
 
     let rollback = rollback_mysql(&pool, &migrations, 0).await?;
-    assert_eq!(rollback.steps.len(), 23);
+    assert_eq!(rollback.steps.len(), 24);
     assert_eq!(mysql_table_count(&pool).await?, 0);
     assert!(mysql_migration_records(&pool).await?.is_empty());
     Ok(())

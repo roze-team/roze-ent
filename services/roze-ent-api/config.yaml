@@ -356,15 +356,15 @@ database:
 #   migrate: true
 #   batch_size: 100
 #   interval_ms: 1000
-# auth:
-#   jwt_keys:
-#     - id: "2026-07"
-#       secret: env://ROZE_JWT_SECRET
-#   jwt_active_key_id: "2026-07"
-#   jwt_issuer: roze-ent
-#   jwt_audience: roze-ent
-#   jwt_expiration_secs: 86400
-#   jwt_clock_skew_secs: 30
+auth:
+  jwt_keys:
+    - id: "development-v1"
+      secret: env://ROZE_JWT_SECRET
+  jwt_active_key_id: "development-v1"
+  jwt_issuer: roze-ent
+  jwt_audience: roze-ent
+  jwt_expiration_secs: 86400
+  jwt_clock_skew_secs: 30
 # telemetry:
 #   name: roze-ent
 #   endpoint: http://127.0.0.1:4317

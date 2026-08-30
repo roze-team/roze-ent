@@ -25,8 +25,47 @@ impl SecretProvider for ProductionTemplateSecrets {
     }
 }
 
+#[derive(Debug)]
+struct DevelopmentTemplateSecrets;
+
+impl SecretProvider for DevelopmentTemplateSecrets {
+    fn resolve(
+        &self,
+        reference: &str,
+        _base_dir: &Path,
+    ) -> Result<Option<String>, SecretProviderError> {
+        match reference {
+            "env://DATABASE_URL" => Ok(Some("sqlite::memory:".to_string())),
+            "env://ROZE_JWT_SECRET" => Ok(Some(
+                "development-template-jwt-secret-at-least-thirty-two-bytes".to_string(),
+            )),
+            _ => Ok(None),
+        }
+    }
+}
+
 fn production_config_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../deploy/config/rest.production.yaml")
+}
+
+fn development_config_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("config.yaml")
+}
+
+#[test]
+fn development_config_requires_environment_injected_jwt_authentication() {
+    let config =
+        load_service_with_secret_provider(development_config_path(), &DevelopmentTemplateSecrets)
+            .expect("development configuration must resolve its JWT secret");
+
+    assert_eq!(config.profile, ServiceProfile::Development);
+    let auth = config
+        .auth
+        .as_ref()
+        .expect("development REST handlers require JWT authentication");
+    assert_eq!(auth.jwt_active_key_id, "development-v1");
+    assert_eq!(auth.jwt_keys.len(), 1);
+    assert!(auth.jwt_keys[0].secret.len() >= 32);
 }
 
 #[test]

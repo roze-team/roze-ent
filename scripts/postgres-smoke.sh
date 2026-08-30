@@ -54,6 +54,7 @@ done
 mkdir -p target
 export DATABASE_URL="postgres://roze:roze@127.0.0.1:${ROZE_ENT_POSTGRES_PORT:-5432}/roze_ent"
 export ROZE_CONFIG_PATH="services/roze-ent-api/config.yaml"
+export ROZE_JWT_SECRET="${ROZE_ENT_SMOKE_JWT_SECRET:-roze-ent-smoke-secret-at-least-32-bytes}"
 cargo run -p roze-ent-api >target/postgres-smoke-service.log 2>&1 &
 service_pid=$!
 readiness_url="http://127.0.0.1:3000/api/v1/readyz"
@@ -73,9 +74,29 @@ if ! curl --fail --silent "${readiness_url}" >/dev/null; then
   exit 1
 fi
 
+jwt_iat=$(date +%s)
+jwt_exp=$((jwt_iat + 600))
+base64url() {
+  openssl base64 -A | tr '+/' '-_' | tr -d '='
+}
+jwt_header=$(printf '%s' '{"alg":"HS256","typ":"JWT","kid":"development-v1"}' | base64url)
+jwt_payload=$(printf '{"sub":"postgres-smoke","roles":[],"tenant":"tenant-a","permissions":["projects:read","projects:write"],"scopes":[],"iss":"roze-ent","aud":"roze-ent","jti":"postgres-smoke-%s","iat":%s,"exp":%s}' \
+  "${jwt_iat}" "${jwt_iat}" "${jwt_exp}" | base64url)
+jwt_signing_input="${jwt_header}.${jwt_payload}"
+jwt_signature=$(printf '%s' "${jwt_signing_input}" \
+  | openssl dgst -sha256 -hmac "${ROZE_JWT_SECRET}" -binary \
+  | base64url)
+auth_header="authorization: Bearer ${jwt_signing_input}.${jwt_signature}"
+
+unauthenticated_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+  -H 'x-tenant-id: tenant-a' \
+  http://127.0.0.1:3000/api/v1/projects)
+test "${unauthenticated_status}" = "401"
+
 project_name="smoke-$(date +%s)-${RANDOM}"
 created=$(curl --fail --silent \
   -X POST http://127.0.0.1:3000/api/v1/projects \
+  -H "${auth_header}" \
   -H 'content-type: application/json' \
   -H 'x-tenant-id: tenant-a' \
   -d "{\"name\":\"${project_name}\",\"description\":\"smoke\"}")
@@ -86,12 +107,14 @@ if [[ -z "${project_id}" ]]; then
 fi
 
 wrong_tenant_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+  -H "${auth_header}" \
   -H 'x-tenant-id: tenant-b' \
   "http://127.0.0.1:3000/api/v1/projects/${project_id}")
-test "${wrong_tenant_status}" = "404"
+test "${wrong_tenant_status}" = "403"
 
 curl --fail --silent \
   -X PATCH "http://127.0.0.1:3000/api/v1/projects/${project_id}" \
+  -H "${auth_header}" \
   -H 'content-type: application/json' \
   -H 'x-tenant-id: tenant-a' \
   -d "{\"expected_version\":1,\"name\":\"${project_name}-updated\",\"description\":null}" \
@@ -99,6 +122,7 @@ curl --fail --silent \
 
 stale_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
   -X PATCH "http://127.0.0.1:3000/api/v1/projects/${project_id}" \
+  -H "${auth_header}" \
   -H 'content-type: application/json' \
   -H 'x-tenant-id: tenant-a' \
   -d "{\"expected_version\":1,\"name\":\"${project_name}-stale\",\"description\":null}")
@@ -106,11 +130,13 @@ test "${stale_status}" = "412"
 
 curl --fail --silent \
   -X DELETE \
+  -H "${auth_header}" \
   -H 'x-tenant-id: tenant-a' \
   "http://127.0.0.1:3000/api/v1/projects/${project_id}" \
   >/dev/null
 
 deleted_status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+  -H "${auth_header}" \
   -H 'x-tenant-id: tenant-a' \
   "http://127.0.0.1:3000/api/v1/projects/${project_id}")
 test "${deleted_status}" = "404"

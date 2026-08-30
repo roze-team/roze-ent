@@ -19,6 +19,7 @@ git -C $SourceDir apply (Join-Path $WorkspaceDir "patches/roze/0002-fix-sea-orm-
 git -C $SourceDir apply (Join-Path $WorkspaceDir "patches/roze/0003-fix-sea-orm-custom-id-insert-returning.patch")
 git -C $SourceDir apply (Join-Path $WorkspaceDir "patches/roze/0004-fix-sea-orm-scalar-clippy-output.patch")
 git -C $SourceDir apply (Join-Path $WorkspaceDir "patches/roze/0005-fix-sea-orm-like-escape.patch")
+git -C $SourceDir apply (Join-Path $WorkspaceDir "patches/roze/0006-add-sea-orm-pessimistic-locks.patch")
 cargo build --locked --manifest-path (Join-Path $SourceDir "Cargo.toml") --target-dir (Join-Path $SourceDir "target") -p rozectl
 
 Write-Output (Join-Path $SourceDir "target/debug/rozectl.exe")

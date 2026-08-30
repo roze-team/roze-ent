@@ -61,6 +61,11 @@ upsert 运行证据。本项目的 patched-rozectl 生成链已应用该补丁�
 SeaORM 生成代码统一使用 `LikeExpr::escape('\\')`，使 contains、starts/ends-with、
 大小写不敏感及其否定变体在 SQLite、PostgreSQL、MySQL 上共享显式转义语义。
 
+悲观锁兼容由 [`patches/roze/0006-add-sea-orm-pessimistic-locks.patch`](../patches/roze/0006-add-sea-orm-pessimistic-locks.patch)
+提供。生成的 SeaORM query 暴露 `.for_update()?` 与 `.for_share()?`，只允许事务作用域，
+强制使用 primary transaction，并在 SQLite 上明确拒绝。PostgreSQL/MySQL smoke 同时验证
+主键冲突 upsert、共享锁执行，以及第二个 `FOR UPDATE` 在首个事务释放前保持阻塞。
+
 标量矩阵还确认 `.ent u64` 虽可生成和编译，但 SeaORM/sqlx-sqlite 在运行时拒绝绑定 `u64`。
 该能力保持未完成，不能以 `i64` 替换后宣称等价；需要 Roze 提供带范围检查的 SQLite 存储转换，
 并同时保持 Rust 公共模型的 unsigned 语义。

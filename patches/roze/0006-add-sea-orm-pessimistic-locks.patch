@@ -1,0 +1,138 @@
+diff --git a/apps/rozectl/src/generator/model.rs b/apps/rozectl/src/generator/model.rs
+index 964ecc0..0dcf2ba 100644
+--- a/apps/rozectl/src/generator/model.rs
++++ b/apps/rozectl/src/generator/model.rs
+@@ -4340,6 +4340,13 @@ fn render_sea_orm_query_types(out: &mut String, model: &ModelSpec, pascal: &str)
+ 
+     render_sea_orm_loaded_edge_types(out, model, pascal);
+ 
++    writeln!(out, "#[derive(Clone, Copy, Debug, PartialEq, Eq)]").unwrap();
++    writeln!(out, "enum {pascal}Lock {{").unwrap();
++    writeln!(out, "    Update,").unwrap();
++    writeln!(out, "    Share,").unwrap();
++    writeln!(out, "}}").unwrap();
++    writeln!(out).unwrap();
++
+     writeln!(out, "pub struct {pascal}Query<'repo, 'ctx> {{").unwrap();
+     writeln!(out, "    repo: &'repo {pascal}Repository<'ctx>,").unwrap();
+     writeln!(out, "    interceptors: Vec<std::sync::Arc<dyn roze_orm::OperationMiddleware<Self, Vec<Model>, anyhow::Error> + 'repo>>,").unwrap();
+@@ -4350,6 +4357,7 @@ fn render_sea_orm_query_types(out: &mut String, model: &ModelSpec, pascal: &str)
+     writeln!(out, "    offset: Option<u64>,").unwrap();
+     writeln!(out, "    page: Option<(u64, u64)>,").unwrap();
+     writeln!(out, "    read_source: roze_orm::ReadSource,").unwrap();
++    writeln!(out, "    lock: Option<{pascal}Lock>,").unwrap();
+     if model.soft_delete.is_some() {
+         writeln!(out, "    include_deleted: bool,").unwrap();
+     }
+@@ -6256,6 +6264,7 @@ fn render_sea_orm_query_builder_impl(out: &mut String, model: &ModelSpec, pascal
+         "            read_source: roze_orm::ReadSource::Replica,"
+     )
+     .unwrap();
++    writeln!(out, "            lock: None,").unwrap();
+     if model.soft_delete.is_some() {
+         writeln!(out, "            include_deleted: false,").unwrap();
+     }
+@@ -6267,7 +6276,7 @@ fn render_sea_orm_query_builder_impl(out: &mut String, model: &ModelSpec, pascal
+         "    pub fn read_from(mut self, source: roze_orm::ReadSource) -> Self {{"
+     )
+     .unwrap();
+-    writeln!(out, "        self.read_source = source;").unwrap();
++    writeln!(out, "        self.read_source = if self.lock.is_some() {{ roze_orm::ReadSource::Primary }} else {{ source }};").unwrap();
+     writeln!(out, "        self").unwrap();
+     writeln!(out, "    }}").unwrap();
+     writeln!(out).unwrap();
+@@ -6275,6 +6284,44 @@ fn render_sea_orm_query_builder_impl(out: &mut String, model: &ModelSpec, pascal
+     writeln!(out, "        self.read_from(roze_orm::ReadSource::Primary)").unwrap();
+     writeln!(out, "    }}").unwrap();
+     writeln!(out).unwrap();
++    writeln!(
++        out,
++        "    fn with_lock(mut self, lock: {pascal}Lock) -> anyhow::Result<Self> {{"
++    )
++    .unwrap();
++    writeln!(out, "        if self.repo.transaction.is_none() {{ anyhow::bail!(\"{pascal} row locks require a transaction-scoped model client\"); }}").unwrap();
++    writeln!(out, "        if matches!(self.repo.write_db()?.get_database_backend(), DatabaseBackend::Sqlite) {{ anyhow::bail!(\"{pascal} row locks are not supported by SQLite\"); }}").unwrap();
++    writeln!(
++        out,
++        "        self.read_source = roze_orm::ReadSource::Primary;"
++    )
++    .unwrap();
++    writeln!(out, "        self.lock = Some(lock);").unwrap();
++    writeln!(out, "        Ok(self)").unwrap();
++    writeln!(out, "    }}").unwrap();
++    writeln!(out).unwrap();
++    writeln!(
++        out,
++        "    /// Adds an exclusive row lock. This is only valid inside `ModelClient::transaction`."
++    )
++    .unwrap();
++    writeln!(
++        out,
++        "    pub fn for_update(self) -> anyhow::Result<Self> {{"
++    )
++    .unwrap();
++    writeln!(out, "        self.with_lock({pascal}Lock::Update)").unwrap();
++    writeln!(out, "    }}").unwrap();
++    writeln!(out).unwrap();
++    writeln!(
++        out,
++        "    /// Adds a shared row lock. This is only valid inside `ModelClient::transaction`."
++    )
++    .unwrap();
++    writeln!(out, "    pub fn for_share(self) -> anyhow::Result<Self> {{").unwrap();
++    writeln!(out, "        self.with_lock({pascal}Lock::Share)").unwrap();
++    writeln!(out, "    }}").unwrap();
++    writeln!(out).unwrap();
+     writeln!(
+         out,
+         "    fn read_db(&self) -> anyhow::Result<ModelConnection<'_>> {{"
+@@ -6748,6 +6795,20 @@ fn render_sea_orm_build_select_methods(out: &mut String, model: &ModelSpec, pasc
+         "        if let Some(offset) = self.offset {{ select = select.offset(offset); }}"
+     )
+     .unwrap();
++    writeln!(out, "        if let Some(lock) = self.lock {{").unwrap();
++    writeln!(out, "            select = match lock {{").unwrap();
++    writeln!(
++        out,
++        "                {pascal}Lock::Update => select.lock_exclusive(),"
++    )
++    .unwrap();
++    writeln!(
++        out,
++        "                {pascal}Lock::Share => select.lock_shared(),"
++    )
++    .unwrap();
++    writeln!(out, "            }};").unwrap();
++    writeln!(out, "        }}").unwrap();
+     writeln!(out, "        select").unwrap();
+     writeln!(out, "    }}").unwrap();
+     writeln!(out).unwrap();
+@@ -25718,6 +25779,12 @@ mod tests {
+             rendered.contains("pub fn read_from(mut self, source: roze_orm::ReadSource) -> Self")
+         );
+         assert!(rendered.contains("pub fn primary(self) -> Self"));
++        assert!(rendered.contains("pub fn for_update(self) -> anyhow::Result<Self>"));
++        assert!(rendered.contains("pub fn for_share(self) -> anyhow::Result<Self>"));
++        assert!(rendered.contains("row locks require a transaction-scoped model client"));
++        assert!(rendered.contains("row locks are not supported by SQLite"));
++        assert!(rendered.contains("UserLock::Update => select.lock_exclusive()"));
++        assert!(rendered.contains("UserLock::Share => select.lock_shared()"));
+         assert!(rendered.contains("self.repo.read_db_from(self.read_source)"));
+         assert!(rendered.contains("pub fn where_(mut self, predicate: UserPredicate) -> Self"));
+         assert!(
+diff --git a/docs/usage/rozectl-api.md b/docs/usage/rozectl-api.md
+index 35f8a10..9fbfbec 100644
+--- a/docs/usage/rozectl-api.md
++++ b/docs/usage/rozectl-api.md
+@@ -2556,6 +2556,11 @@ ctx.model()
+ 
+ All query-source selectors, including `.read_from(ReadSource::Replica)`, are
+ bound to the transaction inside this callback and cannot escape to a replica.
++Generated SeaORM queries also expose `.for_update()?` and `.for_share()?` for
++typed pessimistic row locks. They require a transaction-scoped model client,
++always use the primary transaction connection, and reject SQLite explicitly
++instead of silently running an unlocked query. PostgreSQL and MySQL render the
++backend-native exclusive or shared lock clause.
+ For sharded SeaORM models, `ctx.model().transaction_for_key(&key, ...)` resolves
+ one shard primary before constructing the same scoped client. It does not
+ provide a cross-shard transaction.

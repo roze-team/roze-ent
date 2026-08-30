@@ -54,6 +54,8 @@ done
 export ROZE_ENT_TEST_DATABASE_URL="postgres://roze:roze@127.0.0.1:${ROZE_ENT_POSTGRES_PORT:-5432}/roze_ent"
 cargo test -p roze-ent-api \
   model::user_ext::tests::string_predicates_have_real_external_sql_evidence -- --ignored --exact
+cargo test -p roze-ent-api \
+  model::user_ext::tests::upsert_and_pessimistic_locks_have_real_external_sql_evidence -- --ignored --exact
 
 mkdir -p target
 export DATABASE_URL="postgres://roze:roze@127.0.0.1:${ROZE_ENT_POSTGRES_PORT:-5432}/roze_ent"

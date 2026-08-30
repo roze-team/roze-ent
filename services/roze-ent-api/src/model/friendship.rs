@@ -329,6 +329,12 @@ pub struct FriendshipWithUserAndFriend {
     pub friend: Option<crate::model::UserModel>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum FriendshipLock {
+    Update,
+    Share,
+}
+
 pub struct FriendshipQuery<'repo, 'ctx> {
     repo: &'repo FriendshipRepository<'ctx>,
     interceptors: Vec<
@@ -342,6 +348,7 @@ pub struct FriendshipQuery<'repo, 'ctx> {
     offset: Option<u64>,
     page: Option<(u64, u64)>,
     read_source: roze_orm::ReadSource,
+    lock: Option<FriendshipLock>,
 }
 
 impl<'repo, 'ctx> FriendshipQuery<'repo, 'ctx> {
@@ -400,16 +407,46 @@ impl<'repo, 'ctx> FriendshipQuery<'repo, 'ctx> {
             offset: None,
             page: None,
             read_source: roze_orm::ReadSource::Replica,
+            lock: None,
         }
     }
 
     pub fn read_from(mut self, source: roze_orm::ReadSource) -> Self {
-        self.read_source = source;
+        self.read_source = if self.lock.is_some() {
+            roze_orm::ReadSource::Primary
+        } else {
+            source
+        };
         self
     }
 
     pub fn primary(self) -> Self {
         self.read_from(roze_orm::ReadSource::Primary)
+    }
+
+    fn with_lock(mut self, lock: FriendshipLock) -> anyhow::Result<Self> {
+        if self.repo.transaction.is_none() {
+            anyhow::bail!("Friendship row locks require a transaction-scoped model client");
+        }
+        if matches!(
+            self.repo.write_db()?.get_database_backend(),
+            DatabaseBackend::Sqlite
+        ) {
+            anyhow::bail!("Friendship row locks are not supported by SQLite");
+        }
+        self.read_source = roze_orm::ReadSource::Primary;
+        self.lock = Some(lock);
+        Ok(self)
+    }
+
+    /// Adds an exclusive row lock. This is only valid inside `ModelClient::transaction`.
+    pub fn for_update(self) -> anyhow::Result<Self> {
+        self.with_lock(FriendshipLock::Update)
+    }
+
+    /// Adds a shared row lock. This is only valid inside `ModelClient::transaction`.
+    pub fn for_share(self) -> anyhow::Result<Self> {
+        self.with_lock(FriendshipLock::Share)
     }
 
     fn read_db(&self) -> anyhow::Result<ModelConnection<'_>> {
@@ -739,6 +776,12 @@ impl<'repo, 'ctx> FriendshipQuery<'repo, 'ctx> {
         }
         if let Some(offset) = self.offset {
             select = select.offset(offset);
+        }
+        if let Some(lock) = self.lock {
+            select = match lock {
+                FriendshipLock::Update => select.lock_exclusive(),
+                FriendshipLock::Share => select.lock_shared(),
+            };
         }
         select
     }

@@ -53,11 +53,11 @@
 | create/update/delete one/many | mutation builder/repository | 已兼容 | SQLite 必填、唯一、one/many、批量删除矩阵 |
 | bulk create / map create / update where | batch API | 已兼容 | SQLite batch 与条件更新证据 |
 | arithmetic mutation、clear/null、edge add/remove/clear | mutation builder | 部分兼容 | 原子数值更新、nullable manager clear 与 self-Through friends add/remove/clear 已覆盖；补齐其余标量和 relation 组合 |
-| upsert / on-conflict / conflict columns | generated upsert API | 部分兼容 | patched-rozectl + SQLite 已覆盖插入和冲突返回语义；补齐冲突列/选择性更新和 PostgreSQL/MySQL 矩阵 |
+| upsert / on-conflict / conflict columns | generated upsert API | 部分兼容 | 主键冲突 upsert 已有 SQLite/PostgreSQL/MySQL 真实证据；补齐自定义冲突列和选择性更新 |
 | mutation hooks、policy/privacy、mixins | `*_ext.rs` + operation chain | 部分兼容 | Project 已覆盖；补齐 query/mutation 全操作、组合顺序、deny/allow/skip 语义 |
 | transaction、commit/rollback、事务 client | `ModelClient::transaction` | 已兼容 | SQLite 提交/强制回滚真实连接证据 |
 | optimistic locking | `update_where().execute()` | 已兼容 | Membership version/role 冲突映射为 `FailedPrecondition` |
-| pessimistic locking (`FOR UPDATE`/`FOR SHARE`) | SQL lock API | 待实现 | PostgreSQL/MySQL 并发测试，SQLite 明确降级语义 |
+| pessimistic locking (`FOR UPDATE`/`FOR SHARE`) | SQL lock API | 已兼容 | 事务限定 typed API；PostgreSQL/MySQL 共享锁执行与排他锁并发阻塞证据，SQLite 明确拒绝 |
 | SQL modifier / raw selector modifier / exec-query | 安全扩展接口 | 待实现 | 参数化 API、方言渲染、事务连接复用与注入防护测试 |
 
 ## Migration 与存储后端
@@ -96,10 +96,10 @@
 | `bidiedges` | 已兼容 | manager/reports 与 friends/friended_by self/bidirectional fixture 已覆盖双向查询和关系变更 |
 | `schema/snapshot` | 部分兼容 | 生成可重复，缺显式 snapshot 升级协议 |
 | `sql/schemaconfig` | 待实现 | 缺多 schema 运行证据 |
-| `sql/lock` | 待实现 | 缺 typed lock API 与并发证据 |
+| `sql/lock` | 已兼容 | `.for_update()?` / `.for_share()?` 强制事务主连接，三方言行为有 CI 证据 |
 | `sql/modifier` | 待实现 | 缺稳定、安全的 selector/mutation modifier API |
 | `sql/execquery` | 待实现 | 缺 mutation query-returning 等价 API |
-| `sql/upsert` | 部分兼容 | 项目生成链已应用补丁 0002 并有 SQLite 证据；Roze 上游及三方言完整矩阵待完成 |
+| `sql/upsert` | 部分兼容 | 项目生成链应用补丁 0002，主键冲突三方言矩阵已完成；自定义冲突列与选择性更新待补 |
 | `sql/versioned-migration` | 部分兼容 | `roze-migration` 已有 ledger，模型 diff/version directory 互操作待补 |
 | `sql/globalid` | 待实现 | 缺全局 ID range/稳定性/升级测试 |
 

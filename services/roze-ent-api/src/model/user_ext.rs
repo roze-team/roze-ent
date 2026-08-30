@@ -160,6 +160,146 @@ mod tests {
         Ok(())
     }
 
+    async fn assert_upsert_semantics(
+        ctx: &crate::svc::ServiceContext,
+        marker: &str,
+        id: i64,
+    ) -> anyhow::Result<()> {
+        use crate::model::user;
+
+        let users = ctx.model().user();
+        let inserted = users
+            .upsert(user::Model {
+                id,
+                email: format!("roze-ent-upsert-{marker}@example.com"),
+                name: format!("{marker}-inserted"),
+                active: false,
+                created_at: 100,
+                manager_id: None,
+            })
+            .await?;
+        assert_eq!(inserted.id, id);
+        assert_eq!(inserted.name, format!("{marker}-inserted"));
+
+        let updated = users
+            .upsert(user::Model {
+                id,
+                email: format!("roze-ent-upsert-{marker}-updated@example.com"),
+                name: format!("{marker}-updated"),
+                active: true,
+                created_at: 999,
+                manager_id: None,
+            })
+            .await?;
+        assert_eq!(updated.id, id);
+        assert_eq!(updated.name, format!("{marker}-updated"));
+        assert!(updated.active);
+        assert_eq!(updated.created_at, 100);
+        assert_eq!(users.query().where_(user::id_eq(id)).only().await?, updated);
+
+        users.delete_many_by_ids(vec![id]).await?;
+        Ok(())
+    }
+
+    async fn assert_pessimistic_lock_semantics(
+        url: &str,
+        marker: &str,
+        id: i64,
+    ) -> anyhow::Result<()> {
+        use crate::model::user;
+
+        let setup = database_context(url).await?;
+        setup
+            .model()
+            .user()
+            .upsert(user::Model {
+                id,
+                email: format!("roze-ent-lock-{marker}@example.com"),
+                name: format!("{marker}-locked"),
+                active: true,
+                created_at: 200,
+                manager_id: None,
+            })
+            .await?;
+
+        let shared = database_context(url).await?;
+        let shared_row = shared
+            .model()
+            .transaction(|tx| {
+                Box::pin(async move {
+                    tx.user()
+                        .query()
+                        .where_(user::id_eq(id))
+                        .for_share()?
+                        .only()
+                        .await
+                })
+            })
+            .await?;
+        assert_eq!(shared_row.id, id);
+
+        let holder = database_context(url).await?;
+        let waiter = database_context(url).await?;
+        let (locked_tx, locked_rx) = tokio::sync::oneshot::channel();
+        let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+        let holder_model = holder.model();
+        let waiter_model = waiter.model();
+
+        let holder_future = holder_model.transaction(|tx| {
+            Box::pin(async move {
+                let row = tx
+                    .user()
+                    .query()
+                    .where_(user::id_eq(id))
+                    .for_update()?
+                    .only()
+                    .await?;
+                locked_tx
+                    .send(())
+                    .map_err(|_| anyhow::anyhow!("lock waiter stopped before acquisition"))?;
+                release_rx.await?;
+                Ok(row)
+            })
+        });
+        let waiter_future = async move {
+            locked_rx.await?;
+            let started = std::time::Instant::now();
+            let lock_future = waiter_model.transaction(|tx| {
+                Box::pin(async move {
+                    tx.user()
+                        .query()
+                        .where_(user::id_eq(id))
+                        .for_update()?
+                        .only()
+                        .await
+                })
+            });
+            tokio::pin!(lock_future);
+            tokio::select! {
+                early = &mut lock_future => {
+                    let _ = release_tx.send(());
+                    early?;
+                    anyhow::bail!("second FOR UPDATE acquired before the holder released the row");
+                }
+                _ = tokio::time::sleep(std::time::Duration::from_millis(250)) => {}
+            }
+            release_tx
+                .send(())
+                .map_err(|_| anyhow::anyhow!("lock holder stopped before release"))?;
+            let row =
+                tokio::time::timeout(std::time::Duration::from_secs(5), &mut lock_future).await??;
+            assert_eq!(row.id, id);
+            assert!(started.elapsed() >= std::time::Duration::from_millis(250));
+            Ok::<(), anyhow::Error>(())
+        };
+
+        let (held, waited) = tokio::join!(holder_future, waiter_future);
+        assert_eq!(held?.id, id);
+        waited?;
+        setup.model().user().delete_many_by_ids(vec![id]).await?;
+        Ok(())
+    }
+
     #[tokio::test]
     async fn ent_style_query_surface_has_real_sqlite_evidence() -> anyhow::Result<()> {
         use crate::model::{group, user};
@@ -365,6 +505,42 @@ mod tests {
         );
         let ctx = database_context(&url).await?;
         assert_string_predicate_semantics(&ctx, &marker).await
+    }
+
+    #[tokio::test]
+    async fn pessimistic_locks_require_transactions_and_reject_sqlite() -> anyhow::Result<()> {
+        let ctx = sqlite_context().await?;
+        let outside_transaction = ctx.model().user().query().for_update().err().unwrap();
+        assert!(outside_transaction
+            .to_string()
+            .contains("require a transaction-scoped model client"));
+
+        ctx.model()
+            .transaction(|tx| {
+                Box::pin(async move {
+                    let sqlite = tx.user().query().for_update().err().unwrap();
+                    assert!(sqlite.to_string().contains("not supported by SQLite"));
+                    Ok(())
+                })
+            })
+            .await
+    }
+
+    #[tokio::test]
+    #[ignore = "requires ROZE_ENT_TEST_DATABASE_URL and an applied project schema"]
+    async fn upsert_and_pessimistic_locks_have_real_external_sql_evidence() -> anyhow::Result<()> {
+        let url = std::env::var("ROZE_ENT_TEST_DATABASE_URL")?;
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_micros();
+        let marker = format!("external-{nonce}");
+        let upsert_id = i64::try_from(nonce)?;
+        let lock_id = upsert_id
+            .checked_add(1)
+            .ok_or_else(|| anyhow::anyhow!("test id overflow"))?;
+        let ctx = database_context(&url).await?;
+        assert_upsert_semantics(&ctx, &marker, upsert_id).await?;
+        assert_pessimistic_lock_semantics(&url, &marker, lock_id).await
     }
 
     #[tokio::test]

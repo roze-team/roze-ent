@@ -385,6 +385,12 @@ impl<T> GroupLoadedNode for GroupWithUsersNested<T> {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum GroupLock {
+    Update,
+    Share,
+}
+
 pub struct GroupQuery<'repo, 'ctx> {
     repo: &'repo GroupRepository<'ctx>,
     interceptors: Vec<
@@ -398,6 +404,7 @@ pub struct GroupQuery<'repo, 'ctx> {
     offset: Option<u64>,
     page: Option<(u64, u64)>,
     read_source: roze_orm::ReadSource,
+    lock: Option<GroupLock>,
 }
 
 impl<'repo, 'ctx> GroupQuery<'repo, 'ctx> {
@@ -456,16 +463,46 @@ impl<'repo, 'ctx> GroupQuery<'repo, 'ctx> {
             offset: None,
             page: None,
             read_source: roze_orm::ReadSource::Replica,
+            lock: None,
         }
     }
 
     pub fn read_from(mut self, source: roze_orm::ReadSource) -> Self {
-        self.read_source = source;
+        self.read_source = if self.lock.is_some() {
+            roze_orm::ReadSource::Primary
+        } else {
+            source
+        };
         self
     }
 
     pub fn primary(self) -> Self {
         self.read_from(roze_orm::ReadSource::Primary)
+    }
+
+    fn with_lock(mut self, lock: GroupLock) -> anyhow::Result<Self> {
+        if self.repo.transaction.is_none() {
+            anyhow::bail!("Group row locks require a transaction-scoped model client");
+        }
+        if matches!(
+            self.repo.write_db()?.get_database_backend(),
+            DatabaseBackend::Sqlite
+        ) {
+            anyhow::bail!("Group row locks are not supported by SQLite");
+        }
+        self.read_source = roze_orm::ReadSource::Primary;
+        self.lock = Some(lock);
+        Ok(self)
+    }
+
+    /// Adds an exclusive row lock. This is only valid inside `ModelClient::transaction`.
+    pub fn for_update(self) -> anyhow::Result<Self> {
+        self.with_lock(GroupLock::Update)
+    }
+
+    /// Adds a shared row lock. This is only valid inside `ModelClient::transaction`.
+    pub fn for_share(self) -> anyhow::Result<Self> {
+        self.with_lock(GroupLock::Share)
     }
 
     fn read_db(&self) -> anyhow::Result<ModelConnection<'_>> {
@@ -863,6 +900,12 @@ impl<'repo, 'ctx> GroupQuery<'repo, 'ctx> {
         }
         if let Some(offset) = self.offset {
             select = select.offset(offset);
+        }
+        if let Some(lock) = self.lock {
+            select = match lock {
+                GroupLock::Update => select.lock_exclusive(),
+                GroupLock::Share => select.lock_shared(),
+            };
         }
         select
     }

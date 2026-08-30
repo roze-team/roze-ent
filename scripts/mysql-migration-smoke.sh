@@ -32,6 +32,8 @@ done
 
 export ROZE_ENT_TEST_DATABASE_URL="${ROZE_ENT_TEST_MYSQL_URL}"
 cargo test -p roze-ent-api \
+  model::user_ext::tests::generated_creates_use_ent_compatible_global_id_ranges -- --ignored --exact
+cargo test -p roze-ent-api \
   model::user_ext::tests::string_predicates_have_real_external_sql_evidence -- --ignored --exact
 cargo test -p roze-ent-api \
   model::user_ext::tests::upsert_and_pessimistic_locks_have_real_external_sql_evidence -- --ignored --exact

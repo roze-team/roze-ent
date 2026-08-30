@@ -60,6 +60,14 @@ fn project_migrations() -> Vec<SqlMigration> {
                 "../../../migrations/sqlite/down/0006_multi_schema_audit.sql"
             )),
         ),
+        SqlMigration::new(
+            7,
+            "global_unique_ids",
+            include_str!("../../../migrations/sqlite/0007_global_unique_ids.sql"),
+            Some(include_str!(
+                "../../../migrations/sqlite/down/0007_global_unique_ids.sql"
+            )),
+        ),
     ]
 }
 
@@ -100,6 +108,12 @@ fn postgres_migrations() -> Vec<SqlMigration> {
             "multi_schema_audit",
             include_str!("../../../migrations/0006_multi_schema_audit.sql"),
             include_str!("../../../migrations/down/0006_multi_schema_audit.sql"),
+        ),
+        statement_migrations(
+            7,
+            "global_unique_ids",
+            include_str!("../../../migrations/0007_global_unique_ids.sql"),
+            include_str!("../../../migrations/down/0007_global_unique_ids.sql"),
         ),
     ]
     .into_iter()
@@ -144,6 +158,12 @@ fn mysql_migrations() -> Vec<SqlMigration> {
             "multi_schema_audit",
             include_str!("../../../migrations/mysql/0006_multi_schema_audit.sql"),
             include_str!("../../../migrations/mysql/down/0006_multi_schema_audit.sql"),
+        ),
+        statement_migrations(
+            7,
+            "global_unique_ids",
+            include_str!("../../../migrations/mysql/0007_global_unique_ids.sql"),
+            include_str!("../../../migrations/mysql/down/0007_global_unique_ids.sql"),
         ),
     ]
     .into_iter()
@@ -229,6 +249,46 @@ fn migration_layout_is_complete_and_consistent_across_dialects() -> anyhow::Resu
     Ok(())
 }
 
+#[test]
+fn global_id_config_is_stable_and_matches_every_dialect() -> anyhow::Result<()> {
+    let config = include_str!("../../../model/globalid.toml");
+    let names = config
+        .lines()
+        .filter_map(|line| line.strip_prefix("name = \"")?.strip_suffix('"'))
+        .collect::<Vec<_>>();
+    let starts = config
+        .lines()
+        .filter_map(|line| line.strip_prefix("increment_start = "))
+        .map(str::parse::<i64>)
+        .collect::<Result<Vec<_>, _>>()?;
+    assert_eq!(
+        names,
+        [
+            "User",
+            "Pet",
+            "Group",
+            "Membership",
+            "Friendship",
+            "Project",
+            "AuditEvent",
+        ]
+    );
+    assert_eq!(starts[0], 1);
+    for (index, start) in starts.iter().copied().enumerate().skip(1) {
+        assert_eq!(start, (index as i64) << 32);
+    }
+
+    let postgres = include_str!("../../../migrations/0007_global_unique_ids.sql");
+    let mysql = include_str!("../../../migrations/mysql/0007_global_unique_ids.sql");
+    let sqlite = include_str!("../../../migrations/sqlite/0007_global_unique_ids.sql");
+    for start in starts.iter().copied().skip(1) {
+        assert!(postgres.contains(&start.to_string()));
+        assert!(mysql.contains(&start.to_string()));
+        assert!(sqlite.contains(&(start - 1).to_string()));
+    }
+    Ok(())
+}
+
 fn split_statements(sql: &str) -> Vec<String> {
     sql.split(';')
         .map(str::trim)
@@ -303,6 +363,7 @@ async fn project_sqlite_migrations_plan_apply_rollback_and_reject_drift() -> any
             (4, MigrationDirection::Up),
             (5, MigrationDirection::Up),
             (6, MigrationDirection::Up),
+            (7, MigrationDirection::Up),
         ]
     );
 
@@ -321,6 +382,32 @@ async fn project_sqlite_migrations_plan_apply_rollback_and_reject_drift() -> any
     ] {
         assert!(table_exists(&pool, table).await?, "missing table {table}");
     }
+    let user_id =
+        sqlx::query("INSERT INTO users (email, name, active, created_at) VALUES (?, ?, TRUE, 1)")
+            .bind("global-id-sqlite@example.com")
+            .bind("global id")
+            .execute(&pool)
+            .await?
+            .last_insert_rowid();
+    let pet_id = sqlx::query("INSERT INTO pets (owner_id, name, species) VALUES (?, ?, ?)")
+        .bind(user_id)
+        .bind("global id pet")
+        .bind("other")
+        .execute(&pool)
+        .await?
+        .last_insert_rowid();
+    let group_id = sqlx::query("INSERT INTO groups (name, created_at) VALUES (?, 1)")
+        .bind("global id group")
+        .execute(&pool)
+        .await?
+        .last_insert_rowid();
+    assert_eq!(user_id, 1);
+    assert_eq!(pet_id, 1_i64 << 32);
+    assert_eq!(group_id, 2_i64 << 32);
+    assert_eq!(
+        std::collections::HashSet::from([user_id, pet_id, group_id]).len(),
+        3
+    );
     assert!(plan_apply(&sqlite_migration_records(&pool).await?, &migrations)?.is_empty());
 
     let partial = rollback_sqlite(&pool, &migrations, 1).await?;
@@ -331,6 +418,7 @@ async fn project_sqlite_migrations_plan_apply_rollback_and_reject_drift() -> any
             .map(|step| (step.version, step.direction))
             .collect::<Vec<_>>(),
         vec![
+            (7, MigrationDirection::Down),
             (6, MigrationDirection::Down),
             (5, MigrationDirection::Down),
             (4, MigrationDirection::Down),
@@ -371,13 +459,13 @@ async fn project_sqlite_migration_execution_is_atomic() -> anyhow::Result<()> {
     let pool = sqlite_pool().await?;
     let mut migrations = project_migrations();
     migrations.push(SqlMigration::new(
-        7,
+        8,
         "transient_table",
         "CREATE TABLE transient_table (id INTEGER PRIMARY KEY)",
         Some("DROP TABLE transient_table"),
     ));
     migrations.push(SqlMigration::new(
-        8,
+        9,
         "invalid_sql",
         "THIS IS NOT VALID SQL",
         Some("SELECT 1"),
@@ -416,7 +504,7 @@ async fn project_postgres_migrations_apply_and_rollback() -> anyhow::Result<()> 
     let migrations = postgres_migrations();
 
     let dry_run = plan_apply(&postgres_migration_records(&pool).await?, &migrations)?;
-    assert_eq!(dry_run.steps.len(), 17);
+    assert_eq!(dry_run.steps.len(), 24);
     assert_eq!(migrate_postgres(&pool, &migrations).await?, dry_run);
     assert_eq!(postgres_table_count(&pool).await?, 8);
     assert_eq!(postgres_audit_table_count(&pool).await?, 1);
@@ -428,6 +516,14 @@ async fn project_postgres_migrations_apply_and_rollback() -> anyhow::Result<()> 
     .bind("multi schema")
     .fetch_one(&pool)
     .await?;
+    assert_eq!(user_id, 1);
+    let group_id: i64 = sqlx::query_scalar(
+        "INSERT INTO public.groups (name, created_at) VALUES ($1, 1) RETURNING id",
+    )
+    .bind("global id postgres")
+    .fetch_one(&pool)
+    .await?;
+    assert_eq!(group_id, 2_i64 << 32);
     sqlx::query(
         "INSERT INTO roze_ent.audit_events (user_id, action, created_at) VALUES ($1, $2, 1)",
     )
@@ -446,7 +542,7 @@ async fn project_postgres_migrations_apply_and_rollback() -> anyhow::Result<()> 
     assert!(plan_apply(&postgres_migration_records(&pool).await?, &migrations)?.is_empty());
 
     let rollback = rollback_postgres(&pool, &migrations, 0).await?;
-    assert_eq!(rollback.steps.len(), 17);
+    assert_eq!(rollback.steps.len(), 24);
     assert_eq!(postgres_table_count(&pool).await?, 0);
     assert_eq!(postgres_audit_table_count(&pool).await?, 0);
     assert!(postgres_migration_records(&pool).await?.is_empty());
@@ -464,7 +560,7 @@ async fn project_mysql_migrations_apply_and_rollback() -> anyhow::Result<()> {
     let migrations = mysql_migrations();
 
     let dry_run = plan_apply(&mysql_migration_records(&pool).await?, &migrations)?;
-    assert_eq!(dry_run.steps.len(), 16);
+    assert_eq!(dry_run.steps.len(), 23);
     assert_eq!(migrate_mysql(&pool, &migrations).await?, dry_run);
     assert_eq!(mysql_table_count(&pool).await?, 9);
     let inserted =
@@ -474,6 +570,13 @@ async fn project_mysql_migrations_apply_and_rollback() -> anyhow::Result<()> {
             .execute(&pool)
             .await?;
     let user_id = inserted.last_insert_id();
+    assert_eq!(user_id, 1);
+    let group_id = sqlx::query("INSERT INTO `groups` (name, created_at) VALUES (?, 1)")
+        .bind("global id mysql")
+        .execute(&pool)
+        .await?
+        .last_insert_id();
+    assert_eq!(group_id, 2_u64 << 32);
     sqlx::query("INSERT INTO roze_ent.audit_events (user_id, action, created_at) VALUES (?, ?, 1)")
         .bind(user_id)
         .bind("created")
@@ -490,7 +593,7 @@ async fn project_mysql_migrations_apply_and_rollback() -> anyhow::Result<()> {
     assert!(plan_apply(&mysql_migration_records(&pool).await?, &migrations)?.is_empty());
 
     let rollback = rollback_mysql(&pool, &migrations, 0).await?;
-    assert_eq!(rollback.steps.len(), 16);
+    assert_eq!(rollback.steps.len(), 23);
     assert_eq!(mysql_table_count(&pool).await?, 0);
     assert!(mysql_migration_records(&pool).await?.is_empty());
     Ok(())

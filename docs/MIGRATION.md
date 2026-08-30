@@ -96,7 +96,7 @@ SeaORM 生成代码统一使用 `LikeExpr::escape('\\')`，使 contains、starts
 | PostgreSQL smoke | migration + HTTP tenant/version/delete 流程 | 已接入 CI；本地需要 Docker |
 | MySQL smoke | migration + HTTP tenant/version/delete 流程 | 已接入 CI；本地需要 Docker |
 | transaction/hooks/privacy/mixins | `ModelClient::transaction`、operation chain 与 `*_ext.rs` | SQLite 真实事务提交/回滚及 Project hook/policy/mixin 已覆盖 |
-| SQL migrations | `roze-migration` + `migrations/` | 当前 6 个版本均覆盖三方言 apply/full rollback；SQLite 另有 partial rollback/drift/atomicity 证据 |
+| SQL migrations | `roze-migration` + `migrations/` | 当前 7 个版本均覆盖三方言 apply/full rollback；SQLite 另有 partial rollback/drift/atomicity 证据 |
 | SQL dialects | SeaORM/Roze DB（PostgreSQL/MySQL/SQLite） | PostgreSQL、MySQL 均有真实 migration lifecycle 与同一套 HTTP 服务行为验证 |
 | Gremlin/GraphSON | 独立图后端适配 | 未迁移 |
 | Atlas 深度集成 | Roze migration/gate 对接 | 未迁移 |
@@ -133,7 +133,7 @@ Project 的 SQLite 证据使用真实 SQL 连接验证提交和强制回滚，�
 SQLite 方言迁移位于 `migrations/sqlite/`，版本和名称与 PostgreSQL 迁移保持一致。
 集成测试直接通过固定 revision 的 `roze-migration` 加载这些项目文件，验证确定性 dry-run、
 apply、回滚到版本边界、全量回滚、名称漂移拒绝和失败批次原子回滚。PostgreSQL 与 MySQL
-分别由独立 CI smoke 在真实容器中执行全部 6 个版本的 apply、账本幂等检查和全量 rollback，
+分别由独立 CI smoke 在真实容器中执行全部 7 个版本的 apply、账本幂等检查和全量 rollback，
 随后运行共享的鉴权、tenant 隔离、乐观锁和 soft-delete HTTP 行为套件；MySQL 迁移对
 保留关键字标识符使用方言引用。多语句项目迁移会先确定性拆分为单语句 ledger step，以满足
 SQLx prepared-statement 边界。PostgreSQL ledger lifecycle 使用同一容器内的专用临时数据库，
@@ -143,3 +143,10 @@ SQLx prepared-statement 边界。PostgreSQL ledger lifecycle 使用同一容器�
 `roze_ent.audit_events.user_id → public.users.id` 提供 PostgreSQL 跨 schema 外键。数据库
 smoke 使用生成的 repository、predicate 和 edge traversal 验证 PostgreSQL schema 与 MySQL
 同名数据库命名空间；SQLite 仅验证不带命名空间的兼容迁移，不宣称支持 attached database。
+
+全局唯一 ID 的事实源是 `model/globalid.toml`。与 ent 的 `globalid` feature 一致，每个
+`i64 auto_increment` 实体获得一个稳定且不可复用的 `2^32` 区间；0007 迁移分别设置
+PostgreSQL sequence、MySQL `AUTO_INCREMENT` 与 SQLite `sqlite_sequence`。新增类型只能追加
+到配置末尾，不能重排或复用已发布区间。迁移不会改写已有主键；若历史环境已经存在跨表重复
+ID，必须先进行显式 backfill/外键重映射，再启用全局 ID。回滚只取消区间起点，保留已经分配
+的高位 ID，避免破坏引用完整性。

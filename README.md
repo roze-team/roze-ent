@@ -144,7 +144,7 @@ bash scripts/mysql-migration-smoke.sh
 两个脚本分别支持 `ROZE_ENT_POSTGRES_PORT`、`ROZE_ENT_MYSQL_PORT` 覆盖宿主机端口；临时
 环境可设置 `ROZE_ENT_REMOVE_VOLUMES=1`，在退出时同时清理测试 volume。
 
-两个流程都会验证当前 6 个迁移版本的全量 apply/rollback、服务健康、鉴权、tenant 隔离、
+两个流程都会验证当前 7 个迁移版本的全量 apply/rollback、服务健康、鉴权、tenant 隔离、
 乐观版本冲突和 soft-delete。脚本结束时
 停止服务与 Compose 容器，但保留数据库 volume 以便诊断。
 

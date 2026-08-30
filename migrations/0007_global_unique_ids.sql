@@ -1,0 +1,7 @@
+SELECT setval(pg_get_serial_sequence('public.users', 'id'), GREATEST(COALESCE((SELECT MAX(id) FROM public.users), 1), 1), EXISTS(SELECT 1 FROM public.users));
+SELECT setval(pg_get_serial_sequence('public.pets', 'id'), GREATEST(COALESCE((SELECT MAX(id) FROM public.pets), 4294967296), 4294967296), COALESCE((SELECT MAX(id) >= 4294967296 FROM public.pets), FALSE));
+SELECT setval(pg_get_serial_sequence('public.groups', 'id'), GREATEST(COALESCE((SELECT MAX(id) FROM public.groups), 8589934592), 8589934592), COALESCE((SELECT MAX(id) >= 8589934592 FROM public.groups), FALSE));
+SELECT setval(pg_get_serial_sequence('public.memberships', 'id'), GREATEST(COALESCE((SELECT MAX(id) FROM public.memberships), 12884901888), 12884901888), COALESCE((SELECT MAX(id) >= 12884901888 FROM public.memberships), FALSE));
+SELECT setval(pg_get_serial_sequence('public.friendships', 'id'), GREATEST(COALESCE((SELECT MAX(id) FROM public.friendships), 17179869184), 17179869184), COALESCE((SELECT MAX(id) >= 17179869184 FROM public.friendships), FALSE));
+SELECT setval(pg_get_serial_sequence('public.projects', 'id'), GREATEST(COALESCE((SELECT MAX(id) FROM public.projects), 21474836480), 21474836480), COALESCE((SELECT MAX(id) >= 21474836480 FROM public.projects), FALSE));
+SELECT setval(pg_get_serial_sequence('roze_ent.audit_events', 'id'), GREATEST(COALESCE((SELECT MAX(id) FROM roze_ent.audit_events), 25769803776), 25769803776), COALESCE((SELECT MAX(id) >= 25769803776 FROM roze_ent.audit_events), FALSE));

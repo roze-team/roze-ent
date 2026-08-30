@@ -544,6 +544,38 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires ROZE_ENT_TEST_DATABASE_URL and applied global ID migrations"]
+    async fn generated_creates_use_ent_compatible_global_id_ranges() -> anyhow::Result<()> {
+        let url = std::env::var("ROZE_ENT_TEST_DATABASE_URL")?;
+        let ctx = database_context(&url).await?;
+        let models = ctx.model();
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_nanos();
+
+        let users = models.user();
+        let groups = models.group();
+        let user_create = users
+            .create()
+            .set_email(format!("global-id-{nonce}@example.com"))
+            .set_name("Global ID user".to_string())
+            .save();
+        let group_create = groups
+            .create()
+            .set_name(format!("global-id-{nonce}"))
+            .save();
+        let (user, group) = tokio::try_join!(user_create, group_create)?;
+
+        assert!((1..(1_i64 << 32)).contains(&user.id));
+        assert!(((2_i64 << 32)..(3_i64 << 32)).contains(&group.id));
+        assert_ne!(user.id, group.id);
+
+        groups.delete_one(group.id).exec().await?;
+        users.delete_one(user.id).exec().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn ent_style_mutation_surface_has_real_sqlite_evidence() -> anyhow::Result<()> {
         use crate::model::user;
 

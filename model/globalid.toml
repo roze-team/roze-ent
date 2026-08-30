@@ -1,0 +1,45 @@
+# Ent-compatible global ID allocation. Each generated integer-ID entity owns a
+# stable 2^32 range. Never reorder or reuse entries after they are released.
+range_bits = 32
+
+[[types]]
+name = "User"
+schema = "public"
+table = "users"
+increment_start = 1
+
+[[types]]
+name = "Pet"
+schema = "public"
+table = "pets"
+increment_start = 4294967296
+
+[[types]]
+name = "Group"
+schema = "public"
+table = "groups"
+increment_start = 8589934592
+
+[[types]]
+name = "Membership"
+schema = "public"
+table = "memberships"
+increment_start = 12884901888
+
+[[types]]
+name = "Friendship"
+schema = "public"
+table = "friendships"
+increment_start = 17179869184
+
+[[types]]
+name = "Project"
+schema = "public"
+table = "projects"
+increment_start = 21474836480
+
+[[types]]
+name = "AuditEvent"
+schema = "roze_ent"
+table = "audit_events"
+increment_start = 25769803776

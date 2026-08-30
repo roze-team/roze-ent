@@ -383,13 +383,13 @@ async fn project_postgres_migrations_apply_and_rollback() -> anyhow::Result<()> 
     let migrations = postgres_migrations();
 
     let dry_run = plan_apply(&postgres_migration_records(&pool).await?, &migrations)?;
-    assert_eq!(dry_run.steps.len(), 13);
+    assert_eq!(dry_run.steps.len(), 14);
     assert_eq!(migrate_postgres(&pool, &migrations).await?, dry_run);
     assert_eq!(postgres_table_count(&pool).await?, 8);
     assert!(plan_apply(&postgres_migration_records(&pool).await?, &migrations)?.is_empty());
 
     let rollback = rollback_postgres(&pool, &migrations, 0).await?;
-    assert_eq!(rollback.steps.len(), 13);
+    assert_eq!(rollback.steps.len(), 14);
     assert_eq!(postgres_table_count(&pool).await?, 0);
     assert!(postgres_migration_records(&pool).await?.is_empty());
     Ok(())

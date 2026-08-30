@@ -1,4 +1,4 @@
-CREATE VIEW user_activity_view AS
+CREATE OR REPLACE VIEW user_activity_view AS
 SELECT
     users.id AS user_id,
     users.email,

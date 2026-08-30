@@ -52,6 +52,14 @@ fn project_migrations() -> Vec<SqlMigration> {
                 "../../../migrations/sqlite/down/0005_self_and_named_edges.sql"
             )),
         ),
+        SqlMigration::new(
+            6,
+            "multi_schema_audit",
+            include_str!("../../../migrations/sqlite/0006_multi_schema_audit.sql"),
+            Some(include_str!(
+                "../../../migrations/sqlite/down/0006_multi_schema_audit.sql"
+            )),
+        ),
     ]
 }
 
@@ -86,6 +94,12 @@ fn postgres_migrations() -> Vec<SqlMigration> {
             "self_and_named_edges",
             include_str!("../../../migrations/0005_self_and_named_edges.sql"),
             include_str!("../../../migrations/down/0005_self_and_named_edges.sql"),
+        ),
+        statement_migrations(
+            6,
+            "multi_schema_audit",
+            include_str!("../../../migrations/0006_multi_schema_audit.sql"),
+            include_str!("../../../migrations/down/0006_multi_schema_audit.sql"),
         ),
     ]
     .into_iter()
@@ -124,6 +138,12 @@ fn mysql_migrations() -> Vec<SqlMigration> {
             "self_and_named_edges",
             include_str!("../../../migrations/mysql/0005_self_and_named_edges.sql"),
             include_str!("../../../migrations/mysql/down/0005_self_and_named_edges.sql"),
+        ),
+        statement_migrations(
+            6,
+            "multi_schema_audit",
+            include_str!("../../../migrations/mysql/0006_multi_schema_audit.sql"),
+            include_str!("../../../migrations/mysql/down/0006_multi_schema_audit.sql"),
         ),
     ]
     .into_iter()
@@ -244,12 +264,21 @@ async fn postgres_table_count(pool: &PgPool) -> anyhow::Result<i64> {
     .await?)
 }
 
+async fn postgres_audit_table_count(pool: &PgPool) -> anyhow::Result<i64> {
+    Ok(sqlx::query_scalar(
+        "SELECT COUNT(*) FROM information_schema.tables \
+         WHERE table_schema = 'roze_ent' AND table_name = 'audit_events'",
+    )
+    .fetch_one(pool)
+    .await?)
+}
+
 async fn mysql_table_count(pool: &MySqlPool) -> anyhow::Result<i64> {
     Ok(sqlx::query_scalar(
         "SELECT COUNT(*) FROM information_schema.tables \
          WHERE table_schema = DATABASE() AND table_name IN \
          ('users', 'pets', 'groups', 'memberships', 'projects', \
-          'scalar_fixtures', 'locale_settings', 'friendships')",
+          'scalar_fixtures', 'locale_settings', 'friendships', 'audit_events')",
     )
     .fetch_one(pool)
     .await?)
@@ -273,6 +302,7 @@ async fn project_sqlite_migrations_plan_apply_rollback_and_reject_drift() -> any
             (3, MigrationDirection::Up),
             (4, MigrationDirection::Up),
             (5, MigrationDirection::Up),
+            (6, MigrationDirection::Up),
         ]
     );
 
@@ -287,6 +317,7 @@ async fn project_sqlite_migrations_plan_apply_rollback_and_reject_drift() -> any
         "scalar_fixtures",
         "locale_settings",
         "friendships",
+        "audit_events",
     ] {
         assert!(table_exists(&pool, table).await?, "missing table {table}");
     }
@@ -300,6 +331,7 @@ async fn project_sqlite_migrations_plan_apply_rollback_and_reject_drift() -> any
             .map(|step| (step.version, step.direction))
             .collect::<Vec<_>>(),
         vec![
+            (6, MigrationDirection::Down),
             (5, MigrationDirection::Down),
             (4, MigrationDirection::Down),
             (3, MigrationDirection::Down),
@@ -339,13 +371,13 @@ async fn project_sqlite_migration_execution_is_atomic() -> anyhow::Result<()> {
     let pool = sqlite_pool().await?;
     let mut migrations = project_migrations();
     migrations.push(SqlMigration::new(
-        6,
+        7,
         "transient_table",
         "CREATE TABLE transient_table (id INTEGER PRIMARY KEY)",
         Some("DROP TABLE transient_table"),
     ));
     migrations.push(SqlMigration::new(
-        7,
+        8,
         "invalid_sql",
         "THIS IS NOT VALID SQL",
         Some("SELECT 1"),
@@ -362,6 +394,7 @@ async fn project_sqlite_migration_execution_is_atomic() -> anyhow::Result<()> {
         "scalar_fixtures",
         "locale_settings",
         "friendships",
+        "audit_events",
         "transient_table",
     ] {
         assert!(
@@ -383,14 +416,39 @@ async fn project_postgres_migrations_apply_and_rollback() -> anyhow::Result<()> 
     let migrations = postgres_migrations();
 
     let dry_run = plan_apply(&postgres_migration_records(&pool).await?, &migrations)?;
-    assert_eq!(dry_run.steps.len(), 14);
+    assert_eq!(dry_run.steps.len(), 17);
     assert_eq!(migrate_postgres(&pool, &migrations).await?, dry_run);
     assert_eq!(postgres_table_count(&pool).await?, 8);
+    assert_eq!(postgres_audit_table_count(&pool).await?, 1);
+    let user_id: i64 = sqlx::query_scalar(
+        "INSERT INTO public.users (email, name, active, created_at) \
+         VALUES ($1, $2, TRUE, 1) RETURNING id",
+    )
+    .bind("multi-schema-postgres@example.com")
+    .bind("multi schema")
+    .fetch_one(&pool)
+    .await?;
+    sqlx::query(
+        "INSERT INTO roze_ent.audit_events (user_id, action, created_at) VALUES ($1, $2, 1)",
+    )
+    .bind(user_id)
+    .bind("created")
+    .execute(&pool)
+    .await?;
+    let action: String = sqlx::query_scalar(
+        "SELECT event.action FROM roze_ent.audit_events event \
+         JOIN public.users users ON users.id = event.user_id WHERE users.id = $1",
+    )
+    .bind(user_id)
+    .fetch_one(&pool)
+    .await?;
+    assert_eq!(action, "created");
     assert!(plan_apply(&postgres_migration_records(&pool).await?, &migrations)?.is_empty());
 
     let rollback = rollback_postgres(&pool, &migrations, 0).await?;
-    assert_eq!(rollback.steps.len(), 14);
+    assert_eq!(rollback.steps.len(), 17);
     assert_eq!(postgres_table_count(&pool).await?, 0);
+    assert_eq!(postgres_audit_table_count(&pool).await?, 0);
     assert!(postgres_migration_records(&pool).await?.is_empty());
     Ok(())
 }
@@ -406,13 +464,33 @@ async fn project_mysql_migrations_apply_and_rollback() -> anyhow::Result<()> {
     let migrations = mysql_migrations();
 
     let dry_run = plan_apply(&mysql_migration_records(&pool).await?, &migrations)?;
-    assert_eq!(dry_run.steps.len(), 14);
+    assert_eq!(dry_run.steps.len(), 16);
     assert_eq!(migrate_mysql(&pool, &migrations).await?, dry_run);
-    assert_eq!(mysql_table_count(&pool).await?, 8);
+    assert_eq!(mysql_table_count(&pool).await?, 9);
+    let inserted =
+        sqlx::query("INSERT INTO users (email, name, active, created_at) VALUES (?, ?, TRUE, 1)")
+            .bind("multi-schema-mysql@example.com")
+            .bind("multi schema")
+            .execute(&pool)
+            .await?;
+    let user_id = inserted.last_insert_id();
+    sqlx::query("INSERT INTO roze_ent.audit_events (user_id, action, created_at) VALUES (?, ?, 1)")
+        .bind(user_id)
+        .bind("created")
+        .execute(&pool)
+        .await?;
+    let action: String = sqlx::query_scalar(
+        "SELECT event.action FROM roze_ent.audit_events event \
+         JOIN roze_ent.users users ON users.id = event.user_id WHERE users.id = ?",
+    )
+    .bind(user_id)
+    .fetch_one(&pool)
+    .await?;
+    assert_eq!(action, "created");
     assert!(plan_apply(&mysql_migration_records(&pool).await?, &migrations)?.is_empty());
 
     let rollback = rollback_mysql(&pool, &migrations, 0).await?;
-    assert_eq!(rollback.steps.len(), 14);
+    assert_eq!(rollback.steps.len(), 16);
     assert_eq!(mysql_table_count(&pool).await?, 0);
     assert!(mysql_migration_records(&pool).await?.is_empty());
     Ok(())

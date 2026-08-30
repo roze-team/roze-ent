@@ -35,6 +35,8 @@ cargo test -p roze-ent-api \
   model::user_ext::tests::string_predicates_have_real_external_sql_evidence -- --ignored --exact
 cargo test -p roze-ent-api \
   model::user_ext::tests::upsert_and_pessimistic_locks_have_real_external_sql_evidence -- --ignored --exact
+cargo test -p roze-ent-api \
+  model::audit_event_ext::tests::generated_multi_schema_model_and_cross_schema_edge_have_real_sql_evidence -- --ignored --exact
 
 export DATABASE_URL="${ROZE_ENT_TEST_MYSQL_URL}"
 bash scripts/service-api-smoke.sh mysql

@@ -51,6 +51,8 @@ cargo test -p roze-ent-api \
   model::user_ext::tests::string_predicates_have_real_external_sql_evidence -- --ignored --exact
 cargo test -p roze-ent-api \
   model::user_ext::tests::upsert_and_pessimistic_locks_have_real_external_sql_evidence -- --ignored --exact
+cargo test -p roze-ent-api \
+  model::audit_event_ext::tests::generated_multi_schema_model_and_cross_schema_edge_have_real_sql_evidence -- --ignored --exact
 
 export DATABASE_URL="postgres://roze:roze@127.0.0.1:${ROZE_ENT_POSTGRES_PORT:-5432}/roze_ent"
 bash scripts/service-api-smoke.sh postgres

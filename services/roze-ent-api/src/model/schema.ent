@@ -320,3 +320,40 @@ entity LocaleSetting {
 
 }
 
+entity AuditEvent {
+  table "audit_events"
+  schema "roze_ent"
+  cache_key id
+
+  field id: i64 {
+    primary
+    auto_increment
+  }
+
+  field user_id: i64 {
+  }
+
+  field action: string {
+    not_empty
+    max_len 120
+  }
+
+  field created_at: i64 {
+    immutable
+    default "now_millis"
+  }
+
+  index idx_audit_events_user_id {
+    fields user_id
+  }
+
+  edge user {
+    to User
+    field user_id
+    ref id
+    unique
+    required
+  }
+
+}
+

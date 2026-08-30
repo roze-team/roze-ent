@@ -83,6 +83,16 @@ pub use locale_setting::{
     LocaleSettingUpdate, LocaleSettingUpdateMany, Model as LocaleSettingModel,
 };
 pub use locale_setting_fields::{LocaleSettingField, LOCALE_SETTING_TABLE};
+pub mod audit_event;
+pub mod audit_event_ext;
+pub mod audit_event_fields;
+pub use audit_event::{
+    ActiveModel as AuditEventActiveModel, AuditEventCreate, AuditEventDelete, AuditEventDeleteMany,
+    AuditEventMutationHooks, AuditEventOrder, AuditEventPage, AuditEventPredicate, AuditEventQuery,
+    AuditEventRepository, AuditEventUpdate, AuditEventUpdateMany, Entity as AuditEventEntity,
+    Model as AuditEventModel,
+};
+pub use audit_event_fields::{AuditEventField, AUDIT_EVENT_TABLE};
 
 pub async fn configure_context(ctx: ServiceContext) -> anyhow::Result<ServiceContext> {
     Ok(ctx)

@@ -64,11 +64,12 @@
 
 | ent 能力 | Roze/Rust 落点 | 状态 | 完成条件/证据 |
 | --- | --- | --- | --- |
-| create/drop/change schema、ledger、apply/rollback | `roze-migration` | 已兼容 | 当前 5 个迁移版本具备 SQLite/PostgreSQL/MySQL 全量 lifecycle CI，且跨方言版本、名称和 up/down 配对自动校验 |
+| create/drop/change schema、ledger、apply/rollback | `roze-migration` | 已兼容 | 当前 6 个迁移版本具备 SQLite/PostgreSQL/MySQL 全量 lifecycle CI，且跨方言版本、名称和 up/down 配对自动校验 |
 | schema diff、offline plan、versioned migration | migration plan | 部分兼容 | 当前项目迁移可重复；补齐从模型自动 diff、危险变更分类和版本升级 fixture |
 | data migration | 版本化 Rust/SQL migration | 部分兼容 | 增加 expand/backfill/contract、失败恢复和幂等证据 |
 | external objects (trigger/view/function) | migration project objects | 待实现 | diff 忽略/管理策略、三方言 apply/rollback 证据 |
-| multi-schema / schema config / global unique ID | generator + migration config | 待实现 | PostgreSQL schema 隔离、跨 schema edge、global ID 稳定性测试 |
+| multi-schema / schema config | `.ent schema` + SeaORM schema name | 已兼容 | `AuditEvent` 的独立 PostgreSQL schema、跨 schema FK、生成式 repository/predicate/edge traversal 由 PostgreSQL CI 覆盖；MySQL 覆盖同名 database namespace |
+| global unique ID | generator + migration config | 待实现 | 多实体共享分配器、并发唯一性、回滚与三方言稳定性测试 |
 | PostgreSQL、MySQL/MariaDB、SQLite | SeaORM/Roze DB | 部分兼容 | PostgreSQL/MySQL migration 与共享 HTTP tenant/version/delete 流程已覆盖；全部 query/mutation/transaction 矩阵仍需三方言一致 |
 | CockroachDB、TiDB | SQL 方言兼容层 | 待实现 | 官方兼容版本的 migration、事务重试、CRUD 和并发 CI |
 | Gremlin | 独立适配 crate | 框架外适配 | 见关系与图遍历部分 |
@@ -95,7 +96,7 @@
 | `namedges` | 已兼容 | Friendship 的 user/friend 同目标边生成独立命名 eager-load 结果槽位并有 SQLite 证据 |
 | `bidiedges` | 已兼容 | manager/reports 与 friends/friended_by self/bidirectional fixture 已覆盖双向查询和关系变更 |
 | `schema/snapshot` | 部分兼容 | 生成可重复，缺显式 snapshot 升级协议 |
-| `sql/schemaconfig` | 待实现 | 缺多 schema 运行证据 |
+| `sql/schemaconfig` | 已兼容 | `.ent schema` 生成 `schema_name`，PostgreSQL 独立 schema 与跨 schema edge 有真实运行证据 |
 | `sql/lock` | 已兼容 | `.for_update()?` / `.for_share()?` 强制事务主连接，三方言行为有 CI 证据 |
 | `sql/modifier` | 待实现 | 缺稳定、安全的 selector/mutation modifier API |
 | `sql/execquery` | 待实现 | 缺 mutation query-returning 等价 API |

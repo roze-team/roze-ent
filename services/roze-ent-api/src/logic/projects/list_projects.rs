@@ -5,12 +5,12 @@ pub async fn list_projects(
     request_ctx: roze_context::Context,
     req: ListProjectsReq,
 ) -> Result<ListProjectsResp, RozeError> {
-    let _ = request_ctx;
+    let tenant_id = authorized_tenant(&request_ctx, &req.tenant_id)?;
     let projects = ctx
         .model()
         .project()
         .query()
-        .where_(crate::model::project::tenant_id_eq(req.tenant_id))
+        .where_(crate::model::project::tenant_id_eq(tenant_id))
         .order_by_id_asc()
         .limit(100)
         .all()

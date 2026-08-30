@@ -6,6 +6,7 @@ pub(crate) async fn list_groups(
     headers: HeaderMap,
     client_ip: Option<roze_http::client_ip::ClientIp>,
 ) -> Result<ApiResponse<ListGroupsResp>, RozeError> {
+    let request_ctx = authorize(&headers, &ctx, &request_ctx)?;
     let request_ctx = match client_ip {
         Some(client_ip) => request_ctx.with_metadata("client_ip", client_ip.to_string()),
         None => request_ctx,
@@ -28,6 +29,10 @@ pub(crate) async fn list_groups(
         request_ctx,
         Some(&ctx.config.governance),
     )?;
+    if let Err(err) = roze_middleware::enforce_permissions(&request_ctx, &["groups:read"]) {
+        roze_middleware::finish_route(route_guard, false, err.code().to_string());
+        return Err(err);
+    }
     let req = EmptyReq {};
     let logic_request_id = request_ctx.request_id();
     let logic_trace_id = request_ctx.trace_id();

@@ -5,13 +5,13 @@ pub async fn delete_project(
     request_ctx: roze_context::Context,
     req: ProjectPathReq,
 ) -> Result<DeleteResp, RozeError> {
-    let _ = request_ctx;
+    let tenant_id = authorized_tenant(&request_ctx, &req.tenant_id)?;
     let project_repo = ctx.model().project();
     let exists = project_repo
         .query()
         .primary()
         .where_(crate::model::project::id_eq(req.id))
-        .where_(crate::model::project::tenant_id_eq(req.tenant_id))
+        .where_(crate::model::project::tenant_id_eq(tenant_id))
         .exists()
         .await
         .map_err(model_error)?;

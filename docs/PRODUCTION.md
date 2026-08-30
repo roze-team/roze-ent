@@ -19,6 +19,16 @@ export ROZE_ENT_JWT_SECRET='at-least-32-random-bytes-from-a-secret-manager'
 不得把这三个值写回仓库。JWT 密钥应由秘密管理系统注入并按 `jwt_keys`/`jwt_active_key_id`
 执行有重叠窗口的轮换。生产配置默认关闭 CORS，不信任转发身份头，并要求 Redis 承载分布式限流。
 
+## 认证、权限与租户边界
+
+全部 21 个业务路由都要求 Bearer JWT，并按资源执行最小权限校验：`users:*`、`pets:*`、
+`groups:*` 和 `projects:*` 分别使用 `read` 或 `write` 权限。权限声明以 `roze-ent.api` 为来源，
+生成的处理器负责验签与授权，OpenAPI 的 `x-roze-permissions` 用于客户端和网关同步契约。
+
+Project 路由还执行双重租户校验：JWT 的 `tenant` 必须存在，并且必须与 `x-tenant-id`
+完全一致。缺少身份返回未认证，缺少租户或跨租户请求返回禁止访问；业务逻辑不会信任请求头覆盖
+JWT 租户。签发令牌时必须写入所需 `permissions` 与 `tenant`，不要向普通调用方发放通配权限。
+
 服务监听明文 HTTP `0.0.0.0:3000`，只能放在提供 TLS 的入口网关、Ingress 或服务网格之后；
 不要直接暴露到公网。若由代理传递客户端 IP，必须同时配置可信代理 CIDR，禁止全网段信任。
 

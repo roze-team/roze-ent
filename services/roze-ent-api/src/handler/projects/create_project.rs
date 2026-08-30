@@ -14,6 +14,7 @@ pub(crate) async fn create_project(
     client_ip: Option<roze_http::client_ip::ClientIp>,
     Json(body): Json<CreateProjectCreateProjectReqJson>,
 ) -> Result<ApiResponse<ProjectResp>, RozeError> {
+    let request_ctx = authorize(&headers, &ctx, &request_ctx)?;
     let request_ctx = match client_ip {
         Some(client_ip) => request_ctx.with_metadata("client_ip", client_ip.to_string()),
         None => request_ctx,
@@ -36,6 +37,10 @@ pub(crate) async fn create_project(
         request_ctx,
         Some(&ctx.config.governance),
     )?;
+    if let Err(err) = roze_middleware::enforce_permissions(&request_ctx, &["projects:write"]) {
+        roze_middleware::finish_route(route_guard, false, err.code().to_string());
+        return Err(err);
+    }
     if let Err(message) =
         roze_validation::validate_or_message_i18n(&body, roze_error::current_locale().as_deref())
     {

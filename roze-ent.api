@@ -11,46 +11,67 @@ info (
 )
 
 service roze-ent {
+    @permission users:write
     @handler createUser
     post /users (CreateUserReq) returns (UserResp)
+    @permission users:read
     @handler getUser
     get /users/:id (GetUserReq) returns (UserResp)
+    @permission users:read
     @handler listUsers
     get /users (EmptyReq) returns (ListUsersResp)
+    @permission users:write
     @handler deleteUser
     delete /users/:id (GetUserReq) returns (DeleteResp)
+    @permission pets:write
     @handler createPet
     post /pets (CreatePetReq) returns (PetResp)
+    @permission pets:read
     @handler getPet
     get /pets/:id (GetPetReq) returns (PetResp)
+    @permission pets:read
     @handler listUserPets
     get /users/:id/pets (GetUserReq) returns (ListPetsResp)
+    @permission pets:write
     @handler deletePet
     delete /pets/:id (GetPetReq) returns (DeleteResp)
+    @permission groups:write
     @handler createGroup
     post /groups (CreateGroupReq) returns (GroupResp)
+    @permission groups:read
     @handler getGroup
     get /groups/:id (GetGroupReq) returns (GroupResp)
+    @permission groups:read
     @handler listGroups
     get /groups (EmptyReq) returns (ListGroupsResp)
+    @permission groups:write
     @handler addGroupMember
     post /groups/:group_id/members/:user_id (MembershipPathReq) returns (MembershipResp)
+    @permission groups:write
     @handler updateGroupMember
     patch /groups/:group_id/members/:user_id (UpdateMembershipRoleReq) returns (MembershipResp)
+    @permission groups:write
     @handler removeGroupMember
     delete /groups/:group_id/members/:user_id (MembershipPathReq) returns (DeleteResp)
+    @permission groups:read
     @handler listGroupUsers
     get /groups/:id/users (GetGroupReq) returns (ListUsersResp)
+    @permission groups:read
     @handler listUserGroups
     get /users/:id/groups (GetUserReq) returns (ListGroupsResp)
+    @permission projects:write
     @handler createProject
     post /projects (CreateProjectReq) returns (ProjectResp)
+    @permission projects:read
     @handler getProject
     get /projects/:id (ProjectPathReq) returns (ProjectResp)
+    @permission projects:read
     @handler listProjects
     get /projects (ListProjectsReq) returns (ListProjectsResp)
+    @permission projects:write
     @handler updateProject
     patch /projects/:id (UpdateProjectReq) returns (ProjectResp)
+    @permission projects:write
     @handler deleteProject
     delete /projects/:id (ProjectPathReq) returns (DeleteResp)
 }

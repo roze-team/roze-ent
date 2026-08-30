@@ -6,6 +6,7 @@ pub(crate) async fn list_projects(
     headers: HeaderMap,
     client_ip: Option<roze_http::client_ip::ClientIp>,
 ) -> Result<ApiResponse<ListProjectsResp>, RozeError> {
+    let request_ctx = authorize(&headers, &ctx, &request_ctx)?;
     let request_ctx = match client_ip {
         Some(client_ip) => request_ctx.with_metadata("client_ip", client_ip.to_string()),
         None => request_ctx,
@@ -28,6 +29,10 @@ pub(crate) async fn list_projects(
         request_ctx,
         Some(&ctx.config.governance),
     )?;
+    if let Err(err) = roze_middleware::enforce_permissions(&request_ctx, &["projects:read"]) {
+        roze_middleware::finish_route(route_guard, false, err.code().to_string());
+        return Err(err);
+    }
     let req = ListProjectsReq {
         tenant_id: header_value::<String>(&headers, "x-tenant-id")?,
     };

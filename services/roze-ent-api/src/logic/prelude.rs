@@ -60,6 +60,40 @@ pub(crate) fn model_error(error: anyhow::Error) -> RozeError {
     RozeError::Internal("entity model operation failed".to_string())
 }
 
+pub(crate) fn authorized_tenant(
+    request_ctx: &roze_context::Context,
+    requested_tenant: &str,
+) -> Result<String, RozeError> {
+    if current_subject(request_ctx).is_none() {
+        tracing::warn!(
+            event = "roze_ent.tenant.denied",
+            reason = "authenticated_subject_missing",
+            "tenant-scoped operation denied"
+        );
+        return Err(RozeError::Unauthorized);
+    }
+
+    let Some(authenticated_tenant) = current_tenant(request_ctx) else {
+        tracing::warn!(
+            event = "roze_ent.tenant.denied",
+            reason = "authenticated_tenant_missing",
+            "tenant-scoped operation denied"
+        );
+        return Err(RozeError::Forbidden);
+    };
+
+    if authenticated_tenant != requested_tenant {
+        tracing::warn!(
+            event = "roze_ent.tenant.denied",
+            reason = "tenant_mismatch",
+            "tenant-scoped operation denied"
+        );
+        return Err(RozeError::Forbidden);
+    }
+
+    Ok(authenticated_tenant)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -149,5 +183,47 @@ mod tests {
         assert_eq!(response.deleted_at, None);
         assert_eq!(response.created_at, 101);
         assert_eq!(response.updated_at, 202);
+    }
+
+    #[test]
+    fn authenticated_tenant_must_match_requested_tenant() {
+        let context = roze_context::Context::background().with_auth(roze_context::AuthContext {
+            subject: "user-7".to_string(),
+            roles: Vec::new(),
+            tenant: Some("tenant-a".to_string()),
+        });
+
+        assert_eq!(
+            authorized_tenant(&context, "tenant-a").expect("matching tenant must pass"),
+            "tenant-a"
+        );
+        assert_eq!(
+            authorized_tenant(&context, "tenant-b"),
+            Err(RozeError::Forbidden)
+        );
+    }
+
+    #[test]
+    fn authenticated_request_without_tenant_is_denied() {
+        let context = roze_context::Context::background().with_auth(roze_context::AuthContext {
+            subject: "user-7".to_string(),
+            roles: Vec::new(),
+            tenant: None,
+        });
+
+        assert_eq!(
+            authorized_tenant(&context, "tenant-a"),
+            Err(RozeError::Forbidden)
+        );
+    }
+
+    #[test]
+    fn request_without_identity_is_denied() {
+        let context = roze_context::Context::background();
+
+        assert_eq!(
+            authorized_tenant(&context, "tenant-a"),
+            Err(RozeError::Unauthorized)
+        );
     }
 }

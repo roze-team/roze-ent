@@ -477,6 +477,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/charts/query", HttpMethod::Post, op);
     let op = Operation::new("createUser")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["users:write"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -497,6 +498,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/users", HttpMethod::Post, op);
     let op = Operation::new("getUser")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["users:read"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -517,6 +519,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/users/:id", HttpMethod::Get, op);
     let op = Operation::new("listUsers")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["users:read"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -536,6 +539,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/users", HttpMethod::Get, op);
     let op = Operation::new("deleteUser")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["users:write"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -556,6 +560,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/users/:id", HttpMethod::Delete, op);
     let op = Operation::new("createPet")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["pets:write"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -576,6 +581,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/pets", HttpMethod::Post, op);
     let op = Operation::new("getPet")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["pets:read"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -596,6 +602,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/pets/:id", HttpMethod::Get, op);
     let op = Operation::new("listUserPets")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["pets:read"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -616,6 +623,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/users/:id/pets", HttpMethod::Get, op);
     let op = Operation::new("deletePet")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["pets:write"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -636,6 +644,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/pets/:id", HttpMethod::Delete, op);
     let op = Operation::new("createGroup")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["groups:write"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -656,6 +665,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/groups", HttpMethod::Post, op);
     let op = Operation::new("getGroup")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["groups:read"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -676,6 +686,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/groups/:id", HttpMethod::Get, op);
     let op = Operation::new("listGroups")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["groups:read"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -695,6 +706,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/groups", HttpMethod::Get, op);
     let op = Operation::new("addGroupMember")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["groups:write"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -730,6 +742,7 @@ pub fn document() -> serde_json::Value {
     );
     let op = Operation::new("updateGroupMember")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["groups:write"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -766,6 +779,7 @@ pub fn document() -> serde_json::Value {
     );
     let op = Operation::new("removeGroupMember")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["groups:write"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -801,6 +815,7 @@ pub fn document() -> serde_json::Value {
     );
     let op = Operation::new("listGroupUsers")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["groups:read"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -821,6 +836,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/groups/:id/users", HttpMethod::Get, op);
     let op = Operation::new("listUserGroups")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["groups:read"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -841,6 +857,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/users/:id/groups", HttpMethod::Get, op);
     let op = Operation::new("createProject")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["projects:write"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -867,6 +884,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/projects", HttpMethod::Post, op);
     let op = Operation::new("getProject")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["projects:read"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -893,6 +911,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/projects/:id", HttpMethod::Get, op);
     let op = Operation::new("listProjects")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["projects:read"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -918,6 +937,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/projects", HttpMethod::Get, op);
     let op = Operation::new("updateProject")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["projects:write"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,
@@ -945,6 +965,7 @@ pub fn document() -> serde_json::Value {
     builder.add_operation("/api/v1/projects/:id", HttpMethod::Patch, op);
     let op = Operation::new("deleteProject")
         .tag("roze-ent")
+        .extension("x-roze-permissions", serde_json::json!(["projects:write"]))
         .parameter(
             "x-roze-locale",
             roze_openapi::ParameterLocation::Header,

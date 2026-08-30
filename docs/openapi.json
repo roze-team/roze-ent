@@ -16,6 +16,9 @@
         "tags": [
           "roze-ent"
         ],
+        "x-roze-permissions": [
+          "users:write"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -82,6 +85,9 @@
         "tags": [
           "roze-ent"
         ],
+        "x-roze-permissions": [
+          "users:read"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -121,6 +127,9 @@
         "operationId": "getUser",
         "tags": [
           "roze-ent"
+        ],
+        "x-roze-permissions": [
+          "users:read"
         ],
         "parameters": [
           {
@@ -172,6 +181,9 @@
         "operationId": "deleteUser",
         "tags": [
           "roze-ent"
+        ],
+        "x-roze-permissions": [
+          "users:write"
         ],
         "parameters": [
           {
@@ -225,6 +237,9 @@
         "operationId": "createPet",
         "tags": [
           "roze-ent"
+        ],
+        "x-roze-permissions": [
+          "pets:write"
         ],
         "requestBody": {
           "required": true,
@@ -304,6 +319,9 @@
         "tags": [
           "roze-ent"
         ],
+        "x-roze-permissions": [
+          "pets:read"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -354,6 +372,9 @@
         "operationId": "deletePet",
         "tags": [
           "roze-ent"
+        ],
+        "x-roze-permissions": [
+          "pets:write"
         ],
         "parameters": [
           {
@@ -408,6 +429,9 @@
         "tags": [
           "roze-ent"
         ],
+        "x-roze-permissions": [
+          "pets:read"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -460,6 +484,9 @@
         "operationId": "createGroup",
         "tags": [
           "roze-ent"
+        ],
+        "x-roze-permissions": [
+          "groups:write"
         ],
         "requestBody": {
           "required": true,
@@ -524,6 +551,9 @@
         "tags": [
           "roze-ent"
         ],
+        "x-roze-permissions": [
+          "groups:read"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -563,6 +593,9 @@
         "operationId": "getGroup",
         "tags": [
           "roze-ent"
+        ],
+        "x-roze-permissions": [
+          "groups:read"
         ],
         "parameters": [
           {
@@ -616,6 +649,9 @@
         "operationId": "addGroupMember",
         "tags": [
           "roze-ent"
+        ],
+        "x-roze-permissions": [
+          "groups:write"
         ],
         "parameters": [
           {
@@ -688,6 +724,9 @@
         "operationId": "updateGroupMember",
         "tags": [
           "roze-ent"
+        ],
+        "x-roze-permissions": [
+          "groups:write"
         ],
         "parameters": [
           {
@@ -783,6 +822,9 @@
         "tags": [
           "roze-ent"
         ],
+        "x-roze-permissions": [
+          "groups:write"
+        ],
         "parameters": [
           {
             "name": "group_id",
@@ -847,6 +889,9 @@
         "tags": [
           "roze-ent"
         ],
+        "x-roze-permissions": [
+          "groups:read"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -900,6 +945,9 @@
         "tags": [
           "roze-ent"
         ],
+        "x-roze-permissions": [
+          "groups:read"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -952,6 +1000,9 @@
         "operationId": "createProject",
         "tags": [
           "roze-ent"
+        ],
+        "x-roze-permissions": [
+          "projects:write"
         ],
         "parameters": [
           {
@@ -1028,6 +1079,9 @@
         "tags": [
           "roze-ent"
         ],
+        "x-roze-permissions": [
+          "projects:read"
+        ],
         "parameters": [
           {
             "name": "x-tenant-id",
@@ -1079,6 +1133,9 @@
         "operationId": "getProject",
         "tags": [
           "roze-ent"
+        ],
+        "x-roze-permissions": [
+          "projects:read"
         ],
         "parameters": [
           {
@@ -1140,6 +1197,9 @@
         "operationId": "updateProject",
         "tags": [
           "roze-ent"
+        ],
+        "x-roze-permissions": [
+          "projects:write"
         ],
         "parameters": [
           {
@@ -1233,6 +1293,9 @@
         "operationId": "deleteProject",
         "tags": [
           "roze-ent"
+        ],
+        "x-roze-permissions": [
+          "projects:write"
         ],
         "parameters": [
           {

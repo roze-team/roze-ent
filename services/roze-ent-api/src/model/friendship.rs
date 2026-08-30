@@ -3,7 +3,7 @@
 
 use sea_orm::entity::prelude::*;
 use sea_orm::{
-    sea_query::{Condition, Expr, ExprTrait, Func, OnConflict},
+    sea_query::{Condition, Expr, ExprTrait, Func, LikeExpr, OnConflict},
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
     DatabaseTransaction, DbErr, DeleteResult, EntityTrait, IntoActiveModel, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, Select, SelectorTrait, Set, TransactionError,

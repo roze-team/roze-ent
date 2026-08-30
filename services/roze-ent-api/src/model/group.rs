@@ -3,7 +3,7 @@
 
 use sea_orm::entity::prelude::*;
 use sea_orm::{
-    sea_query::{Condition, Expr, ExprTrait, Func, OnConflict},
+    sea_query::{Condition, Expr, ExprTrait, Func, LikeExpr, OnConflict},
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
     DatabaseTransaction, DbErr, DeleteResult, EntityTrait, IntoActiveModel, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, Select, SelectorTrait, Set, TransactionError,
@@ -669,44 +669,55 @@ impl<'repo, 'ctx> GroupQuery<'repo, 'ctx> {
             GroupPredicate::NameNotIn(values) => {
                 Condition::all().add(Column::Name.is_not_in(values.clone()))
             }
-            GroupPredicate::NameContains(value) => {
-                Condition::all().add(Column::Name.like(contains_like_pattern(value)))
-            }
+            GroupPredicate::NameContains(value) => Condition::all()
+                .add(Column::Name.like(LikeExpr::new(contains_like_pattern(value)).escape('\\'))),
             GroupPredicate::NameNotContains(value) => Condition::all()
-                .add(Column::Name.like(contains_like_pattern(value)))
+                .add(Column::Name.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')))
                 .not(),
-            GroupPredicate::NameIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::Name))
-                    .like(contains_like_pattern(&value.to_lowercase())),
-            ),
-            GroupPredicate::NameNotIContains(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Name))
-                        .like(contains_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
+            GroupPredicate::NameIContains(value) => Condition::all()
+                .add(Func::lower(Expr::col(Column::Name)).like(
+                    LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                )),
+            GroupPredicate::NameNotIContains(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Name)).like(
+                        LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
             GroupPredicate::NameEqualFold(value) => Condition::all().add(
                 Func::lower(Expr::col(Column::Name))
-                    .like(escape_like_pattern(&value.to_lowercase())),
+                    .like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\')),
             ),
-            GroupPredicate::NameNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Name))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            GroupPredicate::NameStartsWith(value) => {
-                Condition::all().add(Column::Name.like(format!("{}%", escape_like_pattern(value))))
+            GroupPredicate::NameNotEqualFold(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Name)).like(
+                        LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
             }
-            GroupPredicate::NameNotStartsWith(value) => Condition::all()
-                .add(Column::Name.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            GroupPredicate::NameEndsWith(value) => {
-                Condition::all().add(Column::Name.like(format!("%{}", escape_like_pattern(value))))
+            GroupPredicate::NameStartsWith(value) => Condition::all().add(
+                Column::Name
+                    .like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\')),
+            ),
+            GroupPredicate::NameNotStartsWith(value) => {
+                Condition::all()
+                    .add(Column::Name.like(
+                        LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
             }
-            GroupPredicate::NameNotEndsWith(value) => Condition::all()
-                .add(Column::Name.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
+            GroupPredicate::NameEndsWith(value) => Condition::all().add(
+                Column::Name
+                    .like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\')),
+            ),
+            GroupPredicate::NameNotEndsWith(value) => {
+                Condition::all()
+                    .add(Column::Name.like(
+                        LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
             GroupPredicate::DescriptionEq(value) => {
                 Condition::all().add(Column::Description.eq(Some(value.clone())))
             }
@@ -725,42 +736,59 @@ impl<'repo, 'ctx> GroupQuery<'repo, 'ctx> {
             GroupPredicate::DescriptionNotIn(values) => Condition::all().add(
                 Column::Description.is_not_in(values.iter().cloned().map(Some).collect::<Vec<_>>()),
             ),
-            GroupPredicate::DescriptionContains(value) => {
-                Condition::all().add(Column::Description.like(contains_like_pattern(value)))
-            }
-            GroupPredicate::DescriptionNotContains(value) => Condition::all()
-                .add(Column::Description.like(contains_like_pattern(value)))
-                .not(),
-            GroupPredicate::DescriptionIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::Description))
-                    .like(contains_like_pattern(&value.to_lowercase())),
+            GroupPredicate::DescriptionContains(value) => Condition::all().add(
+                Column::Description.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')),
             ),
-            GroupPredicate::DescriptionNotIContains(value) => Condition::all()
+            GroupPredicate::DescriptionNotContains(value) => Condition::all()
                 .add(
-                    Func::lower(Expr::col(Column::Description))
-                        .like(contains_like_pattern(&value.to_lowercase())),
+                    Column::Description
+                        .like(LikeExpr::new(contains_like_pattern(value)).escape('\\')),
                 )
                 .not(),
+            GroupPredicate::DescriptionIContains(value) => Condition::all()
+                .add(Func::lower(Expr::col(Column::Description)).like(
+                    LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                )),
+            GroupPredicate::DescriptionNotIContains(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Description)).like(
+                        LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
             GroupPredicate::DescriptionEqualFold(value) => Condition::all().add(
                 Func::lower(Expr::col(Column::Description))
-                    .like(escape_like_pattern(&value.to_lowercase())),
+                    .like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\')),
             ),
-            GroupPredicate::DescriptionNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Description))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            GroupPredicate::DescriptionStartsWith(value) => Condition::all()
-                .add(Column::Description.like(format!("{}%", escape_like_pattern(value)))),
-            GroupPredicate::DescriptionNotStartsWith(value) => Condition::all()
-                .add(Column::Description.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            GroupPredicate::DescriptionEndsWith(value) => Condition::all()
-                .add(Column::Description.like(format!("%{}", escape_like_pattern(value)))),
-            GroupPredicate::DescriptionNotEndsWith(value) => Condition::all()
-                .add(Column::Description.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
+            GroupPredicate::DescriptionNotEqualFold(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Description)).like(
+                        LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
+            GroupPredicate::DescriptionStartsWith(value) => Condition::all().add(
+                Column::Description
+                    .like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\')),
+            ),
+            GroupPredicate::DescriptionNotStartsWith(value) => {
+                Condition::all()
+                    .add(Column::Description.like(
+                        LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
+            GroupPredicate::DescriptionEndsWith(value) => Condition::all().add(
+                Column::Description
+                    .like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\')),
+            ),
+            GroupPredicate::DescriptionNotEndsWith(value) => {
+                Condition::all()
+                    .add(Column::Description.like(
+                        LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
             GroupPredicate::CreatedAtEq(value) => {
                 Condition::all().add(Column::CreatedAt.eq(*value))
             }

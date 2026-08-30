@@ -16,19 +16,23 @@ impl<'a> UserRepository<'a> {
 mod tests {
     use sea_orm::ConnectionTrait as _;
 
-    async fn sqlite_context() -> anyhow::Result<crate::svc::ServiceContext> {
+    async fn database_context(url: &str) -> anyhow::Result<crate::svc::ServiceContext> {
         let config: crate::config::Config = serde_json::from_value(serde_json::json!({
             "name": "roze-ent-query-parity-test",
             "profile": "test",
             "governance": {},
             "database": {
                 "mode": "direct",
-                "url": "sqlite::memory:",
+                "url": url,
                 "max_connections": 1,
                 "min_connections": 1
             }
         }))?;
-        let ctx = crate::svc::ServiceContext::new(config).await?;
+        crate::svc::ServiceContext::new(config).await
+    }
+
+    async fn sqlite_context() -> anyhow::Result<crate::svc::ServiceContext> {
+        let ctx = database_context("sqlite::memory:").await?;
         let db = ctx.write_db()?;
         for statement in [
             "CREATE TABLE users (\
@@ -65,6 +69,95 @@ mod tests {
             db.execute_unprepared(statement).await?;
         }
         Ok(ctx)
+    }
+
+    async fn assert_string_predicate_semantics(
+        ctx: &crate::svc::ServiceContext,
+        marker: &str,
+    ) -> anyhow::Result<()> {
+        use crate::model::user;
+
+        let users = ctx.model().user();
+        let email_prefix = format!("roze-ent-like-{marker}-");
+        let rows = [
+            ("alpha", format!("{marker}-AlphaBeta"), 100),
+            ("omega", format!("{marker}-BetaOmega"), 200),
+            ("mixed", format!("{marker}-MiXeDCase"), 300),
+            ("literal", format!(r"{marker}-A%_\\Z"), 400),
+        ];
+        let mut ids = Vec::with_capacity(rows.len());
+        for (email_suffix, name, created_at) in rows {
+            let model = users
+                .create()
+                .set_email(format!("{email_prefix}{email_suffix}@example.com"))
+                .set_name(name)
+                .set_created_at(created_at)
+                .save()
+                .await?;
+            ids.push(model.id);
+        }
+
+        let scoped = |predicate| {
+            user::and(vec![
+                user::email_starts_with(email_prefix.clone()),
+                predicate,
+            ])
+        };
+        assert_eq!(
+            users
+                .query()
+                .where_(scoped(user::name_starts_with(format!("{marker}-Alpha"))))
+                .only_name()
+                .await?,
+            format!("{marker}-AlphaBeta")
+        );
+        assert_eq!(
+            users
+                .query()
+                .where_(scoped(user::name_ends_with("Omega")))
+                .only_name()
+                .await?,
+            format!("{marker}-BetaOmega")
+        );
+        assert_eq!(
+            users
+                .query()
+                .where_(scoped(user::name_equal_fold(format!(
+                    "{}-mixedcase",
+                    marker.to_lowercase()
+                ))))
+                .only_name()
+                .await?,
+            format!("{marker}-MiXeDCase")
+        );
+        assert_eq!(
+            users
+                .query()
+                .where_(scoped(user::name_icontains("XeDc")))
+                .only_name()
+                .await?,
+            format!("{marker}-MiXeDCase")
+        );
+        assert_eq!(
+            users
+                .query()
+                .where_(scoped(user::name_contains(r"%_\\")))
+                .only_name()
+                .await?,
+            format!(r"{marker}-A%_\\Z")
+        );
+        for predicate in [
+            user::name_not_starts_with(format!("{marker}-Alpha")),
+            user::name_not_ends_with("Omega"),
+            user::name_not_equal_fold(format!("{}-mixedcase", marker.to_lowercase())),
+            user::name_not_icontains("XeDc"),
+            user::name_not_contains(r"%_\\"),
+        ] {
+            assert_eq!(users.query().where_(scoped(predicate)).count().await?, 3);
+        }
+
+        users.delete_many_by_ids(ids).await?;
+        Ok(())
     }
 
     #[tokio::test]
@@ -252,6 +345,26 @@ mod tests {
         assert_eq!(loaded[1].edge.len(), 1);
         assert!(loaded[2].edge.is_empty());
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn string_predicates_preserve_literal_wildcards_on_sqlite() -> anyhow::Result<()> {
+        let ctx = sqlite_context().await?;
+        assert_string_predicate_semantics(&ctx, "sqlite").await
+    }
+
+    #[tokio::test]
+    #[ignore = "requires ROZE_ENT_TEST_DATABASE_URL and an applied project schema"]
+    async fn string_predicates_have_real_external_sql_evidence() -> anyhow::Result<()> {
+        let url = std::env::var("ROZE_ENT_TEST_DATABASE_URL")?;
+        let marker = format!(
+            "external-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_nanos()
+        );
+        let ctx = database_context(&url).await?;
+        assert_string_predicate_semantics(&ctx, &marker).await
     }
 
     #[tokio::test]

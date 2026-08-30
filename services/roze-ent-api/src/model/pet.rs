@@ -3,7 +3,7 @@
 
 use sea_orm::entity::prelude::*;
 use sea_orm::{
-    sea_query::{Condition, Expr, ExprTrait, Func, OnConflict},
+    sea_query::{Condition, Expr, ExprTrait, Func, LikeExpr, OnConflict},
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
     DatabaseTransaction, DbErr, DeleteResult, EntityTrait, IntoActiveModel, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, Select, SelectorTrait, Set, TransactionError,
@@ -600,44 +600,55 @@ impl<'repo, 'ctx> PetQuery<'repo, 'ctx> {
             PetPredicate::NameNotIn(values) => {
                 Condition::all().add(Column::Name.is_not_in(values.clone()))
             }
-            PetPredicate::NameContains(value) => {
-                Condition::all().add(Column::Name.like(contains_like_pattern(value)))
-            }
+            PetPredicate::NameContains(value) => Condition::all()
+                .add(Column::Name.like(LikeExpr::new(contains_like_pattern(value)).escape('\\'))),
             PetPredicate::NameNotContains(value) => Condition::all()
-                .add(Column::Name.like(contains_like_pattern(value)))
+                .add(Column::Name.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')))
                 .not(),
-            PetPredicate::NameIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::Name))
-                    .like(contains_like_pattern(&value.to_lowercase())),
-            ),
-            PetPredicate::NameNotIContains(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Name))
-                        .like(contains_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
+            PetPredicate::NameIContains(value) => Condition::all()
+                .add(Func::lower(Expr::col(Column::Name)).like(
+                    LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                )),
+            PetPredicate::NameNotIContains(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Name)).like(
+                        LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
             PetPredicate::NameEqualFold(value) => Condition::all().add(
                 Func::lower(Expr::col(Column::Name))
-                    .like(escape_like_pattern(&value.to_lowercase())),
+                    .like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\')),
             ),
-            PetPredicate::NameNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Name))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            PetPredicate::NameStartsWith(value) => {
-                Condition::all().add(Column::Name.like(format!("{}%", escape_like_pattern(value))))
+            PetPredicate::NameNotEqualFold(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Name)).like(
+                        LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
             }
-            PetPredicate::NameNotStartsWith(value) => Condition::all()
-                .add(Column::Name.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            PetPredicate::NameEndsWith(value) => {
-                Condition::all().add(Column::Name.like(format!("%{}", escape_like_pattern(value))))
+            PetPredicate::NameStartsWith(value) => Condition::all().add(
+                Column::Name
+                    .like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\')),
+            ),
+            PetPredicate::NameNotStartsWith(value) => {
+                Condition::all()
+                    .add(Column::Name.like(
+                        LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
             }
-            PetPredicate::NameNotEndsWith(value) => Condition::all()
-                .add(Column::Name.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
+            PetPredicate::NameEndsWith(value) => Condition::all().add(
+                Column::Name
+                    .like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\')),
+            ),
+            PetPredicate::NameNotEndsWith(value) => {
+                Condition::all()
+                    .add(Column::Name.like(
+                        LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
             PetPredicate::SpeciesEq(value) => {
                 Condition::all().add(Column::Species.eq(value.clone()))
             }
@@ -650,42 +661,56 @@ impl<'repo, 'ctx> PetQuery<'repo, 'ctx> {
             PetPredicate::SpeciesNotIn(values) => {
                 Condition::all().add(Column::Species.is_not_in(values.clone()))
             }
-            PetPredicate::SpeciesContains(value) => {
-                Condition::all().add(Column::Species.like(contains_like_pattern(value)))
-            }
-            PetPredicate::SpeciesNotContains(value) => Condition::all()
-                .add(Column::Species.like(contains_like_pattern(value)))
-                .not(),
-            PetPredicate::SpeciesIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::Species))
-                    .like(contains_like_pattern(&value.to_lowercase())),
+            PetPredicate::SpeciesContains(value) => Condition::all().add(
+                Column::Species.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')),
             ),
-            PetPredicate::SpeciesNotIContains(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Species))
-                        .like(contains_like_pattern(&value.to_lowercase())),
-                )
+            PetPredicate::SpeciesNotContains(value) => Condition::all()
+                .add(Column::Species.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')))
                 .not(),
+            PetPredicate::SpeciesIContains(value) => Condition::all()
+                .add(Func::lower(Expr::col(Column::Species)).like(
+                    LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                )),
+            PetPredicate::SpeciesNotIContains(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Species)).like(
+                        LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
             PetPredicate::SpeciesEqualFold(value) => Condition::all().add(
                 Func::lower(Expr::col(Column::Species))
-                    .like(escape_like_pattern(&value.to_lowercase())),
+                    .like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\')),
             ),
-            PetPredicate::SpeciesNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Species))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            PetPredicate::SpeciesStartsWith(value) => Condition::all()
-                .add(Column::Species.like(format!("{}%", escape_like_pattern(value)))),
-            PetPredicate::SpeciesNotStartsWith(value) => Condition::all()
-                .add(Column::Species.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            PetPredicate::SpeciesEndsWith(value) => Condition::all()
-                .add(Column::Species.like(format!("%{}", escape_like_pattern(value)))),
-            PetPredicate::SpeciesNotEndsWith(value) => Condition::all()
-                .add(Column::Species.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
+            PetPredicate::SpeciesNotEqualFold(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Species)).like(
+                        LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
+            PetPredicate::SpeciesStartsWith(value) => Condition::all().add(
+                Column::Species
+                    .like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\')),
+            ),
+            PetPredicate::SpeciesNotStartsWith(value) => {
+                Condition::all()
+                    .add(Column::Species.like(
+                        LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
+            PetPredicate::SpeciesEndsWith(value) => Condition::all().add(
+                Column::Species
+                    .like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\')),
+            ),
+            PetPredicate::SpeciesNotEndsWith(value) => {
+                Condition::all()
+                    .add(Column::Species.like(
+                        LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
             PetPredicate::And(predicates) => predicates
                 .iter()
                 .fold(Condition::all(), |condition, predicate| {

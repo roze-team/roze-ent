@@ -3,7 +3,7 @@
 
 use sea_orm::entity::prelude::*;
 use sea_orm::{
-    sea_query::{Condition, Expr, ExprTrait, Func, OnConflict},
+    sea_query::{Condition, Expr, ExprTrait, Func, LikeExpr, OnConflict},
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
     DatabaseTransaction, DbErr, DeleteResult, EntityTrait, IntoActiveModel, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, Select, SelectorTrait, Set, TransactionError,
@@ -902,43 +902,55 @@ impl<'repo, 'ctx> ScalarFixtureQuery<'repo, 'ctx> {
             ScalarFixturePredicate::IdNotIn(values) => {
                 Condition::all().add(Column::Id.is_not_in(values.clone()))
             }
-            ScalarFixturePredicate::IdContains(value) => {
-                Condition::all().add(Column::Id.like(contains_like_pattern(value)))
-            }
+            ScalarFixturePredicate::IdContains(value) => Condition::all()
+                .add(Column::Id.like(LikeExpr::new(contains_like_pattern(value)).escape('\\'))),
             ScalarFixturePredicate::IdNotContains(value) => Condition::all()
-                .add(Column::Id.like(contains_like_pattern(value)))
+                .add(Column::Id.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')))
                 .not(),
-            ScalarFixturePredicate::IdIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::Id))
-                    .like(contains_like_pattern(&value.to_lowercase())),
-            ),
-            ScalarFixturePredicate::IdNotIContains(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Id))
-                        .like(contains_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
+            ScalarFixturePredicate::IdIContains(value) => Condition::all()
+                .add(Func::lower(Expr::col(Column::Id)).like(
+                    LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                )),
+            ScalarFixturePredicate::IdNotIContains(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Id)).like(
+                        LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
             ScalarFixturePredicate::IdEqualFold(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::Id)).like(escape_like_pattern(&value.to_lowercase())),
+                Func::lower(Expr::col(Column::Id))
+                    .like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\')),
             ),
-            ScalarFixturePredicate::IdNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Id))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            ScalarFixturePredicate::IdStartsWith(value) => {
-                Condition::all().add(Column::Id.like(format!("{}%", escape_like_pattern(value))))
+            ScalarFixturePredicate::IdNotEqualFold(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Id)).like(
+                        LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
             }
-            ScalarFixturePredicate::IdNotStartsWith(value) => Condition::all()
-                .add(Column::Id.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            ScalarFixturePredicate::IdEndsWith(value) => {
-                Condition::all().add(Column::Id.like(format!("%{}", escape_like_pattern(value))))
+            ScalarFixturePredicate::IdStartsWith(value) => Condition::all().add(
+                Column::Id
+                    .like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\')),
+            ),
+            ScalarFixturePredicate::IdNotStartsWith(value) => {
+                Condition::all()
+                    .add(Column::Id.like(
+                        LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
             }
-            ScalarFixturePredicate::IdNotEndsWith(value) => Condition::all()
-                .add(Column::Id.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
+            ScalarFixturePredicate::IdEndsWith(value) => Condition::all().add(
+                Column::Id
+                    .like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\')),
+            ),
+            ScalarFixturePredicate::IdNotEndsWith(value) => {
+                Condition::all()
+                    .add(Column::Id.like(
+                        LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
             ScalarFixturePredicate::ExternalIdEq(value) => {
                 Condition::all().add(Column::ExternalId.eq(value.clone()))
             }
@@ -951,42 +963,59 @@ impl<'repo, 'ctx> ScalarFixtureQuery<'repo, 'ctx> {
             ScalarFixturePredicate::ExternalIdNotIn(values) => {
                 Condition::all().add(Column::ExternalId.is_not_in(values.clone()))
             }
-            ScalarFixturePredicate::ExternalIdContains(value) => {
-                Condition::all().add(Column::ExternalId.like(contains_like_pattern(value)))
-            }
-            ScalarFixturePredicate::ExternalIdNotContains(value) => Condition::all()
-                .add(Column::ExternalId.like(contains_like_pattern(value)))
-                .not(),
-            ScalarFixturePredicate::ExternalIdIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::ExternalId))
-                    .like(contains_like_pattern(&value.to_lowercase())),
+            ScalarFixturePredicate::ExternalIdContains(value) => Condition::all().add(
+                Column::ExternalId.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')),
             ),
-            ScalarFixturePredicate::ExternalIdNotIContains(value) => Condition::all()
+            ScalarFixturePredicate::ExternalIdNotContains(value) => Condition::all()
                 .add(
-                    Func::lower(Expr::col(Column::ExternalId))
-                        .like(contains_like_pattern(&value.to_lowercase())),
+                    Column::ExternalId
+                        .like(LikeExpr::new(contains_like_pattern(value)).escape('\\')),
                 )
                 .not(),
+            ScalarFixturePredicate::ExternalIdIContains(value) => Condition::all()
+                .add(Func::lower(Expr::col(Column::ExternalId)).like(
+                    LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                )),
+            ScalarFixturePredicate::ExternalIdNotIContains(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::ExternalId)).like(
+                        LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
             ScalarFixturePredicate::ExternalIdEqualFold(value) => Condition::all().add(
                 Func::lower(Expr::col(Column::ExternalId))
-                    .like(escape_like_pattern(&value.to_lowercase())),
+                    .like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\')),
             ),
-            ScalarFixturePredicate::ExternalIdNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::ExternalId))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            ScalarFixturePredicate::ExternalIdStartsWith(value) => Condition::all()
-                .add(Column::ExternalId.like(format!("{}%", escape_like_pattern(value)))),
-            ScalarFixturePredicate::ExternalIdNotStartsWith(value) => Condition::all()
-                .add(Column::ExternalId.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            ScalarFixturePredicate::ExternalIdEndsWith(value) => Condition::all()
-                .add(Column::ExternalId.like(format!("%{}", escape_like_pattern(value)))),
-            ScalarFixturePredicate::ExternalIdNotEndsWith(value) => Condition::all()
-                .add(Column::ExternalId.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
+            ScalarFixturePredicate::ExternalIdNotEqualFold(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::ExternalId)).like(
+                        LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
+            ScalarFixturePredicate::ExternalIdStartsWith(value) => Condition::all().add(
+                Column::ExternalId
+                    .like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\')),
+            ),
+            ScalarFixturePredicate::ExternalIdNotStartsWith(value) => {
+                Condition::all()
+                    .add(Column::ExternalId.like(
+                        LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
+            ScalarFixturePredicate::ExternalIdEndsWith(value) => Condition::all().add(
+                Column::ExternalId
+                    .like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\')),
+            ),
+            ScalarFixturePredicate::ExternalIdNotEndsWith(value) => {
+                Condition::all()
+                    .add(Column::ExternalId.like(
+                        LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
             ScalarFixturePredicate::SmallValueEq(value) => {
                 Condition::all().add(Column::SmallValue.eq(*value))
             }

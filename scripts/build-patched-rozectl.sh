@@ -21,4 +21,5 @@ git -C "${source_dir}" apply "${workspace_dir}/patches/roze/0001-fix-sea-orm-cas
 git -C "${source_dir}" apply "${workspace_dir}/patches/roze/0002-fix-sea-orm-sqlite-upsert-returning.patch"
 git -C "${source_dir}" apply "${workspace_dir}/patches/roze/0003-fix-sea-orm-custom-id-insert-returning.patch"
 git -C "${source_dir}" apply "${workspace_dir}/patches/roze/0004-fix-sea-orm-scalar-clippy-output.patch"
+git -C "${source_dir}" apply "${workspace_dir}/patches/roze/0005-fix-sea-orm-like-escape.patch"
 cargo build --locked --manifest-path "${source_dir}/Cargo.toml" --target-dir "${source_dir}/target" -p rozectl

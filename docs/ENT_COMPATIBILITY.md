@@ -39,7 +39,7 @@
 | ent 能力 | Roze/Rust 落点 | 状态 | 完成条件/证据 |
 | --- | --- | --- | --- |
 | typed predicates、AND/OR/NOT、IN/range/null | 生成 query builder | 已兼容 | SQLite 真实查询矩阵 |
-| contains/prefix/suffix/equal-fold/contains-fold | 生成字符串 predicate | 部分兼容 | patched-rozectl + SQLite 已覆盖 `IContains/EqualFold`；补齐其余变体和 PostgreSQL/MySQL 运行证据 |
+| contains/prefix/suffix/equal-fold/contains-fold | 生成字符串 predicate | 已兼容 | patched-rozectl 显式生成 `LIKE ... ESCAPE`；SQLite 及 PostgreSQL/MySQL CI 覆盖正向/否定变体与 `%`、`_`、反斜杠字面量 |
 | HasEdge/HasEdgeWith 与反向 traversal | relation predicate | 已兼容 | Through M2M SQLite 行为测试 |
 | order、offset/limit、page、projection、only/exist/count | typed query API | 已兼容 | SQLite 查询矩阵 |
 | scalar aggregate、group-by、group aggregate、自定义 scan | aggregate API | 部分兼容 | count/sum/min/max/group 已覆盖；补齐多列 group、自定义 selector/scan 和三方言结果类型 |

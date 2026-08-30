@@ -3,7 +3,7 @@
 
 use sea_orm::entity::prelude::*;
 use sea_orm::{
-    sea_query::{Condition, Expr, ExprTrait, Func, OnConflict},
+    sea_query::{Condition, Expr, ExprTrait, Func, LikeExpr, OnConflict},
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
     DatabaseTransaction, DbErr, DeleteResult, EntityTrait, IntoActiveModel, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, Select, SelectorTrait, Set, TransactionError,
@@ -1283,44 +1283,55 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
             UserPredicate::EmailNotIn(values) => {
                 Condition::all().add(Column::Email.is_not_in(values.clone()))
             }
-            UserPredicate::EmailContains(value) => {
-                Condition::all().add(Column::Email.like(contains_like_pattern(value)))
-            }
+            UserPredicate::EmailContains(value) => Condition::all()
+                .add(Column::Email.like(LikeExpr::new(contains_like_pattern(value)).escape('\\'))),
             UserPredicate::EmailNotContains(value) => Condition::all()
-                .add(Column::Email.like(contains_like_pattern(value)))
+                .add(Column::Email.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')))
                 .not(),
-            UserPredicate::EmailIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::Email))
-                    .like(contains_like_pattern(&value.to_lowercase())),
-            ),
-            UserPredicate::EmailNotIContains(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Email))
-                        .like(contains_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
+            UserPredicate::EmailIContains(value) => Condition::all()
+                .add(Func::lower(Expr::col(Column::Email)).like(
+                    LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                )),
+            UserPredicate::EmailNotIContains(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Email)).like(
+                        LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
             UserPredicate::EmailEqualFold(value) => Condition::all().add(
                 Func::lower(Expr::col(Column::Email))
-                    .like(escape_like_pattern(&value.to_lowercase())),
+                    .like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\')),
             ),
-            UserPredicate::EmailNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Email))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            UserPredicate::EmailStartsWith(value) => {
-                Condition::all().add(Column::Email.like(format!("{}%", escape_like_pattern(value))))
+            UserPredicate::EmailNotEqualFold(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Email)).like(
+                        LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
             }
-            UserPredicate::EmailNotStartsWith(value) => Condition::all()
-                .add(Column::Email.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            UserPredicate::EmailEndsWith(value) => {
-                Condition::all().add(Column::Email.like(format!("%{}", escape_like_pattern(value))))
+            UserPredicate::EmailStartsWith(value) => Condition::all().add(
+                Column::Email
+                    .like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\')),
+            ),
+            UserPredicate::EmailNotStartsWith(value) => {
+                Condition::all()
+                    .add(Column::Email.like(
+                        LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
             }
-            UserPredicate::EmailNotEndsWith(value) => Condition::all()
-                .add(Column::Email.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
+            UserPredicate::EmailEndsWith(value) => Condition::all().add(
+                Column::Email
+                    .like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\')),
+            ),
+            UserPredicate::EmailNotEndsWith(value) => {
+                Condition::all()
+                    .add(Column::Email.like(
+                        LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
             UserPredicate::NameEq(value) => Condition::all().add(Column::Name.eq(value.clone())),
             UserPredicate::NameNe(value) => Condition::all().add(Column::Name.ne(value.clone())),
             UserPredicate::NameIn(values) => {
@@ -1329,44 +1340,55 @@ impl<'repo, 'ctx> UserQuery<'repo, 'ctx> {
             UserPredicate::NameNotIn(values) => {
                 Condition::all().add(Column::Name.is_not_in(values.clone()))
             }
-            UserPredicate::NameContains(value) => {
-                Condition::all().add(Column::Name.like(contains_like_pattern(value)))
-            }
+            UserPredicate::NameContains(value) => Condition::all()
+                .add(Column::Name.like(LikeExpr::new(contains_like_pattern(value)).escape('\\'))),
             UserPredicate::NameNotContains(value) => Condition::all()
-                .add(Column::Name.like(contains_like_pattern(value)))
+                .add(Column::Name.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')))
                 .not(),
-            UserPredicate::NameIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::Name))
-                    .like(contains_like_pattern(&value.to_lowercase())),
-            ),
-            UserPredicate::NameNotIContains(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Name))
-                        .like(contains_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
+            UserPredicate::NameIContains(value) => Condition::all()
+                .add(Func::lower(Expr::col(Column::Name)).like(
+                    LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                )),
+            UserPredicate::NameNotIContains(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Name)).like(
+                        LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
             UserPredicate::NameEqualFold(value) => Condition::all().add(
                 Func::lower(Expr::col(Column::Name))
-                    .like(escape_like_pattern(&value.to_lowercase())),
+                    .like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\')),
             ),
-            UserPredicate::NameNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Name))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            UserPredicate::NameStartsWith(value) => {
-                Condition::all().add(Column::Name.like(format!("{}%", escape_like_pattern(value))))
+            UserPredicate::NameNotEqualFold(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Name)).like(
+                        LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
             }
-            UserPredicate::NameNotStartsWith(value) => Condition::all()
-                .add(Column::Name.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            UserPredicate::NameEndsWith(value) => {
-                Condition::all().add(Column::Name.like(format!("%{}", escape_like_pattern(value))))
+            UserPredicate::NameStartsWith(value) => Condition::all().add(
+                Column::Name
+                    .like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\')),
+            ),
+            UserPredicate::NameNotStartsWith(value) => {
+                Condition::all()
+                    .add(Column::Name.like(
+                        LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
             }
-            UserPredicate::NameNotEndsWith(value) => Condition::all()
-                .add(Column::Name.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
+            UserPredicate::NameEndsWith(value) => Condition::all().add(
+                Column::Name
+                    .like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\')),
+            ),
+            UserPredicate::NameNotEndsWith(value) => {
+                Condition::all()
+                    .add(Column::Name.like(
+                        LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
             UserPredicate::ActiveEq(value) => Condition::all().add(Column::Active.eq(*value)),
             UserPredicate::ActiveNe(value) => Condition::all().add(Column::Active.ne(*value)),
             UserPredicate::ActiveIn(values) => {

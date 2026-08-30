@@ -3,7 +3,7 @@
 
 use sea_orm::entity::prelude::*;
 use sea_orm::{
-    sea_query::{Condition, Expr, ExprTrait, Func, OnConflict},
+    sea_query::{Condition, Expr, ExprTrait, Func, LikeExpr, OnConflict},
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
     DatabaseTransaction, DbErr, DeleteResult, EntityTrait, IntoActiveModel, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, Select, SelectorTrait, Set, TransactionError,
@@ -731,42 +731,58 @@ impl<'repo, 'ctx> ProjectQuery<'repo, 'ctx> {
             ProjectPredicate::TenantIdNotIn(values) => {
                 Condition::all().add(Column::TenantId.is_not_in(values.clone()))
             }
-            ProjectPredicate::TenantIdContains(value) => {
-                Condition::all().add(Column::TenantId.like(contains_like_pattern(value)))
-            }
-            ProjectPredicate::TenantIdNotContains(value) => Condition::all()
-                .add(Column::TenantId.like(contains_like_pattern(value)))
-                .not(),
-            ProjectPredicate::TenantIdIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::TenantId))
-                    .like(contains_like_pattern(&value.to_lowercase())),
+            ProjectPredicate::TenantIdContains(value) => Condition::all().add(
+                Column::TenantId.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')),
             ),
-            ProjectPredicate::TenantIdNotIContains(value) => Condition::all()
+            ProjectPredicate::TenantIdNotContains(value) => Condition::all()
                 .add(
-                    Func::lower(Expr::col(Column::TenantId))
-                        .like(contains_like_pattern(&value.to_lowercase())),
+                    Column::TenantId.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')),
                 )
                 .not(),
+            ProjectPredicate::TenantIdIContains(value) => Condition::all()
+                .add(Func::lower(Expr::col(Column::TenantId)).like(
+                    LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                )),
+            ProjectPredicate::TenantIdNotIContains(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::TenantId)).like(
+                        LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
             ProjectPredicate::TenantIdEqualFold(value) => Condition::all().add(
                 Func::lower(Expr::col(Column::TenantId))
-                    .like(escape_like_pattern(&value.to_lowercase())),
+                    .like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\')),
             ),
-            ProjectPredicate::TenantIdNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::TenantId))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            ProjectPredicate::TenantIdStartsWith(value) => Condition::all()
-                .add(Column::TenantId.like(format!("{}%", escape_like_pattern(value)))),
-            ProjectPredicate::TenantIdNotStartsWith(value) => Condition::all()
-                .add(Column::TenantId.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            ProjectPredicate::TenantIdEndsWith(value) => Condition::all()
-                .add(Column::TenantId.like(format!("%{}", escape_like_pattern(value)))),
-            ProjectPredicate::TenantIdNotEndsWith(value) => Condition::all()
-                .add(Column::TenantId.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
+            ProjectPredicate::TenantIdNotEqualFold(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::TenantId)).like(
+                        LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
+            ProjectPredicate::TenantIdStartsWith(value) => Condition::all().add(
+                Column::TenantId
+                    .like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\')),
+            ),
+            ProjectPredicate::TenantIdNotStartsWith(value) => {
+                Condition::all()
+                    .add(Column::TenantId.like(
+                        LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
+            ProjectPredicate::TenantIdEndsWith(value) => Condition::all().add(
+                Column::TenantId
+                    .like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\')),
+            ),
+            ProjectPredicate::TenantIdNotEndsWith(value) => {
+                Condition::all()
+                    .add(Column::TenantId.like(
+                        LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
             ProjectPredicate::NameEq(value) => Condition::all().add(Column::Name.eq(value.clone())),
             ProjectPredicate::NameNe(value) => Condition::all().add(Column::Name.ne(value.clone())),
             ProjectPredicate::NameIn(values) => {
@@ -775,44 +791,55 @@ impl<'repo, 'ctx> ProjectQuery<'repo, 'ctx> {
             ProjectPredicate::NameNotIn(values) => {
                 Condition::all().add(Column::Name.is_not_in(values.clone()))
             }
-            ProjectPredicate::NameContains(value) => {
-                Condition::all().add(Column::Name.like(contains_like_pattern(value)))
-            }
+            ProjectPredicate::NameContains(value) => Condition::all()
+                .add(Column::Name.like(LikeExpr::new(contains_like_pattern(value)).escape('\\'))),
             ProjectPredicate::NameNotContains(value) => Condition::all()
-                .add(Column::Name.like(contains_like_pattern(value)))
+                .add(Column::Name.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')))
                 .not(),
-            ProjectPredicate::NameIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::Name))
-                    .like(contains_like_pattern(&value.to_lowercase())),
-            ),
-            ProjectPredicate::NameNotIContains(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Name))
-                        .like(contains_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
+            ProjectPredicate::NameIContains(value) => Condition::all()
+                .add(Func::lower(Expr::col(Column::Name)).like(
+                    LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                )),
+            ProjectPredicate::NameNotIContains(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Name)).like(
+                        LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
             ProjectPredicate::NameEqualFold(value) => Condition::all().add(
                 Func::lower(Expr::col(Column::Name))
-                    .like(escape_like_pattern(&value.to_lowercase())),
+                    .like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\')),
             ),
-            ProjectPredicate::NameNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Name))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            ProjectPredicate::NameStartsWith(value) => {
-                Condition::all().add(Column::Name.like(format!("{}%", escape_like_pattern(value))))
+            ProjectPredicate::NameNotEqualFold(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Name)).like(
+                        LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
             }
-            ProjectPredicate::NameNotStartsWith(value) => Condition::all()
-                .add(Column::Name.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            ProjectPredicate::NameEndsWith(value) => {
-                Condition::all().add(Column::Name.like(format!("%{}", escape_like_pattern(value))))
+            ProjectPredicate::NameStartsWith(value) => Condition::all().add(
+                Column::Name
+                    .like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\')),
+            ),
+            ProjectPredicate::NameNotStartsWith(value) => {
+                Condition::all()
+                    .add(Column::Name.like(
+                        LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
             }
-            ProjectPredicate::NameNotEndsWith(value) => Condition::all()
-                .add(Column::Name.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
+            ProjectPredicate::NameEndsWith(value) => Condition::all().add(
+                Column::Name
+                    .like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\')),
+            ),
+            ProjectPredicate::NameNotEndsWith(value) => {
+                Condition::all()
+                    .add(Column::Name.like(
+                        LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
             ProjectPredicate::DescriptionEq(value) => {
                 Condition::all().add(Column::Description.eq(Some(value.clone())))
             }
@@ -831,42 +858,59 @@ impl<'repo, 'ctx> ProjectQuery<'repo, 'ctx> {
             ProjectPredicate::DescriptionNotIn(values) => Condition::all().add(
                 Column::Description.is_not_in(values.iter().cloned().map(Some).collect::<Vec<_>>()),
             ),
-            ProjectPredicate::DescriptionContains(value) => {
-                Condition::all().add(Column::Description.like(contains_like_pattern(value)))
-            }
-            ProjectPredicate::DescriptionNotContains(value) => Condition::all()
-                .add(Column::Description.like(contains_like_pattern(value)))
-                .not(),
-            ProjectPredicate::DescriptionIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::Description))
-                    .like(contains_like_pattern(&value.to_lowercase())),
+            ProjectPredicate::DescriptionContains(value) => Condition::all().add(
+                Column::Description.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')),
             ),
-            ProjectPredicate::DescriptionNotIContains(value) => Condition::all()
+            ProjectPredicate::DescriptionNotContains(value) => Condition::all()
                 .add(
-                    Func::lower(Expr::col(Column::Description))
-                        .like(contains_like_pattern(&value.to_lowercase())),
+                    Column::Description
+                        .like(LikeExpr::new(contains_like_pattern(value)).escape('\\')),
                 )
                 .not(),
+            ProjectPredicate::DescriptionIContains(value) => Condition::all()
+                .add(Func::lower(Expr::col(Column::Description)).like(
+                    LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                )),
+            ProjectPredicate::DescriptionNotIContains(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Description)).like(
+                        LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
             ProjectPredicate::DescriptionEqualFold(value) => Condition::all().add(
                 Func::lower(Expr::col(Column::Description))
-                    .like(escape_like_pattern(&value.to_lowercase())),
+                    .like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\')),
             ),
-            ProjectPredicate::DescriptionNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Description))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            ProjectPredicate::DescriptionStartsWith(value) => Condition::all()
-                .add(Column::Description.like(format!("{}%", escape_like_pattern(value)))),
-            ProjectPredicate::DescriptionNotStartsWith(value) => Condition::all()
-                .add(Column::Description.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            ProjectPredicate::DescriptionEndsWith(value) => Condition::all()
-                .add(Column::Description.like(format!("%{}", escape_like_pattern(value)))),
-            ProjectPredicate::DescriptionNotEndsWith(value) => Condition::all()
-                .add(Column::Description.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
+            ProjectPredicate::DescriptionNotEqualFold(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Description)).like(
+                        LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
+            ProjectPredicate::DescriptionStartsWith(value) => Condition::all().add(
+                Column::Description
+                    .like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\')),
+            ),
+            ProjectPredicate::DescriptionNotStartsWith(value) => {
+                Condition::all()
+                    .add(Column::Description.like(
+                        LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
+            ProjectPredicate::DescriptionEndsWith(value) => Condition::all().add(
+                Column::Description
+                    .like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\')),
+            ),
+            ProjectPredicate::DescriptionNotEndsWith(value) => {
+                Condition::all()
+                    .add(Column::Description.like(
+                        LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
             ProjectPredicate::VersionEq(value) => Condition::all().add(Column::Version.eq(*value)),
             ProjectPredicate::VersionNe(value) => Condition::all().add(Column::Version.ne(*value)),
             ProjectPredicate::VersionIn(values) => {

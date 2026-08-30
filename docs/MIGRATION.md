@@ -55,6 +55,12 @@ upsert 运行证据。本项目的 patched-rozectl 生成链已应用该补丁�
 它将 Decimal 纳入 Copy filter 类型，并让平均值代码仅对非 `f64` 输入做转换；生成器回归测试、
 本仓库全量测试与 `clippy -D warnings` 共同固化该行为。
 
+字符串谓词矩阵进一步发现生成代码虽然会在 LIKE pattern 中转义 `%`、`_` 与反斜杠，
+却没有向 SQL 方言声明转义字符，导致 SQLite 将转义后的 pattern 当作普通反斜杠文本。
+修复位于 [`patches/roze/0005-fix-sea-orm-like-escape.patch`](../patches/roze/0005-fix-sea-orm-like-escape.patch)：
+SeaORM 生成代码统一使用 `LikeExpr::escape('\\')`，使 contains、starts/ends-with、
+大小写不敏感及其否定变体在 SQLite、PostgreSQL、MySQL 上共享显式转义语义。
+
 标量矩阵还确认 `.ent u64` 虽可生成和编译，但 SeaORM/sqlx-sqlite 在运行时拒绝绑定 `u64`。
 该能力保持未完成，不能以 `i64` 替换后宣称等价；需要 Roze 提供带范围检查的 SQLite 存储转换，
 并同时保持 Rust 公共模型的 unsigned 语义。

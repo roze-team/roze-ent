@@ -3,7 +3,7 @@
 
 use sea_orm::entity::prelude::*;
 use sea_orm::{
-    sea_query::{Condition, Expr, ExprTrait, Func, OnConflict},
+    sea_query::{Condition, Expr, ExprTrait, Func, LikeExpr, OnConflict},
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
     DatabaseTransaction, DbErr, DeleteResult, EntityTrait, IntoActiveModel, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, Select, SelectorTrait, Set, TransactionError,
@@ -478,42 +478,58 @@ impl<'repo, 'ctx> LocaleSettingQuery<'repo, 'ctx> {
             LocaleSettingPredicate::TenantIdNotIn(values) => {
                 Condition::all().add(Column::TenantId.is_not_in(values.clone()))
             }
-            LocaleSettingPredicate::TenantIdContains(value) => {
-                Condition::all().add(Column::TenantId.like(contains_like_pattern(value)))
-            }
-            LocaleSettingPredicate::TenantIdNotContains(value) => Condition::all()
-                .add(Column::TenantId.like(contains_like_pattern(value)))
-                .not(),
-            LocaleSettingPredicate::TenantIdIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::TenantId))
-                    .like(contains_like_pattern(&value.to_lowercase())),
+            LocaleSettingPredicate::TenantIdContains(value) => Condition::all().add(
+                Column::TenantId.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')),
             ),
-            LocaleSettingPredicate::TenantIdNotIContains(value) => Condition::all()
+            LocaleSettingPredicate::TenantIdNotContains(value) => Condition::all()
                 .add(
-                    Func::lower(Expr::col(Column::TenantId))
-                        .like(contains_like_pattern(&value.to_lowercase())),
+                    Column::TenantId.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')),
                 )
                 .not(),
+            LocaleSettingPredicate::TenantIdIContains(value) => Condition::all()
+                .add(Func::lower(Expr::col(Column::TenantId)).like(
+                    LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                )),
+            LocaleSettingPredicate::TenantIdNotIContains(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::TenantId)).like(
+                        LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
             LocaleSettingPredicate::TenantIdEqualFold(value) => Condition::all().add(
                 Func::lower(Expr::col(Column::TenantId))
-                    .like(escape_like_pattern(&value.to_lowercase())),
+                    .like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\')),
             ),
-            LocaleSettingPredicate::TenantIdNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::TenantId))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            LocaleSettingPredicate::TenantIdStartsWith(value) => Condition::all()
-                .add(Column::TenantId.like(format!("{}%", escape_like_pattern(value)))),
-            LocaleSettingPredicate::TenantIdNotStartsWith(value) => Condition::all()
-                .add(Column::TenantId.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            LocaleSettingPredicate::TenantIdEndsWith(value) => Condition::all()
-                .add(Column::TenantId.like(format!("%{}", escape_like_pattern(value)))),
-            LocaleSettingPredicate::TenantIdNotEndsWith(value) => Condition::all()
-                .add(Column::TenantId.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
+            LocaleSettingPredicate::TenantIdNotEqualFold(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::TenantId)).like(
+                        LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
+            LocaleSettingPredicate::TenantIdStartsWith(value) => Condition::all().add(
+                Column::TenantId
+                    .like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\')),
+            ),
+            LocaleSettingPredicate::TenantIdNotStartsWith(value) => {
+                Condition::all()
+                    .add(Column::TenantId.like(
+                        LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
+            LocaleSettingPredicate::TenantIdEndsWith(value) => Condition::all().add(
+                Column::TenantId
+                    .like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\')),
+            ),
+            LocaleSettingPredicate::TenantIdNotEndsWith(value) => {
+                Condition::all()
+                    .add(Column::TenantId.like(
+                        LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
             LocaleSettingPredicate::LocaleEq(value) => {
                 Condition::all().add(Column::Locale.eq(value.clone()))
             }
@@ -526,42 +542,55 @@ impl<'repo, 'ctx> LocaleSettingQuery<'repo, 'ctx> {
             LocaleSettingPredicate::LocaleNotIn(values) => {
                 Condition::all().add(Column::Locale.is_not_in(values.clone()))
             }
-            LocaleSettingPredicate::LocaleContains(value) => {
-                Condition::all().add(Column::Locale.like(contains_like_pattern(value)))
-            }
+            LocaleSettingPredicate::LocaleContains(value) => Condition::all()
+                .add(Column::Locale.like(LikeExpr::new(contains_like_pattern(value)).escape('\\'))),
             LocaleSettingPredicate::LocaleNotContains(value) => Condition::all()
-                .add(Column::Locale.like(contains_like_pattern(value)))
+                .add(Column::Locale.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')))
                 .not(),
-            LocaleSettingPredicate::LocaleIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::Locale))
-                    .like(contains_like_pattern(&value.to_lowercase())),
-            ),
-            LocaleSettingPredicate::LocaleNotIContains(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Locale))
-                        .like(contains_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
+            LocaleSettingPredicate::LocaleIContains(value) => Condition::all()
+                .add(Func::lower(Expr::col(Column::Locale)).like(
+                    LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                )),
+            LocaleSettingPredicate::LocaleNotIContains(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Locale)).like(
+                        LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
             LocaleSettingPredicate::LocaleEqualFold(value) => Condition::all().add(
                 Func::lower(Expr::col(Column::Locale))
-                    .like(escape_like_pattern(&value.to_lowercase())),
+                    .like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\')),
             ),
-            LocaleSettingPredicate::LocaleNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Locale))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            LocaleSettingPredicate::LocaleStartsWith(value) => Condition::all()
-                .add(Column::Locale.like(format!("{}%", escape_like_pattern(value)))),
-            LocaleSettingPredicate::LocaleNotStartsWith(value) => Condition::all()
-                .add(Column::Locale.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            LocaleSettingPredicate::LocaleEndsWith(value) => Condition::all()
-                .add(Column::Locale.like(format!("%{}", escape_like_pattern(value)))),
-            LocaleSettingPredicate::LocaleNotEndsWith(value) => Condition::all()
-                .add(Column::Locale.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
+            LocaleSettingPredicate::LocaleNotEqualFold(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Locale)).like(
+                        LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
+            LocaleSettingPredicate::LocaleStartsWith(value) => Condition::all().add(
+                Column::Locale
+                    .like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\')),
+            ),
+            LocaleSettingPredicate::LocaleNotStartsWith(value) => {
+                Condition::all()
+                    .add(Column::Locale.like(
+                        LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
+            LocaleSettingPredicate::LocaleEndsWith(value) => Condition::all().add(
+                Column::Locale
+                    .like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\')),
+            ),
+            LocaleSettingPredicate::LocaleNotEndsWith(value) => {
+                Condition::all()
+                    .add(Column::Locale.like(
+                        LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
             LocaleSettingPredicate::ValueEq(value) => {
                 Condition::all().add(Column::Value.eq(value.clone()))
             }
@@ -574,44 +603,55 @@ impl<'repo, 'ctx> LocaleSettingQuery<'repo, 'ctx> {
             LocaleSettingPredicate::ValueNotIn(values) => {
                 Condition::all().add(Column::Value.is_not_in(values.clone()))
             }
-            LocaleSettingPredicate::ValueContains(value) => {
-                Condition::all().add(Column::Value.like(contains_like_pattern(value)))
-            }
+            LocaleSettingPredicate::ValueContains(value) => Condition::all()
+                .add(Column::Value.like(LikeExpr::new(contains_like_pattern(value)).escape('\\'))),
             LocaleSettingPredicate::ValueNotContains(value) => Condition::all()
-                .add(Column::Value.like(contains_like_pattern(value)))
+                .add(Column::Value.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')))
                 .not(),
-            LocaleSettingPredicate::ValueIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::Value))
-                    .like(contains_like_pattern(&value.to_lowercase())),
-            ),
-            LocaleSettingPredicate::ValueNotIContains(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Value))
-                        .like(contains_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
+            LocaleSettingPredicate::ValueIContains(value) => Condition::all()
+                .add(Func::lower(Expr::col(Column::Value)).like(
+                    LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                )),
+            LocaleSettingPredicate::ValueNotIContains(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Value)).like(
+                        LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
             LocaleSettingPredicate::ValueEqualFold(value) => Condition::all().add(
                 Func::lower(Expr::col(Column::Value))
-                    .like(escape_like_pattern(&value.to_lowercase())),
+                    .like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\')),
             ),
-            LocaleSettingPredicate::ValueNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Value))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            LocaleSettingPredicate::ValueStartsWith(value) => {
-                Condition::all().add(Column::Value.like(format!("{}%", escape_like_pattern(value))))
+            LocaleSettingPredicate::ValueNotEqualFold(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Value)).like(
+                        LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
             }
-            LocaleSettingPredicate::ValueNotStartsWith(value) => Condition::all()
-                .add(Column::Value.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            LocaleSettingPredicate::ValueEndsWith(value) => {
-                Condition::all().add(Column::Value.like(format!("%{}", escape_like_pattern(value))))
+            LocaleSettingPredicate::ValueStartsWith(value) => Condition::all().add(
+                Column::Value
+                    .like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\')),
+            ),
+            LocaleSettingPredicate::ValueNotStartsWith(value) => {
+                Condition::all()
+                    .add(Column::Value.like(
+                        LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
             }
-            LocaleSettingPredicate::ValueNotEndsWith(value) => Condition::all()
-                .add(Column::Value.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
+            LocaleSettingPredicate::ValueEndsWith(value) => Condition::all().add(
+                Column::Value
+                    .like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\')),
+            ),
+            LocaleSettingPredicate::ValueNotEndsWith(value) => {
+                Condition::all()
+                    .add(Column::Value.like(
+                        LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
             LocaleSettingPredicate::And(predicates) => predicates
                 .iter()
                 .fold(Condition::all(), |condition, predicate| {

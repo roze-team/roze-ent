@@ -34,7 +34,7 @@ as code、静态类型查询、关系遍历和代码生成——映射到 Roze �
 
 ## 快速开始
 
-要求 Docker 和 Rust 1.98。项目从固定 Roze revision 构建 `rozectl` 并应用四项尚待上游合入的
+要求 Docker 和 Rust 1.98。项目从固定 Roze revision 构建 `rozectl` 并应用五项尚待上游合入的
 生成器修复；完整的 ent 功能同步状态与验收条件见
 [`docs/ENT_COMPATIBILITY.md`](docs/ENT_COMPATIBILITY.md)：
 

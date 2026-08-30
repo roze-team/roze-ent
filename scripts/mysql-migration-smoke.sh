@@ -26,4 +26,12 @@ export ROZE_ENT_TEST_MYSQL_URL="mysql://roze:roze@127.0.0.1:${ROZE_ENT_MYSQL_POR
 cargo test -p roze-ent-api --test migration_evidence \
   project_mysql_migrations_apply_and_rollback -- --ignored
 
+for migration in migrations/mysql/0*.sql; do
+  docker compose exec -T mysql mysql -uroze -proze roze_ent <"${migration}" >/dev/null
+done
+
+export ROZE_ENT_TEST_DATABASE_URL="${ROZE_ENT_TEST_MYSQL_URL}"
+cargo test -p roze-ent-api \
+  model::user_ext::tests::string_predicates_have_real_external_sql_evidence -- --ignored --exact
+
 echo "mysql migration smoke passed"

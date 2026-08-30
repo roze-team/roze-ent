@@ -3,7 +3,7 @@
 
 use sea_orm::entity::prelude::*;
 use sea_orm::{
-    sea_query::{Condition, Expr, ExprTrait, Func, OnConflict},
+    sea_query::{Condition, Expr, ExprTrait, Func, LikeExpr, OnConflict},
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection,
     DatabaseTransaction, DbErr, DeleteResult, EntityTrait, IntoActiveModel, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, Select, SelectorTrait, Set, TransactionError,
@@ -754,44 +754,55 @@ impl<'repo, 'ctx> MembershipQuery<'repo, 'ctx> {
             MembershipPredicate::RoleNotIn(values) => {
                 Condition::all().add(Column::Role.is_not_in(values.clone()))
             }
-            MembershipPredicate::RoleContains(value) => {
-                Condition::all().add(Column::Role.like(contains_like_pattern(value)))
-            }
+            MembershipPredicate::RoleContains(value) => Condition::all()
+                .add(Column::Role.like(LikeExpr::new(contains_like_pattern(value)).escape('\\'))),
             MembershipPredicate::RoleNotContains(value) => Condition::all()
-                .add(Column::Role.like(contains_like_pattern(value)))
+                .add(Column::Role.like(LikeExpr::new(contains_like_pattern(value)).escape('\\')))
                 .not(),
-            MembershipPredicate::RoleIContains(value) => Condition::all().add(
-                Func::lower(Expr::col(Column::Role))
-                    .like(contains_like_pattern(&value.to_lowercase())),
-            ),
-            MembershipPredicate::RoleNotIContains(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Role))
-                        .like(contains_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
+            MembershipPredicate::RoleIContains(value) => Condition::all()
+                .add(Func::lower(Expr::col(Column::Role)).like(
+                    LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                )),
+            MembershipPredicate::RoleNotIContains(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Role)).like(
+                        LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
+            }
             MembershipPredicate::RoleEqualFold(value) => Condition::all().add(
                 Func::lower(Expr::col(Column::Role))
-                    .like(escape_like_pattern(&value.to_lowercase())),
+                    .like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\')),
             ),
-            MembershipPredicate::RoleNotEqualFold(value) => Condition::all()
-                .add(
-                    Func::lower(Expr::col(Column::Role))
-                        .like(escape_like_pattern(&value.to_lowercase())),
-                )
-                .not(),
-            MembershipPredicate::RoleStartsWith(value) => {
-                Condition::all().add(Column::Role.like(format!("{}%", escape_like_pattern(value))))
+            MembershipPredicate::RoleNotEqualFold(value) => {
+                Condition::all()
+                    .add(Func::lower(Expr::col(Column::Role)).like(
+                        LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'),
+                    ))
+                    .not()
             }
-            MembershipPredicate::RoleNotStartsWith(value) => Condition::all()
-                .add(Column::Role.like(format!("{}%", escape_like_pattern(value))))
-                .not(),
-            MembershipPredicate::RoleEndsWith(value) => {
-                Condition::all().add(Column::Role.like(format!("%{}", escape_like_pattern(value))))
+            MembershipPredicate::RoleStartsWith(value) => Condition::all().add(
+                Column::Role
+                    .like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\')),
+            ),
+            MembershipPredicate::RoleNotStartsWith(value) => {
+                Condition::all()
+                    .add(Column::Role.like(
+                        LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
             }
-            MembershipPredicate::RoleNotEndsWith(value) => Condition::all()
-                .add(Column::Role.like(format!("%{}", escape_like_pattern(value))))
-                .not(),
+            MembershipPredicate::RoleEndsWith(value) => Condition::all().add(
+                Column::Role
+                    .like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\')),
+            ),
+            MembershipPredicate::RoleNotEndsWith(value) => {
+                Condition::all()
+                    .add(Column::Role.like(
+                        LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'),
+                    ))
+                    .not()
+            }
             MembershipPredicate::JoinedAtEq(value) => {
                 Condition::all().add(Column::JoinedAt.eq(*value))
             }

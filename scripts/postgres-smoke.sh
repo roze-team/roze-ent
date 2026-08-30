@@ -51,6 +51,10 @@ for migration in migrations/0*.sql; do
   docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U roze -d roze_ent <"${migration}" >/dev/null
 done
 
+export ROZE_ENT_TEST_DATABASE_URL="postgres://roze:roze@127.0.0.1:${ROZE_ENT_POSTGRES_PORT:-5432}/roze_ent"
+cargo test -p roze-ent-api \
+  model::user_ext::tests::string_predicates_have_real_external_sql_evidence -- --ignored --exact
+
 mkdir -p target
 export DATABASE_URL="postgres://roze:roze@127.0.0.1:${ROZE_ENT_POSTGRES_PORT:-5432}/roze_ent"
 export ROZE_CONFIG_PATH="services/roze-ent-api/config.yaml"

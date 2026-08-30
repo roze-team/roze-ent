@@ -1,0 +1,213 @@
+diff --git a/apps/rozectl/src/generator/model.rs b/apps/rozectl/src/generator/model.rs
+index f5d1880..964ecc0 100644
+--- a/apps/rozectl/src/generator/model.rs
++++ b/apps/rozectl/src/generator/model.rs
+@@ -3039,7 +3039,7 @@ fn render_model_module_with_models(model: &ModelSpec, models: &[ModelSpec]) -> S
+     writeln!(&mut out, "use sea_orm::entity::prelude::*;").unwrap();
+     writeln!(
+         &mut out,
+-        "use sea_orm::{{sea_query::{{Condition, Expr, ExprTrait, Func, OnConflict}}, ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection, DatabaseTransaction, DbErr, DeleteResult, EntityTrait, IntoActiveModel, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Select, SelectorTrait, Set, TransactionError, TransactionTrait, UpdateResult}};"
++        "use sea_orm::{{sea_query::{{Condition, Expr, ExprTrait, Func, LikeExpr, OnConflict}}, ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, DatabaseConnection, DatabaseTransaction, DbErr, DeleteResult, EntityTrait, IntoActiveModel, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Select, SelectorTrait, Set, TransactionError, TransactionTrait, UpdateResult}};"
+     )
+     .unwrap();
+     writeln!(&mut out, "use serde::{{Deserialize, Serialize}};").unwrap();
+@@ -6493,61 +6493,61 @@ fn render_sea_orm_predicate_expr(out: &mut String, model: &ModelSpec, pascal: &s
+             if is_string_filter_type(field) {
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(contains_like_pattern(value))),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(LikeExpr::new(contains_like_pattern(value)).escape('\\\\'))),",
+                     predicate_variant_name(field, "Contains")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(contains_like_pattern(value))).not(),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(LikeExpr::new(contains_like_pattern(value)).escape('\\\\'))).not(),",
+                     predicate_variant_name(field, "NotContains")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(contains_like_pattern(&value.to_lowercase()))),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\\\'))),",
+                     predicate_variant_name(field, "IContains")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(contains_like_pattern(&value.to_lowercase()))).not(),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\\\'))).not(),",
+                     predicate_variant_name(field, "NotIContains")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(escape_like_pattern(&value.to_lowercase()))),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\\\'))),",
+                     predicate_variant_name(field, "EqualFold")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(escape_like_pattern(&value.to_lowercase()))).not(),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\\\'))).not(),",
+                     predicate_variant_name(field, "NotEqualFold")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(format!(\"{{}}%\", escape_like_pattern(value)))),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(LikeExpr::new(format!(\"{{}}%\", escape_like_pattern(value))).escape('\\\\'))),",
+                     predicate_variant_name(field, "StartsWith")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(format!(\"{{}}%\", escape_like_pattern(value)))).not(),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(LikeExpr::new(format!(\"{{}}%\", escape_like_pattern(value))).escape('\\\\'))).not(),",
+                     predicate_variant_name(field, "NotStartsWith")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(format!(\"%{{}}\", escape_like_pattern(value)))),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(LikeExpr::new(format!(\"%{{}}\", escape_like_pattern(value))).escape('\\\\'))),",
+                     predicate_variant_name(field, "EndsWith")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(format!(\"%{{}}\", escape_like_pattern(value)))).not(),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(LikeExpr::new(format!(\"%{{}}\", escape_like_pattern(value))).escape('\\\\'))).not(),",
+                     predicate_variant_name(field, "NotEndsWith")
+                 )
+                 .unwrap();
+@@ -6600,61 +6600,61 @@ fn render_sea_orm_predicate_expr(out: &mut String, model: &ModelSpec, pascal: &s
+             if is_string_filter_type(field) {
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(contains_like_pattern(value))),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(LikeExpr::new(contains_like_pattern(value)).escape('\\\\'))),",
+                     predicate_variant_name(field, "Contains")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(contains_like_pattern(value))).not(),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(LikeExpr::new(contains_like_pattern(value)).escape('\\\\'))).not(),",
+                     predicate_variant_name(field, "NotContains")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(contains_like_pattern(&value.to_lowercase()))),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\\\'))),",
+                     predicate_variant_name(field, "IContains")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(contains_like_pattern(&value.to_lowercase()))).not(),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\\\'))).not(),",
+                     predicate_variant_name(field, "NotIContains")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(escape_like_pattern(&value.to_lowercase()))),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\\\'))),",
+                     predicate_variant_name(field, "EqualFold")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(escape_like_pattern(&value.to_lowercase()))).not(),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Func::lower(Expr::col(Column::{column})).like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\\\'))).not(),",
+                     predicate_variant_name(field, "NotEqualFold")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(format!(\"{{}}%\", escape_like_pattern(value)))),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(LikeExpr::new(format!(\"{{}}%\", escape_like_pattern(value))).escape('\\\\'))),",
+                     predicate_variant_name(field, "StartsWith")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(format!(\"{{}}%\", escape_like_pattern(value)))).not(),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(LikeExpr::new(format!(\"{{}}%\", escape_like_pattern(value))).escape('\\\\'))).not(),",
+                     predicate_variant_name(field, "NotStartsWith")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(format!(\"%{{}}\", escape_like_pattern(value)))),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(LikeExpr::new(format!(\"%{{}}\", escape_like_pattern(value))).escape('\\\\'))),",
+                     predicate_variant_name(field, "EndsWith")
+                 )
+                 .unwrap();
+                 writeln!(
+                     out,
+-                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(format!(\"%{{}}\", escape_like_pattern(value)))).not(),",
++                    "            {pascal}Predicate::{}(value) => Condition::all().add(Column::{column}.like(LikeExpr::new(format!(\"%{{}}\", escape_like_pattern(value))).escape('\\\\'))).not(),",
+                     predicate_variant_name(field, "NotEndsWith")
+                 )
+                 .unwrap();
+@@ -25884,32 +25884,33 @@ mod tests {
+         assert!(rendered.contains("pub fn escape_like_pattern(value: &str) -> String"));
+         assert!(rendered.contains("pub fn contains_like_pattern(value: &str) -> String"));
+         assert!(rendered.contains("format!(\"%{}%\", escape_like_pattern(value))"));
++        assert!(rendered.contains("Func, LikeExpr, OnConflict"));
+         assert!(rendered.contains(
+-            "UserPredicate::NameContains(value) => Condition::all().add(Column::Name.like(contains_like_pattern(value))),"
++            r"UserPredicate::NameContains(value) => Condition::all().add(Column::Name.like(LikeExpr::new(contains_like_pattern(value)).escape('\\'))),"
+         ));
+         assert!(rendered.contains(
+-            "UserPredicate::NameNotContains(value) => Condition::all().add(Column::Name.like(contains_like_pattern(value))).not(),"
++            r"UserPredicate::NameNotContains(value) => Condition::all().add(Column::Name.like(LikeExpr::new(contains_like_pattern(value)).escape('\\'))).not(),"
+         ));
+         assert!(rendered.contains(
+-            "UserPredicate::NameIContains(value) => Condition::all().add(Func::lower(Expr::col(Column::Name)).like(contains_like_pattern(&value.to_lowercase()))),"
++            r"UserPredicate::NameIContains(value) => Condition::all().add(Func::lower(Expr::col(Column::Name)).like(LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'))),"
+         ));
+         assert!(rendered.contains(
+-            "UserPredicate::NameNotIContains(value) => Condition::all().add(Func::lower(Expr::col(Column::Name)).like(contains_like_pattern(&value.to_lowercase()))).not(),"
++            r"UserPredicate::NameNotIContains(value) => Condition::all().add(Func::lower(Expr::col(Column::Name)).like(LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'))).not(),"
+         ));
+         assert!(rendered.contains(
+-            "UserPredicate::NameEqualFold(value) => Condition::all().add(Func::lower(Expr::col(Column::Name)).like(escape_like_pattern(&value.to_lowercase()))),"
++            r"UserPredicate::NameEqualFold(value) => Condition::all().add(Func::lower(Expr::col(Column::Name)).like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'))),"
+         ));
+         assert!(rendered.contains(
+-            "UserPredicate::NameNotEqualFold(value) => Condition::all().add(Func::lower(Expr::col(Column::Name)).like(escape_like_pattern(&value.to_lowercase()))).not(),"
++            r"UserPredicate::NameNotEqualFold(value) => Condition::all().add(Func::lower(Expr::col(Column::Name)).like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'))).not(),"
+         ));
+         assert!(rendered.contains(
+-            "UserPredicate::NameNotStartsWith(value) => Condition::all().add(Column::Name.like(format!(\"{}%\", escape_like_pattern(value)))).not(),"
++            r#"UserPredicate::NameNotStartsWith(value) => Condition::all().add(Column::Name.like(LikeExpr::new(format!("{}%", escape_like_pattern(value))).escape('\\'))).not(),"#
+         ));
+         assert!(rendered.contains(
+-            "UserPredicate::NameNotEndsWith(value) => Condition::all().add(Column::Name.like(format!(\"%{}\", escape_like_pattern(value)))).not(),"
++            r#"UserPredicate::NameNotEndsWith(value) => Condition::all().add(Column::Name.like(LikeExpr::new(format!("%{}", escape_like_pattern(value))).escape('\\'))).not(),"#
+         ));
+         assert!(rendered.contains(
+-            "UserPredicate::NicknameContains(value) => Condition::all().add(Column::Nickname.like(contains_like_pattern(value))),"
++            r"UserPredicate::NicknameContains(value) => Condition::all().add(Column::Nickname.like(LikeExpr::new(contains_like_pattern(value)).escape('\\'))),"
+         ));
+         assert!(rendered.contains(
+             "UserPredicate::NicknameIn(values) => Condition::all().add(Column::Nickname.is_in(values.iter().cloned().map(Some).collect::<Vec<_>>())),"
+@@ -25918,10 +25919,10 @@ mod tests {
+             "UserPredicate::NicknameNotIn(values) => Condition::all().add(Column::Nickname.is_not_in(values.iter().cloned().map(Some).collect::<Vec<_>>())),"
+         ));
+         assert!(rendered.contains(
+-            "UserPredicate::NicknameIContains(value) => Condition::all().add(Func::lower(Expr::col(Column::Nickname)).like(contains_like_pattern(&value.to_lowercase()))),"
++            r"UserPredicate::NicknameIContains(value) => Condition::all().add(Func::lower(Expr::col(Column::Nickname)).like(LikeExpr::new(contains_like_pattern(&value.to_lowercase())).escape('\\'))),"
+         ));
+         assert!(rendered.contains(
+-            "UserPredicate::NicknameEqualFold(value) => Condition::all().add(Func::lower(Expr::col(Column::Nickname)).like(escape_like_pattern(&value.to_lowercase()))),"
++            r"UserPredicate::NicknameEqualFold(value) => Condition::all().add(Func::lower(Expr::col(Column::Nickname)).like(LikeExpr::new(escape_like_pattern(&value.to_lowercase())).escape('\\'))),"
+         ));
+         assert!(rendered.contains("Column::Id.is_in(values.clone())"));
+         assert!(rendered.contains("Column::Id.gte(*value)"));

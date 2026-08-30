@@ -135,7 +135,7 @@ SQLite 方言迁移保存在 `migrations/sqlite/`，workspace 测试会直接加
 bash scripts/postgres-smoke.sh
 ```
 
-MySQL 的真实 migration ledger 生命周期可单独运行：
+MySQL 的真实 migration ledger 与服务 API 端到端流程可单独运行：
 
 ```bash
 bash scripts/mysql-migration-smoke.sh
@@ -144,7 +144,8 @@ bash scripts/mysql-migration-smoke.sh
 两个脚本分别支持 `ROZE_ENT_POSTGRES_PORT`、`ROZE_ENT_MYSQL_PORT` 覆盖宿主机端口；临时
 环境可设置 `ROZE_ENT_REMOVE_VOLUMES=1`，在退出时同时清理测试 volume。
 
-该流程验证迁移、服务健康、tenant 隔离、乐观版本冲突和 soft-delete。脚本结束时
+两个流程都会验证当前 5 个迁移版本的全量 apply/rollback、服务健康、鉴权、tenant 隔离、
+乐观版本冲突和 soft-delete。脚本结束时
 停止服务与 Compose 容器，但保留数据库 volume 以便诊断。
 
 许可证：Apache-2.0。上游 Go 项目保留为 Git remote `upstream`，便于持续做行为对照。

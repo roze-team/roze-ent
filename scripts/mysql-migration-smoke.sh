@@ -36,4 +36,7 @@ cargo test -p roze-ent-api \
 cargo test -p roze-ent-api \
   model::user_ext::tests::upsert_and_pessimistic_locks_have_real_external_sql_evidence -- --ignored --exact
 
-echo "mysql migration smoke passed"
+export DATABASE_URL="${ROZE_ENT_TEST_MYSQL_URL}"
+bash scripts/service-api-smoke.sh mysql
+
+echo "mysql smoke passed"

@@ -94,9 +94,10 @@ SeaORM 生成代码统一使用 `LikeExpr::escape('\\')`，使 contains、starts
 | optimistic update | `update_where().execute()` + `FailedPrecondition` | 已落地：Membership role |
 | tenant scope / soft delete | tenant predicate、live scope、`soft_delete_by_id` | 已落地：Project |
 | PostgreSQL smoke | migration + HTTP tenant/version/delete 流程 | 已接入 CI；本地需要 Docker |
+| MySQL smoke | migration + HTTP tenant/version/delete 流程 | 已接入 CI；本地需要 Docker |
 | transaction/hooks/privacy/mixins | `ModelClient::transaction`、operation chain 与 `*_ext.rs` | SQLite 真实事务提交/回滚及 Project hook/policy/mixin 已覆盖 |
-| SQL migrations | `roze-migration` + `migrations/` | SQLite dry-run/apply/partial rollback/full rollback/drift/atomicity 已验证 |
-| SQL dialects | SeaORM/Roze DB（PostgreSQL/MySQL/SQLite） | SQLite、PostgreSQL、MySQL 的真实 migration lifecycle 已覆盖 |
+| SQL migrations | `roze-migration` + `migrations/` | 当前 5 个版本均覆盖三方言 apply/full rollback；SQLite 另有 partial rollback/drift/atomicity 证据 |
+| SQL dialects | SeaORM/Roze DB（PostgreSQL/MySQL/SQLite） | PostgreSQL、MySQL 均有真实 migration lifecycle 与同一套 HTTP 服务行为验证 |
 | Gremlin/GraphSON | 独立图后端适配 | 未迁移 |
 | Atlas 深度集成 | Roze migration/gate 对接 | 未迁移 |
 | entc 自定义 Go template | Roze generator extension API | 未迁移具体扩展 |
@@ -117,8 +118,8 @@ SeaORM 生成代码统一使用 `LikeExpr::escape('\\')`，使 contains、starts
 
 ## 后续阶段
 
-1. 将真实 PostgreSQL/MySQL migration matrix 作为持续 CI 门禁，并把健康端点前缀差异反馈到 Roze 生成器。
-2. 将当前 SQLite ent-style 查询兼容矩阵扩展到 PostgreSQL/MySQL，并把发现的生成器语义差异反馈到 Roze 上游门禁。
+1. 将当前 SQLite ent-style 查询兼容矩阵扩展到 PostgreSQL/MySQL，并把发现的生成器语义差异反馈到 Roze 上游门禁。
+2. 增加 schema diff、危险变更分类、expand/backfill/contract 数据迁移及失败恢复证据。
 3. 扩展 Project 之外的领域 policy，并为事务型副作用接入 outbox 证据。
 4. 评估 Gremlin、Atlas 和生成器扩展的真实使用需求，再决定是否实现 Rust 适配层。
 
@@ -132,7 +133,8 @@ Project 的 SQLite 证据使用真实 SQL 连接验证提交和强制回滚，�
 SQLite 方言迁移位于 `migrations/sqlite/`，版本和名称与 PostgreSQL 迁移保持一致。
 集成测试直接通过固定 revision 的 `roze-migration` 加载这些项目文件，验证确定性 dry-run、
 apply、回滚到版本边界、全量回滚、名称漂移拒绝和失败批次原子回滚。PostgreSQL 与 MySQL
-分别由独立 CI smoke 在真实容器中执行 apply、账本幂等检查和全量 rollback；MySQL 迁移对
+分别由独立 CI smoke 在真实容器中执行全部 5 个版本的 apply、账本幂等检查和全量 rollback，
+随后运行共享的鉴权、tenant 隔离、乐观锁和 soft-delete HTTP 行为套件；MySQL 迁移对
 保留关键字标识符使用方言引用。多语句项目迁移会先确定性拆分为单语句 ledger step，以满足
 SQLx prepared-statement 边界。PostgreSQL ledger lifecycle 使用同一容器内的专用临时数据库，
 避免 Compose 初始化的业务 schema 与测试账本互相污染；业务服务 smoke 仍连接 `roze_ent`。

@@ -64,12 +64,12 @@
 
 | ent 能力 | Roze/Rust 落点 | 状态 | 完成条件/证据 |
 | --- | --- | --- | --- |
-| create/drop/change schema、ledger、apply/rollback | `roze-migration` | 已兼容 | SQLite/PostgreSQL/MySQL lifecycle CI |
+| create/drop/change schema、ledger、apply/rollback | `roze-migration` | 已兼容 | 当前 5 个迁移版本具备 SQLite/PostgreSQL/MySQL 全量 lifecycle CI，且跨方言版本、名称和 up/down 配对自动校验 |
 | schema diff、offline plan、versioned migration | migration plan | 部分兼容 | 当前项目迁移可重复；补齐从模型自动 diff、危险变更分类和版本升级 fixture |
 | data migration | 版本化 Rust/SQL migration | 部分兼容 | 增加 expand/backfill/contract、失败恢复和幂等证据 |
 | external objects (trigger/view/function) | migration project objects | 待实现 | diff 忽略/管理策略、三方言 apply/rollback 证据 |
 | multi-schema / schema config / global unique ID | generator + migration config | 待实现 | PostgreSQL schema 隔离、跨 schema edge、global ID 稳定性测试 |
-| PostgreSQL、MySQL/MariaDB、SQLite | SeaORM/Roze DB | 部分兼容 | migration 已覆盖；全部 query/mutation/transaction 矩阵仍需三方言一致 |
+| PostgreSQL、MySQL/MariaDB、SQLite | SeaORM/Roze DB | 部分兼容 | PostgreSQL/MySQL migration 与共享 HTTP tenant/version/delete 流程已覆盖；全部 query/mutation/transaction 矩阵仍需三方言一致 |
 | CockroachDB、TiDB | SQL 方言兼容层 | 待实现 | 官方兼容版本的 migration、事务重试、CRUD 和并发 CI |
 | Gremlin | 独立适配 crate | 框架外适配 | 见关系与图遍历部分 |
 | Atlas 集成 | migration adapter / CI gate | 框架外适配 | schema inspect/diff/apply、lint 和版本目录互操作测试 |

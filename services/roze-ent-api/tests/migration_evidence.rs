@@ -8,6 +8,7 @@ use sqlx::{
     mysql::MySqlPoolOptions, postgres::PgPoolOptions, sqlite::SqlitePoolOptions, MySqlPool, PgPool,
     SqlitePool,
 };
+use std::{fs, path::Path};
 
 fn project_migrations() -> Vec<SqlMigration> {
     vec![
@@ -35,6 +36,22 @@ fn project_migrations() -> Vec<SqlMigration> {
                 "../../../migrations/sqlite/down/0003_tenant_projects.sql"
             )),
         ),
+        SqlMigration::new(
+            4,
+            "scalar_and_composite_ids",
+            include_str!("../../../migrations/sqlite/0004_scalar_and_composite_ids.sql"),
+            Some(include_str!(
+                "../../../migrations/sqlite/down/0004_scalar_and_composite_ids.sql"
+            )),
+        ),
+        SqlMigration::new(
+            5,
+            "self_and_named_edges",
+            include_str!("../../../migrations/sqlite/0005_self_and_named_edges.sql"),
+            Some(include_str!(
+                "../../../migrations/sqlite/down/0005_self_and_named_edges.sql"
+            )),
+        ),
     ]
 }
 
@@ -57,6 +74,18 @@ fn postgres_migrations() -> Vec<SqlMigration> {
             "tenant_projects",
             include_str!("../../../migrations/0003_tenant_projects.sql"),
             include_str!("../../../migrations/down/0003_tenant_projects.sql"),
+        ),
+        statement_migrations(
+            4,
+            "scalar_and_composite_ids",
+            include_str!("../../../migrations/0004_scalar_and_composite_ids.sql"),
+            include_str!("../../../migrations/down/0004_scalar_and_composite_ids.sql"),
+        ),
+        statement_migrations(
+            5,
+            "self_and_named_edges",
+            include_str!("../../../migrations/0005_self_and_named_edges.sql"),
+            include_str!("../../../migrations/down/0005_self_and_named_edges.sql"),
         ),
     ]
     .into_iter()
@@ -84,6 +113,18 @@ fn mysql_migrations() -> Vec<SqlMigration> {
             include_str!("../../../migrations/mysql/0003_tenant_projects.sql"),
             include_str!("../../../migrations/mysql/down/0003_tenant_projects.sql"),
         ),
+        statement_migrations(
+            4,
+            "scalar_and_composite_ids",
+            include_str!("../../../migrations/mysql/0004_scalar_and_composite_ids.sql"),
+            include_str!("../../../migrations/mysql/down/0004_scalar_and_composite_ids.sql"),
+        ),
+        statement_migrations(
+            5,
+            "self_and_named_edges",
+            include_str!("../../../migrations/mysql/0005_self_and_named_edges.sql"),
+            include_str!("../../../migrations/mysql/down/0005_self_and_named_edges.sql"),
+        ),
     ]
     .into_iter()
     .flatten()
@@ -99,14 +140,16 @@ fn statement_migrations(
     let up = split_statements(up_sql);
     let mut down = split_statements(down_sql);
     down.reverse();
-    up.into_iter()
-        .enumerate()
-        .map(|(index, statement)| {
+    let step_count = up.len().max(down.len());
+    (0..step_count)
+        .map(|index| {
             let statement_number = index as i64 + 1;
             SqlMigration::new(
                 file_version * 100 + statement_number,
                 format!("{file_name}_{statement_number:02}"),
-                statement,
+                up.get(index)
+                    .cloned()
+                    .unwrap_or_else(|| "SELECT 1".to_string()),
                 Some(
                     down.get(index)
                         .cloned()
@@ -115,6 +158,55 @@ fn statement_migrations(
             )
         })
         .collect()
+}
+
+fn migration_file_names(directory: &Path) -> anyhow::Result<Vec<String>> {
+    let mut names = fs::read_dir(directory)?
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| name.starts_with('0') && name.ends_with(".sql"))
+        .collect::<Vec<_>>();
+    names.sort();
+    Ok(names)
+}
+
+#[test]
+fn migration_layout_is_complete_and_consistent_across_dialects() -> anyhow::Result<()> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join("migrations");
+    let postgres = migration_file_names(&root)?;
+    assert!(!postgres.is_empty(), "the migration set must not be empty");
+    assert_eq!(postgres, migration_file_names(&root.join("mysql"))?);
+    assert_eq!(postgres, migration_file_names(&root.join("sqlite"))?);
+
+    for (index, name) in postgres.iter().enumerate() {
+        let expected_prefix = format!("{:04}_", index + 1);
+        assert!(
+            name.starts_with(&expected_prefix),
+            "expected contiguous migration {expected_prefix}, found {name}"
+        );
+        for dialect in [Path::new(""), Path::new("mysql"), Path::new("sqlite")] {
+            let directory = root.join(dialect);
+            let up = directory.join(name);
+            let down = directory.join("down").join(name);
+            assert!(
+                down.is_file(),
+                "missing rollback migration {}",
+                down.display()
+            );
+            for sql_file in [up, down] {
+                let sql = fs::read_to_string(&sql_file)?;
+                assert!(
+                    !sql.trim().is_empty(),
+                    "migration {} is empty",
+                    sql_file.display()
+                );
+            }
+        }
+    }
+    Ok(())
 }
 
 fn split_statements(sql: &str) -> Vec<String> {
@@ -145,7 +237,8 @@ async fn postgres_table_count(pool: &PgPool) -> anyhow::Result<i64> {
     Ok(sqlx::query_scalar(
         "SELECT COUNT(*) FROM information_schema.tables \
          WHERE table_schema = 'public' AND table_name IN \
-         ('users', 'pets', 'groups', 'memberships', 'projects')",
+         ('users', 'pets', 'groups', 'memberships', 'projects', \
+          'scalar_fixtures', 'locale_settings', 'friendships')",
     )
     .fetch_one(pool)
     .await?)
@@ -155,7 +248,8 @@ async fn mysql_table_count(pool: &MySqlPool) -> anyhow::Result<i64> {
     Ok(sqlx::query_scalar(
         "SELECT COUNT(*) FROM information_schema.tables \
          WHERE table_schema = DATABASE() AND table_name IN \
-         ('users', 'pets', 'groups', 'memberships', 'projects')",
+         ('users', 'pets', 'groups', 'memberships', 'projects', \
+          'scalar_fixtures', 'locale_settings', 'friendships')",
     )
     .fetch_one(pool)
     .await?)
@@ -177,12 +271,23 @@ async fn project_sqlite_migrations_plan_apply_rollback_and_reject_drift() -> any
             (1, MigrationDirection::Up),
             (2, MigrationDirection::Up),
             (3, MigrationDirection::Up),
+            (4, MigrationDirection::Up),
+            (5, MigrationDirection::Up),
         ]
     );
 
     let applied = migrate_sqlite(&pool, &migrations).await?;
     assert_eq!(applied, dry_run);
-    for table in ["users", "pets", "groups", "memberships", "projects"] {
+    for table in [
+        "users",
+        "pets",
+        "groups",
+        "memberships",
+        "projects",
+        "scalar_fixtures",
+        "locale_settings",
+        "friendships",
+    ] {
         assert!(table_exists(&pool, table).await?, "missing table {table}");
     }
     assert!(plan_apply(&sqlite_migration_records(&pool).await?, &migrations)?.is_empty());
@@ -194,7 +299,12 @@ async fn project_sqlite_migrations_plan_apply_rollback_and_reject_drift() -> any
             .iter()
             .map(|step| (step.version, step.direction))
             .collect::<Vec<_>>(),
-        vec![(3, MigrationDirection::Down), (2, MigrationDirection::Down)]
+        vec![
+            (5, MigrationDirection::Down),
+            (4, MigrationDirection::Down),
+            (3, MigrationDirection::Down),
+            (2, MigrationDirection::Down),
+        ]
     );
     assert!(table_exists(&pool, "users").await?);
     assert!(table_exists(&pool, "pets").await?);
@@ -229,13 +339,13 @@ async fn project_sqlite_migration_execution_is_atomic() -> anyhow::Result<()> {
     let pool = sqlite_pool().await?;
     let mut migrations = project_migrations();
     migrations.push(SqlMigration::new(
-        4,
+        6,
         "transient_table",
         "CREATE TABLE transient_table (id INTEGER PRIMARY KEY)",
         Some("DROP TABLE transient_table"),
     ));
     migrations.push(SqlMigration::new(
-        5,
+        7,
         "invalid_sql",
         "THIS IS NOT VALID SQL",
         Some("SELECT 1"),
@@ -249,6 +359,9 @@ async fn project_sqlite_migration_execution_is_atomic() -> anyhow::Result<()> {
         "groups",
         "memberships",
         "projects",
+        "scalar_fixtures",
+        "locale_settings",
+        "friendships",
         "transient_table",
     ] {
         assert!(
@@ -270,13 +383,13 @@ async fn project_postgres_migrations_apply_and_rollback() -> anyhow::Result<()> 
     let migrations = postgres_migrations();
 
     let dry_run = plan_apply(&postgres_migration_records(&pool).await?, &migrations)?;
-    assert_eq!(dry_run.steps.len(), 8);
+    assert_eq!(dry_run.steps.len(), 13);
     assert_eq!(migrate_postgres(&pool, &migrations).await?, dry_run);
-    assert_eq!(postgres_table_count(&pool).await?, 5);
+    assert_eq!(postgres_table_count(&pool).await?, 8);
     assert!(plan_apply(&postgres_migration_records(&pool).await?, &migrations)?.is_empty());
 
     let rollback = rollback_postgres(&pool, &migrations, 0).await?;
-    assert_eq!(rollback.steps.len(), 8);
+    assert_eq!(rollback.steps.len(), 13);
     assert_eq!(postgres_table_count(&pool).await?, 0);
     assert!(postgres_migration_records(&pool).await?.is_empty());
     Ok(())
@@ -293,13 +406,13 @@ async fn project_mysql_migrations_apply_and_rollback() -> anyhow::Result<()> {
     let migrations = mysql_migrations();
 
     let dry_run = plan_apply(&mysql_migration_records(&pool).await?, &migrations)?;
-    assert_eq!(dry_run.steps.len(), 8);
+    assert_eq!(dry_run.steps.len(), 14);
     assert_eq!(migrate_mysql(&pool, &migrations).await?, dry_run);
-    assert_eq!(mysql_table_count(&pool).await?, 5);
+    assert_eq!(mysql_table_count(&pool).await?, 8);
     assert!(plan_apply(&mysql_migration_records(&pool).await?, &migrations)?.is_empty());
 
     let rollback = rollback_mysql(&pool, &migrations, 0).await?;
-    assert_eq!(rollback.steps.len(), 8);
+    assert_eq!(rollback.steps.len(), 14);
     assert_eq!(mysql_table_count(&pool).await?, 0);
     assert!(mysql_migration_records(&pool).await?.is_empty());
     Ok(())

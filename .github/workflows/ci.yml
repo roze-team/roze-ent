@@ -73,7 +73,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: bash scripts/postgres-smoke.sh
 
-  mysql-migration-smoke:
+  mysql-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

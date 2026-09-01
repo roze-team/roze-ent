@@ -1,5 +1,22 @@
 # roze-ent
 
+## Model 生成单一事实源
+
+本仓库现在提供一等 library crate [`crates/roze-ent`](crates/roze-ent)。`.ent` 解析、
+规范化、校验、Model Graph、SeaORM/Toasty/MongoDB 渲染、数据库 inspect、确定性更新、
+过期文件清理及版本化 Generator Extension API 均由该 crate 拥有；它不依赖 `rozectl`。
+
+Roze 可在合入本变更后按提交固定依赖：
+
+```toml
+roze-ent = { git = "https://github.com/roze-team/roze-ent.git", rev = "<reviewed-commit>" }
+```
+
+`rozectl model` 的兼容适配见 [`integration/rozectl-model-adapter.rs`](integration/rozectl-model-adapter.rs)。
+适配层只负责 CLI 类型映射、项目接线、同一 Roze revision 注入和 ServiceContext 同步；
+不得重新复制 parser 或 renderer。由于 Cargo Git revision 必须引用已存在的提交，Roze 侧依赖
+应在本仓库变更合入并取得 commit SHA 后更新。
+
 ## 与 Roze 的关系
 
 本仓库是最终合入 `roze-team/roze` 的 ent-style 数据层能力孵化项目，而不是与 Roze
@@ -34,12 +51,12 @@ as code、静态类型查询、关系遍历和代码生成——映射到 Roze �
 
 ## 快速开始
 
-要求 Docker 和 Rust 1.98。项目从固定 Roze revision 构建 `rozectl` 并应用六项尚待上游合入的
-生成器修复；完整的 ent 功能同步状态与验收条件见
+要求 Docker 和 Rust 1.98。项目从固定 Roze revision 构建 `rozectl`，并通过薄适配接入本仓库的
+`roze-ent` library；完整的 ent 功能同步状态与验收条件见
 [`docs/ENT_COMPATIBILITY.md`](docs/ENT_COMPATIBILITY.md)：
 
 ```powershell
-$rozeSource = Join-Path $env:TEMP "roze-ent-roze-1945a03"
+$rozeSource = Join-Path $env:TEMP "roze-ent-roze-e4bf750"
 ./scripts/build-patched-rozectl.ps1 -SourceDir $rozeSource
 ./scripts/regenerate.ps1 -Rozectl (Join-Path $rozeSource "target/debug/rozectl.exe")
 docker compose up -d postgres

@@ -7,7 +7,7 @@ if [[ $# -ne 1 ]]; then
 fi
 
 source_dir="$1"
-roze_revision="1945a037558717ae9253fa61060fe900567e52de"
+roze_revision="e4bf750dfa630ca4224318d1e7c72a818598a2d2"
 workspace_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [[ -e "${source_dir}" ]]; then
@@ -17,12 +17,10 @@ fi
 
 git clone https://github.com/roze-team/roze.git "${source_dir}"
 git -C "${source_dir}" checkout "${roze_revision}"
-git -C "${source_dir}" apply "${workspace_dir}/patches/roze/0001-fix-sea-orm-case-insensitive-predicates.patch"
-git -C "${source_dir}" apply "${workspace_dir}/patches/roze/0002-fix-sea-orm-sqlite-upsert-returning.patch"
-git -C "${source_dir}" apply "${workspace_dir}/patches/roze/0003-fix-sea-orm-custom-id-insert-returning.patch"
-git -C "${source_dir}" apply "${workspace_dir}/patches/roze/0004-fix-sea-orm-scalar-clippy-output.patch"
-git -C "${source_dir}" apply "${workspace_dir}/patches/roze/0005-fix-sea-orm-like-escape.patch"
-git -C "${source_dir}" apply "${workspace_dir}/patches/roze/0006-add-sea-orm-pessimistic-locks.patch"
+cp "${workspace_dir}/integration/rozectl-model-adapter.rs" \
+  "${source_dir}/apps/rozectl/src/generator/model.rs"
+cargo add --manifest-path "${source_dir}/apps/rozectl/Cargo.toml" \
+  roze-ent --path "${workspace_dir}/crates/roze-ent"
 mkdir -p "${source_dir}/apps/rozectl/src/bin"
 cp "${workspace_dir}/extensions/roze-ent-codegen.rs" \
   "${source_dir}/apps/rozectl/src/bin/roze-ent-codegen.rs"

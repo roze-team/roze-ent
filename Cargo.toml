@@ -1,9 +1,8 @@
 [workspace]
-members = ["services/roze-ent-api"]
+members = ["crates/roze-ent", "services/roze-ent-api"]
 resolver = "2"
 
 [workspace.package]
 edition = "2021"
 license = "Apache-2.0"
 rust-version = "1.98"
-

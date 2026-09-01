@@ -1,10 +1,9 @@
-use anyhow::{Context as _, ensure};
-use rozectl::generator::model::{
-    ExtensionFileOwnership, MODEL_GENERATOR_EXTENSION_API_VERSION, ModelExtensionFile,
-    ModelGenerationGraph, ModelGeneratorExtension, ModelOrm,
-    generate_model_project_with_extensions,
+use anyhow::{ensure, Context as _};
+use roze_ent::{
+    generate_model_project_with_extensions, DependencySource, ExtensionFileOwnership, GenerateMode,
+    GenerateOptions, ModelExtensionFile, ModelGenerationGraph, ModelGeneratorExtension, ModelOrm,
+    MODEL_GENERATOR_EXTENSION_API_VERSION,
 };
-use rozectl::generator::{DependencySource, GenerateMode, GenerateOptions};
 use std::{fs, path::PathBuf, time::SystemTime};
 
 struct RozeEntViewExtension;
@@ -165,7 +164,7 @@ mod tests {
 fn main() -> anyhow::Result<()> {
     ensure!(
         MODEL_GENERATOR_EXTENSION_API_VERSION == 1,
-        "unsupported rozectl model extension API version {}",
+        "unsupported roze-ent model extension API version {}",
         MODEL_GENERATOR_EXTENSION_API_VERSION
     );
     let mut args = std::env::args_os().skip(1);
@@ -195,7 +194,7 @@ fn main() -> anyhow::Result<()> {
             &source,
             &staging,
             GenerateOptions::new(GenerateMode::Create, DependencySource::Git),
-            rozectl::generator::model::ModelFormat::Ent,
+            roze_ent::ModelFormat::Ent,
             ModelOrm::SeaOrm,
             &[&extension],
         )?;

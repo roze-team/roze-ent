@@ -6,7 +6,8 @@
 稳定性和真实数据库证据，成熟后按职责合入 Roze，而不是让 Roze 长期依赖本仓库的示例
 服务：
 
-- `.ent` schema、解析、规范化和代码生成能力归入 `rozectl`；
+- `.ent` schema、解析、规范化和代码生成能力归入独立 `roze-ent` library；
+- `rozectl model` 仅保留 CLI、项目接线与兼容 host adapter；
 - typed query/mutation、edge、Hook、Policy、Mixin 与事务语义归入 Roze 数据层 crate；
 - migration plan、ledger、apply/rollback 与方言证据归入 `roze-migration`；
 - `services/roze-ent-api` 保留为契约和端到端验收样例，不进入框架核心依赖图；
@@ -21,12 +22,12 @@
 
 | 门禁 | 通过条件 | 当前状态 |
 | --- | --- | --- |
-| 依赖 | 所有 Roze crate 与 `rozectl` 固定到同一上游 revision | 已通过：`1945a03`，与当前 Roze `main` 一致 |
+| 依赖 | 所有 Roze crate 与 `rozectl` 固定到同一上游 revision | 已通过：`e4bf750`，与迁移实现基线一致 |
 | 生成 | `rozectl api/model/openapi --update` 可重复执行，应用自有文件保留且生成结果无漂移 | 持续门禁 |
 | 编译与质量 | Rust 1.98 下 fmt/check/test/clippy 全部通过 | CI 门禁 |
 | 数据行为 | SQLite/PostgreSQL/MySQL 的查询、变更、事务与迁移语义有真实数据库证据 | 持续扩展；三方言 migration 已覆盖 |
 | 运行时 | HTTP、配置、健康检查、中间件与数据库只使用 Roze 公共接口 | 已纳入服务 smoke |
-| 上游归属 | 框架能力进入 `rozectl`、Roze 数据层 crate 或 `roze-migration`，生成文件不接受手工补丁 | 强制边界 |
+| 上游归属 | Model 生成能力进入 `roze-ent`，运行时进入 Roze 数据层 crate，迁移进入 `roze-migration`；`rozectl` 不复制 parser/renderer | 强制边界 |
 
 任何一项失败都视为 Roze 兼容阻断。固定 Roze revision 原生生成的 `IContains/EqualFold` 使用 PostgreSQL
 `ILIKE`，在 SQLite SeaQuery builder 上会 panic。修复位于
@@ -152,7 +153,7 @@ ID，必须先进行显式 backfill/外键重映射，再启用全局 ID。回�
 的高位 ID，避免破坏引用完整性。
 
 外部生成扩展源码位于 `extensions/roze-ent-codegen.rs`。构建脚本把它作为附加 binary 编译，
-但实现只依赖 `rozectl` 公开的 `MODEL_GENERATOR_EXTENSION_API_VERSION`、模型图和扩展文件类型。
+但实现只依赖 `roze-ent` 公开的 `MODEL_GENERATOR_EXTENSION_API_VERSION`、模型图和扩展文件类型。
 宿主在隔离临时项目中运行内建生成器，只将固定允许路径
 `src/model/user_activity_view.rs` 同步到目标服务；核心模型文件不会被扩展覆盖。再生成脚本要求该
 宿主存在，因此 CI 的 generated-code drift gate 同时覆盖外部扩展输出。

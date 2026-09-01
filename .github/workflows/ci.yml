@@ -15,7 +15,7 @@ jobs:
           toolchain: 1.98.0
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
-      - name: Build pinned and patched rozectl
+      - name: Build pinned rozectl with roze-ent adapter
         run: bash scripts/build-patched-rozectl.sh "$RUNNER_TEMP/roze-patched"
       - name: Regenerate API, model, and OpenAPI
         env:
@@ -36,6 +36,14 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo check --workspace
       - run: cargo test --workspace
+      - name: Checkout pinned Roze runtime crates
+        run: |
+          git clone https://github.com/roze-team/roze.git "$RUNNER_TEMP/roze-runtime"
+          git -C "$RUNNER_TEMP/roze-runtime" checkout e4bf750dfa630ca4224318d1e7c72a818598a2d2
+      - name: Run generated SeaORM SQLite crate evidence
+        env:
+          ROZE_SOURCE_DIR: ${{ runner.temp }}/roze-runtime
+        run: cargo test -p roze-ent generated_sea_orm_sqlite_runtime_evidence -- --ignored
       - run: cargo clippy --workspace --all-targets -- -D warnings
 
   production-verify:

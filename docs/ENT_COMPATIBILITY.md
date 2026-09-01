@@ -1,7 +1,7 @@
 # ent → Roze/Rust 全功能兼容矩阵
 
 本矩阵以 `ent/ent@69d5d4deb19599f129166634e09d33addcf3f2cc` 为上游行为基线，
-以 `roze-team/roze@1945a037558717ae9253fa61060fe900567e52de` 为当前集成基线。
+以 `roze-team/roze@e4bf750dfa630ca4224318d1e7c72a818598a2d2` 为当前集成基线。
 “已兼容”必须同时具备生成器/公共 API、真实运行行为和可重复测试证据；只有相似概念或
 文档声明不计为完成。
 
@@ -81,7 +81,7 @@
 | ent 能力 | Roze/Rust 落点 | 状态 | 完成条件/证据 |
 | --- | --- | --- | --- |
 | codegen snapshot / deterministic generation | `rozectl --update` | 已兼容 | `generated-code` CI 使用固定 revision 再生成并要求 `git diff --exit-code` |
-| external templates / generator extensions | versioned rozectl model extension API | 已兼容 | 独立 `roze-ent-codegen` 宿主锁定 API v1、验证模型图、隔离生成并只同步允许文件；generated-code CI 拒绝漂移 |
+| external templates / generator extensions | versioned `roze-ent` model extension API | 已兼容 | 独立 `roze-ent-codegen` 宿主锁定 API v1、验证模型图、隔离生成并只同步允许文件；generated-code CI 拒绝漂移 |
 | GraphQL (entgql relay、filter、mutation) | 独立 GraphQL adapter crate | 框架外适配 | schema/relay node/cursor pagination/filter/order/mutation/transaction/eager load 兼容套件 |
 | OpenAPI/REST | Roze `.api` + `rozectl openapi` | 已兼容 | `docs/openapi.json` 与服务 smoke |
 | existing `sql.DB` / driver integration | Roze DB connection injection | 部分兼容 | 补齐外部 pool、事务连接和生命周期/关闭所有权测试 |

@@ -1,8 +1,19 @@
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::Path,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Mutex,
+    },
+};
 
 use roze_ent::{
-    generate_model_project_with_host, DependencySource, GenerateMode, GenerateOptions, HostAdapter,
-    ModelFormat, ModelOrm, RozeDependency,
+    generate_model_project_with_extensions_and_host_result, generate_model_project_with_host,
+    generate_model_project_with_host_result, inspect_model_project_with_host_result, model_graph,
+    model_project_requirements, DependencySource, GenerateMode, GenerateOptions,
+    GeneratedDependency, HostAdapter, InspectDatabaseKind, ModelBackend, ModelFormat,
+    ModelGenerationGraph, ModelGeneratorExtension, ModelOrm, ModelProjectRequirements,
+    RozeDependency, RuntimeCapability, MODEL_PROJECT_REQUIREMENTS_API_VERSION,
 };
 
 struct TestHost {
@@ -12,6 +23,50 @@ struct TestHost {
 impl HostAdapter for TestHost {
     fn roze_dependency(&self) -> Option<&RozeDependency> {
         Some(&self.dependency)
+    }
+}
+
+struct RequirementsHost {
+    dependency: RozeDependency,
+    seen: Mutex<Vec<ModelProjectRequirements>>,
+    fail: bool,
+}
+
+impl RequirementsHost {
+    fn new(fail: bool) -> Self {
+        Self {
+            dependency: RozeDependency::pinned("https://example.invalid/roze.git", "fixed-rev")
+                .unwrap(),
+            seen: Mutex::new(Vec::new()),
+            fail,
+        }
+    }
+}
+
+impl HostAdapter for RequirementsHost {
+    fn roze_dependency(&self) -> Option<&RozeDependency> {
+        Some(&self.dependency)
+    }
+
+    fn sync_model_project(
+        &self,
+        _staged_project: &Path,
+        requirements: &ModelProjectRequirements,
+    ) -> anyhow::Result<()> {
+        self.seen.lock().unwrap().push(requirements.clone());
+        anyhow::ensure!(!self.fail, "intentional host wiring failure");
+        Ok(())
+    }
+}
+
+struct LegacyHost {
+    calls: AtomicUsize,
+}
+
+impl HostAdapter for LegacyHost {
+    fn sync_project(&self, _staged_project: &Path) -> anyhow::Result<()> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Ok(())
     }
 }
 
@@ -168,4 +223,194 @@ fn mongo_update_cleans_marked_files_and_preserves_extensions() {
     );
     assert!(out.join("src/model/account.rs").exists());
     assert!(out.join("src/model/account_ext.rs").exists());
+}
+
+#[test]
+fn mongo_project_requirements_match_golden_contract() {
+    assert_eq!(MODEL_PROJECT_REQUIREMENTS_API_VERSION, 1);
+    let graph = model_graph(
+        "model User {\n  table: users\n  primary: id\n  cache: true\n  field id ObjectId\n  field metadata serde_json::Value\n}\n",
+        ModelFormat::Mongo,
+        ModelOrm::SeaOrm,
+    )
+    .unwrap();
+    let requirements = model_project_requirements(&graph, ModelBackend::MongoDb);
+    assert_eq!(
+        requirements,
+        ModelProjectRequirements {
+            backend: ModelBackend::MongoDb,
+            cargo_dependencies: vec![
+                GeneratedDependency::without_features("anyhow"),
+                GeneratedDependency::without_features("roze-cache"),
+                GeneratedDependency::without_features("roze-mongo"),
+                GeneratedDependency::new("serde", ["derive"]),
+                GeneratedDependency::without_features("serde_json"),
+            ],
+            runtime_capabilities: vec![
+                RuntimeCapability::MongoConnection,
+                RuntimeCapability::CacheConnection,
+                RuntimeCapability::HealthRegistration,
+                RuntimeCapability::ModelContextHook,
+            ],
+        }
+    );
+}
+
+#[test]
+fn sql_backend_requirements_preserve_sea_orm_and_toasty_contracts() {
+    let sea_graph =
+        model_graph(&schema("User", "users"), ModelFormat::Ent, ModelOrm::SeaOrm).unwrap();
+    let sea = model_project_requirements(&sea_graph, ModelBackend::SeaOrm);
+    assert!(sea.dependency("sea-orm").is_some());
+    assert!(sea.dependency("roze-orm").is_some());
+    assert!(sea.requires(RuntimeCapability::SqlConnection));
+
+    let toasty_graph =
+        model_graph(&schema("User", "users"), ModelFormat::Ent, ModelOrm::Toasty).unwrap();
+    let toasty = model_project_requirements(&toasty_graph, ModelBackend::Toasty);
+    assert!(toasty.dependency("toasty").is_some());
+    assert!(toasty.dependency("roze-config").is_some());
+    assert!(toasty.dependency("roze-db").is_some());
+    assert!(toasty.dependency("roze-orm").is_some());
+    assert!(toasty.requires(RuntimeCapability::SqlConnection));
+}
+
+struct EnableCache;
+
+impl ModelGeneratorExtension for EnableCache {
+    fn name(&self) -> &'static str {
+        "enable-cache"
+    }
+
+    fn transform(&self, graph: &mut ModelGenerationGraph) -> anyhow::Result<()> {
+        graph.models[0].cache = true;
+        Ok(())
+    }
+}
+
+#[test]
+fn create_update_and_extensions_report_the_same_requirements() {
+    let temp = tempfile::tempdir().unwrap();
+    let out = temp.path().join("fixture");
+    initialize_project(&out);
+    let host = RequirementsHost::new(false);
+    let source = "model User {\n  table: users\n  primary: id\n  field id ObjectId\n}\n";
+    let extension = EnableCache;
+    let create = generate_model_project_with_extensions_and_host_result(
+        source,
+        &out,
+        GenerateOptions::new(GenerateMode::Create, DependencySource::Git),
+        ModelFormat::Mongo,
+        ModelOrm::SeaOrm,
+        &[&extension],
+        &host,
+    )
+    .unwrap();
+    let first = fs::read(out.join("src/model/mod.rs")).unwrap();
+    let update = generate_model_project_with_extensions_and_host_result(
+        source,
+        &out,
+        GenerateOptions::new(GenerateMode::Update, DependencySource::Git),
+        ModelFormat::Mongo,
+        ModelOrm::SeaOrm,
+        &[&extension],
+        &host,
+    )
+    .unwrap();
+    assert_eq!(create, update);
+    assert_eq!(fs::read(out.join("src/model/mod.rs")).unwrap(), first);
+    assert!(create.requirements.dependency("roze-mongo").is_some());
+    assert!(create.requirements.dependency("roze-cache").is_some());
+    assert_eq!(
+        host.seen.lock().unwrap().as_slice(),
+        &[create.requirements.clone(), update.requirements]
+    );
+}
+
+#[test]
+fn legacy_sync_project_callback_remains_compatible() {
+    let temp = tempfile::tempdir().unwrap();
+    let out = temp.path().join("fixture");
+    initialize_project(&out);
+    let host = LegacyHost {
+        calls: AtomicUsize::new(0),
+    };
+    generate_model_project_with_host_result(
+        &schema("User", "users"),
+        &out,
+        GenerateOptions::new(GenerateMode::Create, DependencySource::Git),
+        ModelFormat::Ent,
+        ModelOrm::SeaOrm,
+        &host,
+    )
+    .unwrap();
+    assert_eq!(host.calls.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn requirements_callback_failure_rolls_back_atomically() {
+    let temp = tempfile::tempdir().unwrap();
+    let out = temp.path().join("fixture");
+    initialize_project(&out);
+    fs::write(out.join("owned.txt"), "original").unwrap();
+    let host = RequirementsHost::new(true);
+    let error = generate_model_project_with_host_result(
+        &schema("User", "users"),
+        &out,
+        GenerateOptions::new(GenerateMode::Update, DependencySource::Git),
+        ModelFormat::Ent,
+        ModelOrm::SeaOrm,
+        &host,
+    )
+    .unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("intentional host wiring failure"));
+    assert_eq!(
+        fs::read_to_string(out.join("owned.txt")).unwrap(),
+        "original"
+    );
+    assert!(!out.join("src/model").exists());
+}
+
+#[tokio::test]
+async fn sqlite_inspect_reports_the_same_sea_orm_requirements() {
+    let temp = tempfile::tempdir().unwrap();
+    let database = temp.path().join("inspect.db");
+    let url = format!(
+        "sqlite://{}?mode=rwc",
+        database.to_string_lossy().replace('\\', "/")
+    );
+    let pool = sqlx::SqlitePool::connect(&url).await.unwrap();
+    sqlx::raw_sql("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
+        .execute(&pool)
+        .await
+        .unwrap();
+    pool.close().await;
+
+    let out = temp.path().join("fixture");
+    initialize_project(&out);
+    let host = RequirementsHost::new(false);
+    let inspected = inspect_model_project_with_host_result(
+        "users",
+        None,
+        &url,
+        InspectDatabaseKind::Sqlite,
+        1,
+        &out,
+        GenerateOptions::new(GenerateMode::Create, DependencySource::Git),
+        ModelOrm::SeaOrm,
+        &host,
+    )
+    .await
+    .unwrap();
+    assert_eq!(inspected.requirements.backend, ModelBackend::SeaOrm);
+    assert!(inspected.requirements.dependency("sea-orm").is_some());
+    assert!(inspected
+        .requirements
+        .requires(RuntimeCapability::SqlConnection));
+    assert_eq!(
+        host.seen.lock().unwrap().as_slice(),
+        &[inspected.requirements]
+    );
 }

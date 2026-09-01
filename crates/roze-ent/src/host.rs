@@ -7,6 +7,9 @@ pub(crate) const ROZE_GIT_URL: &str = "https://github.com/roze-team/roze.git";
 // should use a HostAdapter and provide the revision of their Roze checkout.
 pub(crate) const ROZE_GIT_REV: &str = "e4bf750dfa630ca4224318d1e7c72a818598a2d2";
 
+/// Version of the structured model project requirements contract.
+pub const MODEL_PROJECT_REQUIREMENTS_API_VERSION: u32 = 1;
+
 /// How generated projects obtain Roze runtime crates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DependencySource {
@@ -43,6 +46,96 @@ pub struct RozeDependency {
     pub rev: String,
 }
 
+/// Model storage backend selected for a generated project.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ModelBackend {
+    SeaOrm,
+    Toasty,
+    MongoDb,
+}
+
+/// One direct Cargo dependency referenced by generated Rust code.
+///
+/// Version, workspace, path, and Git source selection intentionally remain a
+/// host responsibility. Names and features are sorted and deduplicated.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct GeneratedDependency {
+    pub name: String,
+    pub features: Vec<String>,
+}
+
+impl GeneratedDependency {
+    pub fn new(
+        name: impl Into<String>,
+        features: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        let mut features = features.into_iter().map(Into::into).collect::<Vec<_>>();
+        features.sort();
+        features.dedup();
+        Self {
+            name: name.into(),
+            features,
+        }
+    }
+
+    pub fn without_features(name: impl Into<String>) -> Self {
+        Self::new(name, std::iter::empty::<String>())
+    }
+}
+
+/// Host-owned runtime wiring required by generated repositories.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum RuntimeCapability {
+    SqlConnection,
+    MongoConnection,
+    CacheConnection,
+    HealthRegistration,
+    ModelContextHook,
+}
+
+/// Deterministic, host-independent project contract produced by model codegen.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelProjectRequirements {
+    pub backend: ModelBackend,
+    pub cargo_dependencies: Vec<GeneratedDependency>,
+    pub runtime_capabilities: Vec<RuntimeCapability>,
+}
+
+impl ModelProjectRequirements {
+    pub(crate) fn new(
+        backend: ModelBackend,
+        mut cargo_dependencies: Vec<GeneratedDependency>,
+        mut runtime_capabilities: Vec<RuntimeCapability>,
+    ) -> Self {
+        cargo_dependencies.sort();
+        cargo_dependencies.dedup();
+        runtime_capabilities.sort();
+        runtime_capabilities.dedup();
+        Self {
+            backend,
+            cargo_dependencies,
+            runtime_capabilities,
+        }
+    }
+
+    pub fn requires(&self, capability: RuntimeCapability) -> bool {
+        self.runtime_capabilities.binary_search(&capability).is_ok()
+    }
+
+    pub fn dependency(&self, name: &str) -> Option<&GeneratedDependency> {
+        self.cargo_dependencies
+            .iter()
+            .find(|dependency| dependency.name == name)
+    }
+}
+
+/// Successful generation metadata. Files have already committed atomically
+/// when this value is returned.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelGenerationResult {
+    pub requirements: ModelProjectRequirements,
+}
+
 impl RozeDependency {
     pub fn pinned(git: impl Into<String>, rev: impl Into<String>) -> anyhow::Result<Self> {
         let dependency = Self {
@@ -70,6 +163,17 @@ pub trait HostAdapter: Send + Sync {
 
     fn sync_project(&self, _staged_project: &Path) -> anyhow::Result<()> {
         Ok(())
+    }
+
+    /// Apply project-level dependency and runtime wiring while generation is
+    /// still staged. The default preserves compatibility with pre-requirements
+    /// adapters by forwarding to `sync_project`.
+    fn sync_model_project(
+        &self,
+        staged_project: &Path,
+        _requirements: &ModelProjectRequirements,
+    ) -> anyhow::Result<()> {
+        self.sync_project(staged_project)
     }
 
     fn format_generated_rust(

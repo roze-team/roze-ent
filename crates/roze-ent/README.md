@@ -12,18 +12,31 @@ The stable public surface includes:
 - transactional create/update/force generation, stale generated-file cleanup,
   and preservation of application-owned `*_ext.rs` files;
 - generator extension API version 1;
-- a `HostAdapter` for exact Roze Git pins, formatting, service manifests, and
-  `ServiceContext` wiring.
+- project requirements contract API version 1, covering the selected backend,
+  direct Cargo dependencies/features, and host-owned runtime capabilities;
+- a backward-compatible `HostAdapter` for exact Roze Git pins, formatting,
+  service manifests, and `ServiceContext` wiring.
 
 ```rust,no_run
 use roze_ent::{
-    generate_model_project_with_host, DependencySource, GenerateMode, GenerateOptions,
-    HostAdapter, ModelFormat, ModelOrm, RozeDependency,
+    generate_model_project_with_host_result, DependencySource, GenerateMode, GenerateOptions,
+    HostAdapter, ModelFormat, ModelOrm, ModelProjectRequirements, RozeDependency,
 };
 
 struct Host(RozeDependency);
 impl HostAdapter for Host {
     fn roze_dependency(&self) -> Option<&RozeDependency> { Some(&self.0) }
+
+    fn sync_model_project(
+        &self,
+        staged_project: &std::path::Path,
+        requirements: &ModelProjectRequirements,
+    ) -> anyhow::Result<()> {
+        // Select dependency sources and wire host-specific runtime state here.
+        // This runs against staging; an error leaves the destination unchanged.
+        let _ = (staged_project, requirements);
+        Ok(())
+    }
 }
 
 # fn run() -> anyhow::Result<()> {
@@ -31,7 +44,7 @@ let host = Host(RozeDependency::pinned(
     "https://github.com/roze-team/roze.git",
     "<same-revision-used-by-the-project>",
 )?);
-generate_model_project_with_host(
+let result = generate_model_project_with_host_result(
     "entity User { table \"users\" field id: i64 { primary } }",
     std::path::Path::new("services/user-api"),
     GenerateOptions::new(GenerateMode::Update, DependencySource::Git),
@@ -39,9 +52,16 @@ generate_model_project_with_host(
     ModelOrm::SeaOrm,
     &host,
 )?;
+assert_eq!(result.requirements.backend, roze_ent::ModelBackend::SeaOrm);
 # Ok(())
 # }
 ```
+
+The original unit-returning generation and inspection functions remain
+available. Their `*_result` variants return the same deterministic
+`ModelProjectRequirements` for create, update, inspection, and extension
+generation. Existing adapters that only implement `sync_project` continue to
+work because `sync_model_project` forwards to it by default.
 
 Pin this crate itself by Git revision from downstream:
 
@@ -54,4 +74,3 @@ Run the non-external-database compatibility suite with:
 ```bash
 cargo test -p roze-ent -- --skip postgres --skip mysql --skip mongo
 ```
-

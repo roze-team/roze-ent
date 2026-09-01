@@ -9,6 +9,8 @@ mod plan;
 pub mod model;
 
 pub use host::{
-    DependencySource, GenerateMode, GenerateOptions, HostAdapter, NoopHostAdapter, RozeDependency,
+    DependencySource, GenerateMode, GenerateOptions, GeneratedDependency, HostAdapter,
+    ModelBackend, ModelGenerationResult, ModelProjectRequirements, NoopHostAdapter, RozeDependency,
+    RuntimeCapability, MODEL_PROJECT_REQUIREMENTS_API_VERSION,
 };
 pub use model::*;

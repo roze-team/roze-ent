@@ -227,7 +227,7 @@ fn mongo_update_cleans_marked_files_and_preserves_extensions() {
 
 #[test]
 fn mongo_project_requirements_match_golden_contract() {
-    assert_eq!(MODEL_PROJECT_REQUIREMENTS_API_VERSION, 1);
+    assert_eq!(MODEL_PROJECT_REQUIREMENTS_API_VERSION, 2);
     let graph = model_graph(
         "model User {\n  table: users\n  primary: id\n  cache: true\n  field id ObjectId\n  field metadata serde_json::Value\n}\n",
         ModelFormat::Mongo,
@@ -240,11 +240,11 @@ fn mongo_project_requirements_match_golden_contract() {
         ModelProjectRequirements {
             backend: ModelBackend::MongoDb,
             cargo_dependencies: vec![
-                GeneratedDependency::without_features("anyhow"),
+                GeneratedDependency::versioned("anyhow", "1"),
                 GeneratedDependency::without_features("roze-cache"),
                 GeneratedDependency::without_features("roze-mongo"),
-                GeneratedDependency::new("serde", ["derive"]),
-                GeneratedDependency::without_features("serde_json"),
+                GeneratedDependency::with_version_req("serde", "1", ["derive"]),
+                GeneratedDependency::versioned("serde_json", "1"),
             ],
             runtime_capabilities: vec![
                 RuntimeCapability::MongoConnection,
@@ -254,6 +254,161 @@ fn mongo_project_requirements_match_golden_contract() {
             ],
         }
     );
+}
+
+#[test]
+fn dependency_constructors_preserve_legacy_callers_and_sort_features() {
+    assert_eq!(
+        GeneratedDependency::new("example", ["z", "a", "z"]),
+        GeneratedDependency {
+            name: "example".to_string(),
+            features: vec!["a".to_string(), "z".to_string()],
+            version_req: None,
+        }
+    );
+    assert_eq!(
+        GeneratedDependency::with_version_req("example", "1.2", ["z", "a", "z"]),
+        GeneratedDependency {
+            name: "example".to_string(),
+            features: vec!["a".to_string(), "z".to_string()],
+            version_req: Some("1.2".to_string()),
+        }
+    );
+}
+
+fn assert_dependency_contract(
+    requirements: &ModelProjectRequirements,
+    name: &str,
+    version_req: Option<&str>,
+    features: &[&str],
+) {
+    let dependency = requirements
+        .dependency(name)
+        .unwrap_or_else(|| panic!("missing generated dependency `{name}`"));
+    assert_eq!(dependency.version_req.as_deref(), version_req, "{name}");
+    assert_eq!(
+        dependency
+            .features
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        features,
+        "{name}"
+    );
+}
+
+fn manifest_from_requirements(requirements: &ModelProjectRequirements) -> String {
+    let mut manifest = String::from("[dependencies]\n");
+    for dependency in &requirements.cargo_dependencies {
+        manifest.push_str(&dependency.name);
+        manifest.push_str(" = { ");
+        if let Some(version_req) = &dependency.version_req {
+            manifest.push_str(&format!("version = {version_req:?}"));
+        } else {
+            manifest.push_str("workspace = true");
+        }
+        if !dependency.features.is_empty() {
+            let features = dependency
+                .features
+                .iter()
+                .map(|feature| format!("{feature:?}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            manifest.push_str(&format!(", features = [{features}]"));
+        }
+        manifest.push_str(" }\n");
+    }
+    manifest
+}
+
+#[test]
+fn every_backend_reports_versions_for_all_crates_io_dependencies() {
+    let source = r#"
+        entity Fixture {
+            table "fixtures"
+            cache true
+            field id: i64 {
+                primary
+            }
+            field token: string {
+                default uuid_new_string
+                match "^[a-z0-9-]+$"
+            }
+            field amount: decimal {
+            }
+            field metadata: json {
+            }
+            field local_time: timestamp {
+            }
+            field created_at: timestamptz {
+            }
+        }
+    "#;
+
+    for (orm, backend) in [
+        (ModelOrm::SeaOrm, ModelBackend::SeaOrm),
+        (ModelOrm::Toasty, ModelBackend::Toasty),
+        (ModelOrm::SeaOrm, ModelBackend::MongoDb),
+    ] {
+        let graph = model_graph(source, ModelFormat::Ent, orm).unwrap();
+        let requirements = model_project_requirements(&graph, backend);
+        let manifest = manifest_from_requirements(&requirements);
+        assert_eq!(manifest, manifest_from_requirements(&requirements));
+        manifest.parse::<toml_edit::DocumentMut>().unwrap();
+        assert!(requirements.cargo_dependencies.iter().all(|dependency| {
+            dependency.name.starts_with("roze-") == dependency.version_req.is_none()
+        }));
+        assert_dependency_contract(&requirements, "anyhow", Some("1"), &[]);
+        assert_dependency_contract(&requirements, "serde", Some("1"), &["derive"]);
+        assert_dependency_contract(&requirements, "rust_decimal", Some("1"), &["serde"]);
+        assert_dependency_contract(&requirements, "regex", Some("1"), &[]);
+        assert_dependency_contract(&requirements, "uuid", Some("1"), &["v7"]);
+
+        match backend {
+            ModelBackend::SeaOrm => {
+                assert_dependency_contract(
+                    &requirements,
+                    "chrono",
+                    Some("0.4"),
+                    &["clock", "serde"],
+                );
+                assert_dependency_contract(&requirements, "serde_json", Some("1"), &[]);
+                assert_dependency_contract(
+                    &requirements,
+                    "sea-orm",
+                    Some("1"),
+                    &[
+                        "macros",
+                        "runtime-tokio-rustls",
+                        "sqlx-mysql",
+                        "sqlx-postgres",
+                        "sqlx-sqlite",
+                        "with-chrono",
+                        "with-json",
+                        "with-rust_decimal",
+                    ],
+                );
+            }
+            ModelBackend::Toasty => {
+                assert_dependency_contract(&requirements, "jiff", Some("0.2"), &["serde"]);
+                assert_dependency_contract(
+                    &requirements,
+                    "toasty",
+                    Some("0.7"),
+                    &["jiff", "mysql", "postgresql", "rust_decimal", "serde"],
+                );
+            }
+            ModelBackend::MongoDb => {
+                assert_dependency_contract(
+                    &requirements,
+                    "chrono",
+                    Some("0.4"),
+                    &["clock", "serde"],
+                );
+                assert_dependency_contract(&requirements, "serde_json", Some("1"), &[]);
+            }
+        }
+    }
 }
 
 #[test]

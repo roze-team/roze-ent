@@ -12,8 +12,9 @@ The stable public surface includes:
 - transactional create/update/force generation, stale generated-file cleanup,
   and preservation of application-owned `*_ext.rs` files;
 - generator extension API version 1;
-- project requirements contract API version 1, covering the selected backend,
-  direct Cargo dependencies/features, and host-owned runtime capabilities;
+- project requirements contract API version 2, covering the selected backend,
+  direct Cargo dependencies/features, crates.io compatibility requirements,
+  and host-owned runtime capabilities;
 - a backward-compatible `HostAdapter` for exact Roze Git pins, formatting,
   service manifests, and `ServiceContext` wiring.
 
@@ -62,6 +63,23 @@ available. Their `*_result` variants return the same deterministic
 `ModelProjectRequirements` for create, update, inspection, and extension
 generation. Existing adapters that only implement `sync_project` continue to
 work because `sync_model_project` forwards to it by default.
+
+## Project requirements API v2 migration
+
+`GeneratedDependency` now includes `version_req: Option<String>`. Every
+crates.io dependency emitted by `roze-ent` has a Cargo-compatible minimum
+compatibility requirement;
+`roze-*` dependencies use `None` so the host can continue selecting a shared
+workspace dependency, local path, or one uniformly pinned Git revision.
+
+Hosts should prefer a matching parent `[workspace.dependencies]` entry, merge
+features into a compatible existing explicit dependency, and use `version_req`
+only when adding a missing crates.io dependency. Roze dependency source
+selection and all manifest merging remain host-owned. The existing
+`GeneratedDependency::new` and `without_features` constructors are unchanged
+for source compatibility; `with_version_req` and `versioned` construct the new
+crates.io form. Code using a `GeneratedDependency` struct literal must add the
+new field. `MODEL_PROJECT_REQUIREMENTS_API_VERSION` is now `2`.
 
 Pin this crate itself by Git revision from downstream:
 

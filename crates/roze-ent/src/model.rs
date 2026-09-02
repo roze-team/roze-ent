@@ -1448,7 +1448,9 @@ pub fn model_project_requirements(
         ModelBackend::MongoDb => graph.models.clone(),
     };
     let needs = model_dependency_needs(&rendered_models);
-    let dependency = |name: &str| GeneratedDependency::without_features(name);
+    let dependency =
+        |name: &str, version_req: &str| GeneratedDependency::versioned(name, version_req);
+    let roze_dependency = |name: &str| GeneratedDependency::without_features(name);
     let mut dependencies = Vec::new();
     let mut capabilities = vec![
         RuntimeCapability::HealthRegistration,
@@ -1474,17 +1476,17 @@ pub fn model_project_requirements(
                 sea_orm_features.push("with-json");
             }
             dependencies.extend([
-                dependency("anyhow"),
-                GeneratedDependency::new("sea-orm", sea_orm_features),
-                dependency("roze-orm"),
-                dependency("async-trait"),
-                GeneratedDependency::new("serde", ["derive"]),
-                dependency("serde_json"),
-                dependency("tracing"),
+                dependency("anyhow", "1"),
+                GeneratedDependency::with_version_req("sea-orm", "1", sea_orm_features),
+                roze_dependency("roze-orm"),
+                dependency("async-trait", "0.1"),
+                GeneratedDependency::with_version_req("serde", "1", ["derive"]),
+                dependency("serde_json", "1"),
+                dependency("tracing", "0.1"),
             ]);
             capabilities.push(RuntimeCapability::SqlConnection);
             if needs.cache {
-                dependencies.push(dependency("roze-cache"));
+                dependencies.push(roze_dependency("roze-cache"));
                 capabilities.push(RuntimeCapability::CacheConnection);
             }
         }
@@ -1494,52 +1496,64 @@ pub fn model_project_requirements(
                 toasty_features.push("jiff");
             }
             dependencies.extend([
-                dependency("anyhow"),
-                GeneratedDependency::new("toasty", toasty_features),
-                dependency("roze-config"),
-                dependency("roze-db"),
-                dependency("roze-orm"),
-                GeneratedDependency::new("serde", ["derive"]),
-                GeneratedDependency::new("rust_decimal", ["serde"]),
-                dependency("serde_json"),
-                dependency("tracing"),
+                dependency("anyhow", "1"),
+                GeneratedDependency::with_version_req("toasty", "0.7", toasty_features),
+                roze_dependency("roze-config"),
+                roze_dependency("roze-db"),
+                roze_dependency("roze-orm"),
+                GeneratedDependency::with_version_req("serde", "1", ["derive"]),
+                GeneratedDependency::with_version_req("rust_decimal", "1", ["serde"]),
+                dependency("serde_json", "1"),
+                dependency("tracing", "0.1"),
             ]);
             capabilities.push(RuntimeCapability::SqlConnection);
         }
         ModelBackend::MongoDb => {
             dependencies.extend([
-                dependency("anyhow"),
-                GeneratedDependency::new("serde", ["derive"]),
-                dependency("roze-mongo"),
+                dependency("anyhow", "1"),
+                GeneratedDependency::with_version_req("serde", "1", ["derive"]),
+                roze_dependency("roze-mongo"),
             ]);
             capabilities.push(RuntimeCapability::MongoConnection);
             if needs.cache {
-                dependencies.push(dependency("roze-cache"));
+                dependencies.push(roze_dependency("roze-cache"));
                 capabilities.push(RuntimeCapability::CacheConnection);
             }
         }
     }
 
     if needs.sharding {
-        dependencies.push(dependency("roze-db"));
+        dependencies.push(roze_dependency("roze-db"));
     }
     if needs.json && backend == ModelBackend::MongoDb {
-        dependencies.push(dependency("serde_json"));
+        dependencies.push(dependency("serde_json", "1"));
     }
     if needs.rust_decimal && backend != ModelBackend::Toasty {
-        dependencies.push(GeneratedDependency::new("rust_decimal", ["serde"]));
+        dependencies.push(GeneratedDependency::with_version_req(
+            "rust_decimal",
+            "1",
+            ["serde"],
+        ));
     }
     if needs.chrono {
-        dependencies.push(GeneratedDependency::new("chrono", ["clock", "serde"]));
+        dependencies.push(GeneratedDependency::with_version_req(
+            "chrono",
+            "0.4",
+            ["clock", "serde"],
+        ));
     }
     if needs.jiff {
-        dependencies.push(GeneratedDependency::new("jiff", ["serde"]));
+        dependencies.push(GeneratedDependency::with_version_req(
+            "jiff",
+            "0.2",
+            ["serde"],
+        ));
     }
     if needs.uuid {
-        dependencies.push(GeneratedDependency::new("uuid", ["v7"]));
+        dependencies.push(GeneratedDependency::with_version_req("uuid", "1", ["v7"]));
     }
     if needs.regex {
-        dependencies.push(dependency("regex"));
+        dependencies.push(dependency("regex", "1"));
     }
 
     ModelProjectRequirements::new(backend, dependencies, capabilities)

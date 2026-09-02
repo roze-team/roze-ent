@@ -8,7 +8,7 @@ pub(crate) const ROZE_GIT_URL: &str = "https://github.com/roze-team/roze.git";
 pub(crate) const ROZE_GIT_REV: &str = "e4bf750dfa630ca4224318d1e7c72a818598a2d2";
 
 /// Version of the structured model project requirements contract.
-pub const MODEL_PROJECT_REQUIREMENTS_API_VERSION: u32 = 1;
+pub const MODEL_PROJECT_REQUIREMENTS_API_VERSION: u32 = 2;
 
 /// How generated projects obtain Roze runtime crates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,12 +56,16 @@ pub enum ModelBackend {
 
 /// One direct Cargo dependency referenced by generated Rust code.
 ///
-/// Version, workspace, path, and Git source selection intentionally remain a
-/// host responsibility. Names and features are sorted and deduplicated.
+/// `version_req` is the Cargo-compatible SemVer requirement for crates.io
+/// dependencies. Roze-owned `roze-*` dependencies leave it unset because the
+/// host selects their shared workspace, path, or pinned Git source. All source
+/// selection and manifest merging intentionally remain a host responsibility.
+/// Names and features are sorted and deduplicated.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GeneratedDependency {
     pub name: String,
     pub features: Vec<String>,
+    pub version_req: Option<String>,
 }
 
 impl GeneratedDependency {
@@ -75,11 +79,28 @@ impl GeneratedDependency {
         Self {
             name: name.into(),
             features,
+            version_req: None,
         }
     }
 
     pub fn without_features(name: impl Into<String>) -> Self {
         Self::new(name, std::iter::empty::<String>())
+    }
+
+    /// Construct a crates.io dependency requirement with a compatible version.
+    pub fn with_version_req(
+        name: impl Into<String>,
+        version_req: impl Into<String>,
+        features: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        let mut dependency = Self::new(name, features);
+        dependency.version_req = Some(version_req.into());
+        dependency
+    }
+
+    /// Construct a crates.io dependency requirement without features.
+    pub fn versioned(name: impl Into<String>, version_req: impl Into<String>) -> Self {
+        Self::with_version_req(name, version_req, std::iter::empty::<String>())
     }
 }
 
@@ -107,6 +128,12 @@ impl ModelProjectRequirements {
         mut cargo_dependencies: Vec<GeneratedDependency>,
         mut runtime_capabilities: Vec<RuntimeCapability>,
     ) -> Self {
+        assert!(
+            cargo_dependencies.iter().all(|dependency| {
+                dependency.name.starts_with("roze-") || dependency.version_req.is_some()
+            }),
+            "every non-Roze generated dependency must declare a compatible version requirement"
+        );
         cargo_dependencies.sort();
         cargo_dependencies.dedup();
         runtime_capabilities.sort();
